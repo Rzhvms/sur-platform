@@ -1,4 +1,4 @@
-namespace Shared.Domain.Exceptions;
+namespace Shared.Domain.Exceptions.Base;
 
 /// <summary>
 /// Базовый тип ожидаемых исключений приложения
@@ -14,6 +14,7 @@ public abstract class BaseException : Exception
     protected BaseException(string code, string message) : base(message)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(code);
+        ArgumentException.ThrowIfNullOrWhiteSpace(message);
         Code = code;
     }
 
@@ -21,6 +22,8 @@ public abstract class BaseException : Exception
     protected BaseException(string code, string message, Exception innerException) : base(message, innerException)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(code);
+        ArgumentException.ThrowIfNullOrWhiteSpace(message);
+        ArgumentNullException.ThrowIfNull(innerException);
         Code = code;
     }
 }
