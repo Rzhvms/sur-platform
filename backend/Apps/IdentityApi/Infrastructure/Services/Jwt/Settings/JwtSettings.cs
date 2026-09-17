@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace IdentityApi.Infrastructure.Jwt.Settings;
+namespace IdentityApi.Infrastructure.Services.Jwt.Settings;
 
 /// <summary>
 /// Настройки выпуска и проверки JWT

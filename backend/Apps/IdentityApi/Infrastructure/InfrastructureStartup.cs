@@ -1,9 +1,10 @@
-using IdentityApi.Application.Encryption.Interfaces;
-using IdentityApi.Application.Jwt.Generators.Interfaces;
-using IdentityApi.Infrastructure.Encryption;
-using IdentityApi.Infrastructure.Jwt;
-using IdentityApi.Infrastructure.Jwt.Rsa;
-using IdentityApi.Infrastructure.Jwt.Settings;
+using IdentityApi.Application.Ports.Services.Authentication;
+using IdentityApi.Application.Ports.Services.Encryption;
+using IdentityApi.Infrastructure.Services.Encryption;
+using IdentityApi.Infrastructure.Services.Jwt;
+using IdentityApi.Infrastructure.Services.Jwt.Rsa;
+using IdentityApi.Infrastructure.Services.Jwt.Rsa.Interfaces;
+using IdentityApi.Infrastructure.Services.Jwt.Settings;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
@@ -30,10 +31,10 @@ public static class InfrastructureStartup
             .ValidateDataAnnotations()
             .ValidateOnStart();
 
-        services.TryAddSingleton<TimeProvider>(TimeProvider.System);
+        services.TryAddSingleton(TimeProvider.System);
         services.AddSingleton<IPasswordEncryptionService, PasswordEncryptionService>();
         services.AddSingleton<IRsaKeyProvider, FileSystemRsaKeyProvider>();
-        services.AddSingleton<IJwtGenerationService, JwtGenerationService>();
+        services.AddSingleton<ITokenService, TokenService>();
 
         return services;
     }

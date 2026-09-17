@@ -1,4 +1,4 @@
-namespace IdentityApi.Application.Encryption.Interfaces;
+namespace IdentityApi.Application.Ports.Services.Encryption;
 
 /// <summary>
 /// Сервис хеширования паролей

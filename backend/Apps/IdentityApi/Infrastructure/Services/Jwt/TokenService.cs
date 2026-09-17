@@ -2,17 +2,17 @@ using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
 using IdentityApi.Application.Exceptions;
-using IdentityApi.Application.Jwt.Generators.Interfaces;
-using IdentityApi.Application.Jwt.Models;
-using IdentityApi.Infrastructure.Jwt.Rsa;
-using IdentityApi.Infrastructure.Jwt.Settings;
+using IdentityApi.Application.Models.Authentication;
+using IdentityApi.Application.Ports.Services.Authentication;
+using IdentityApi.Infrastructure.Services.Jwt.Rsa.Interfaces;
+using IdentityApi.Infrastructure.Services.Jwt.Settings;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
-namespace IdentityApi.Infrastructure.Jwt;
+namespace IdentityApi.Infrastructure.Services.Jwt;
 
 /// <inheritdoc/>
-internal sealed class JwtGenerationService : IJwtGenerationService
+internal sealed class TokenService : ITokenService
 {
     /// <summary>
     /// Тип access-токена
@@ -59,7 +59,7 @@ internal sealed class JwtGenerationService : IJwtGenerationService
     private readonly TimeProvider _timeProvider;
 
     ///
-    public JwtGenerationService(IOptions<JwtSettings> settings, IRsaKeyProvider keyProvider, TimeProvider timeProvider)
+    public TokenService(IOptions<JwtSettings> settings, IRsaKeyProvider keyProvider, TimeProvider timeProvider)
     {
         ArgumentNullException.ThrowIfNull(settings);
         ArgumentNullException.ThrowIfNull(keyProvider);
@@ -71,17 +71,17 @@ internal sealed class JwtGenerationService : IJwtGenerationService
     }
 
     /// <inheritdoc/>
-    public string GenerateAccessToken(JwtUserData user)
+    public string GenerateAccessToken(AccessTokenData data)
     {
-        ArgumentNullException.ThrowIfNull(user);
+        ArgumentNullException.ThrowIfNull(data);
         
-        if (user.UserId == Guid.Empty)
+        if (data.UserId == Guid.Empty)
         {
-            throw new ArgumentException("Идентификатор пользователя не может быть пустым", nameof(user));
+            throw new ArgumentException("Идентификатор пользователя не может быть пустым", nameof(data));
         }
 
         var now = _timeProvider.GetUtcNow();
-        var claims = BuildAccessTokenClaims(user);
+        var claims = BuildAccessTokenClaims(data);
         
         var descriptor = new SecurityTokenDescriptor
         {
@@ -148,7 +148,7 @@ internal sealed class JwtGenerationService : IJwtGenerationService
     /// <summary>
     /// Формирование набора claims для access-токена
     /// </summary>
-    private static IReadOnlyCollection<Claim> BuildAccessTokenClaims(JwtUserData user)
+    private static IReadOnlyCollection<Claim> BuildAccessTokenClaims(AccessTokenData user)
     {
         var additionalClaimCount = user.Claims?.Count ?? 0;
         

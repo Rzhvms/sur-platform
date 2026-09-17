@@ -1,11 +1,11 @@
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
-using IdentityApi.Application.Encryption.Interfaces;
-using IdentityApi.Infrastructure.Encryption.Models;
+using IdentityApi.Application.Ports.Services.Encryption;
+using IdentityApi.Infrastructure.Services.Encryption.Models;
 using Konscious.Security.Cryptography;
 
-namespace IdentityApi.Infrastructure.Encryption;
+namespace IdentityApi.Infrastructure.Services.Encryption;
 
 /// <inheritdoc/>
 internal sealed class PasswordEncryptionService : IPasswordEncryptionService
@@ -142,7 +142,7 @@ internal sealed class PasswordEncryptionService : IPasswordEncryptionService
     }
 
     /// <summary>
-    /// Разбирает сохраненный Argon2id-хеш и проверяет допустимость его параметров
+    /// Парсит сохраненный Argon2id-хеш и проверяет допустимость его параметров
     /// </summary>
     private static bool TryParseHash(string? storedHash, out ParsedPasswordHash parsedHash)
     {

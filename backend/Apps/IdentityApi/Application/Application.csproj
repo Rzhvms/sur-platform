@@ -17,4 +17,9 @@
         <ProjectReference Include="..\..\..\Libs\Shared\Shared.Domain\Shared.Domain.csproj" />
     </ItemGroup>
 
+    <ItemGroup>
+      <Folder Include="Models\" />
+      <Folder Include="Ports\Services\" />
+    </ItemGroup>
+
 </Project>

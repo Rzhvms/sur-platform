@@ -1,11 +1,11 @@
 using System.Security.Claims;
 
-namespace IdentityApi.Application.Jwt.Models;
+namespace IdentityApi.Application.Models.Authentication;
 
 /// <summary>
 /// Минимальный набор данных о пользователе, необходимый для выпуска JWT.
 /// </summary>
-public sealed record JwtUserData
+public sealed record AccessTokenData
 {
     /// <summary>
     /// Идентификатор пользователя

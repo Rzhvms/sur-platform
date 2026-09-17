@@ -1,7 +1,7 @@
 using IdentityApi.Application;
 using IdentityApi.Infrastructure;
-using IdentityApi.Infrastructure.Jwt.Rsa;
-using IdentityApi.Infrastructure.Jwt.Settings;
+using IdentityApi.Infrastructure.Services.Jwt.Rsa.Interfaces;
+using IdentityApi.Infrastructure.Services.Jwt.Settings;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;

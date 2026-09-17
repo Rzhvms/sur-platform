@@ -1,16 +1,16 @@
-using IdentityApi.Application.Jwt.Models;
+using IdentityApi.Application.Models.Authentication;
 
-namespace IdentityApi.Application.Jwt.Generators.Interfaces;
+namespace IdentityApi.Application.Ports.Services.Authentication;
 
 /// <summary>
 /// Сервис генерации и проверки jwt
 /// </summary>
-public interface IJwtGenerationService
+public interface ITokenService
 {
     /// <summary>
     /// Генерирует access token
     /// </summary>
-    string GenerateAccessToken(JwtUserData user);
+    string GenerateAccessToken(AccessTokenData data);
 
     /// <summary>
     /// Генерирует refresh token

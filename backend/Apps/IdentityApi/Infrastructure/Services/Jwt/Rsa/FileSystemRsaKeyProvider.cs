@@ -1,9 +1,10 @@
 using System.Security.Cryptography;
-using IdentityApi.Infrastructure.Jwt.Settings;
+using IdentityApi.Infrastructure.Services.Jwt.Rsa.Interfaces;
+using IdentityApi.Infrastructure.Services.Jwt.Settings;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
-namespace IdentityApi.Infrastructure.Jwt.Rsa;
+namespace IdentityApi.Infrastructure.Services.Jwt.Rsa;
 
 /// <summary>
 /// Файловая реализация провайдера RSA-ключей

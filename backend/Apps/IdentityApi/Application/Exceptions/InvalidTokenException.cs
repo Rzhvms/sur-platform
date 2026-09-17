@@ -2,7 +2,9 @@ using Shared.Domain.Exceptions;
 
 namespace IdentityApi.Application.Exceptions;
 
-/// <summary>Токен отсутствует, повреждён или не прошёл криптографическую проверку.</summary>
+/// <summary>
+/// Токен отсутствует, поврежден или не прошел криптографическую проверку
+/// </summary>
 public sealed class InvalidTokenException : AuthenticationException
 {
     ///

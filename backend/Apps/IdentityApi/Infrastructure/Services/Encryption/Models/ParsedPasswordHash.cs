@@ -1,4 +1,4 @@
-namespace IdentityApi.Infrastructure.Encryption.Models;
+namespace IdentityApi.Infrastructure.Services.Encryption.Models;
 
 /// <summary>
 /// Разобранные параметры и данные сохраненного Argon2id-хеша
