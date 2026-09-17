@@ -1,23 +1,23 @@
 namespace IdentityApi.Application.Encryption.Interfaces;
 
 /// <summary>
-/// Сервис шифрования паролей
+/// Сервис хеширования паролей
 /// </summary>
 public interface IPasswordEncryptionService
 {
     /// <summary>
-    /// Генерация дополнительной hash-строки для пароля
-    /// </summary>
-    byte[] GenerateSalt();
-    
-    /// <summary>
-    /// Хэширует пароль и возвращает самодостаточную строку:
+    /// Хеширует пароль и возвращает самодостаточную строку:
     /// algorithm:iterations:memory:parallelism:salt:hash
     /// </summary>
-    string HashPassword(string password, byte[] hashSalt);
+    string HashPassword(string password);
 
     /// <summary>
     /// Проверяет пароль относительно сохраненной строки-хэша
     /// </summary>
     bool VerifyPassword(string password, string storedHash);
+
+    /// <summary>
+    /// Показывает, следует ли пересчитать корректный хеш с актуальными параметрами
+    /// </summary>
+    bool NeedsRehash(string storedHash);
 }

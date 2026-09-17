@@ -1,10 +1,9 @@
 using Microsoft.IdentityModel.Tokens;
 
-namespace IdentityApi.Application.Jwt.RsaKeys.Interfaces;
+namespace IdentityApi.Infrastructure.Jwt.Rsa;
 
 /// <summary>
-/// RSA-ключи для подписи и проверки JWT
-/// При первом запуске создает директорию и ключи, если их нет
+/// RSA-ключи для подписи и проверки jwt
 /// </summary>
 public interface IRsaKeyProvider : IDisposable
 {

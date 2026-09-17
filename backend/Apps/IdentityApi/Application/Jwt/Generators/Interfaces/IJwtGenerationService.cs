@@ -1,37 +1,34 @@
+using IdentityApi.Application.Jwt.Models;
+
 namespace IdentityApi.Application.Jwt.Generators.Interfaces;
 
 /// <summary>
-/// Описывает сервис генерации и проверки JWT.
+/// Сервис генерации и проверки jwt
 /// </summary>
 public interface IJwtGenerationService
 {
     /// <summary>
-    /// Генерирует access token.
+    /// Генерирует access token
     /// </summary>
-    string GenerateAccessToken(JwtUserData user, bool isRestoringPassword = false);
+    string GenerateAccessToken(JwtUserData user);
 
     /// <summary>
-    /// Генерирует id token.
-    /// </summary>
-    string GenerateIdToken(JwtUserData user);
-
-    /// <summary>
-    /// Генерирует refresh token.
+    /// Генерирует refresh token
     /// </summary>
     string GenerateRefreshToken();
 
     /// <summary>
-    /// Возвращает время жизни refresh token в минутах.
+    /// Возвращает время жизни refresh token в минутах
     /// </summary>
-    int GetRefreshTokenLifetimeInMinutes();
+    TimeSpan GetRefreshTokenLifetime();
 
     /// <summary>
-    /// Извлекает идентификатор пользователя из токена.
+    /// Извлекает идентификатор пользователя из истекшего токена
     /// </summary>
-    Guid GetUserIdFromToken(string token);
+    Guid GetUserIdFromExpiredAccessToken(string token);
 
     /// <summary>
-    /// Проверяет валидность токена.
+    /// Проверяет валидность токена
     /// </summary>
-    bool IsTokenValid(string token, bool validateLifeTime);
+    bool IsAccessTokenValid(string token);
 }
