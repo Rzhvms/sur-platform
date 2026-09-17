@@ -3,7 +3,7 @@ namespace IdentityApi.Api;
 /// <summary>
 /// Настраивает сервисы и HTTP-конвейер приложения.
 /// </summary>
-internal sealed class Startup
+internal sealed class Startup(IConfiguration configuration)
 {
     /// <summary>
     /// Регистрация сервисов в DI

@@ -8,14 +8,14 @@ internal static class Program
     /// <summary>
     /// Запуск приложения
     /// </summary>
-    public static void Main(string[] args)
+    public static async Task Main(string[] args)
     {
-        Host.CreateDefaultBuilder(args)
+        await Host.CreateDefaultBuilder(args)
             .ConfigureWebHostDefaults(webBuilder =>
             {
                 webBuilder.UseStartup<Startup>();
             })
             .Build()
-            .Run();
+            .RunAsync();
     }
 }

@@ -19,11 +19,42 @@
         <PackageReference Include="Microsoft.Extensions.Options.DataAnnotations" Version="10.0.2" />
         <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.0" />
         <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.17.0" />
+        <!-- Перекрывает уязвимую транзитивную версию, которую подтягивает EF Core Design. -->
+        <PackageReference Include="System.Security.Cryptography.Xml" Version="10.0.1" />
     </ItemGroup>
 
     <ItemGroup>
         <ProjectReference Include="..\Application\Application.csproj" />
         <ProjectReference Include="..\Domain\Domain.csproj" />
+    </ItemGroup>
+
+    <ItemGroup>
+      <Folder Include="bin\Debug\net10.0\BuildHost-net472\cs\" />
+      <Folder Include="bin\Debug\net10.0\BuildHost-net472\de\" />
+      <Folder Include="bin\Debug\net10.0\BuildHost-net472\es\" />
+      <Folder Include="bin\Debug\net10.0\BuildHost-net472\fr\" />
+      <Folder Include="bin\Debug\net10.0\BuildHost-net472\it\" />
+      <Folder Include="bin\Debug\net10.0\BuildHost-net472\ja\" />
+      <Folder Include="bin\Debug\net10.0\BuildHost-net472\ko\" />
+      <Folder Include="bin\Debug\net10.0\BuildHost-net472\pl\" />
+      <Folder Include="bin\Debug\net10.0\BuildHost-net472\pt-BR\" />
+      <Folder Include="bin\Debug\net10.0\BuildHost-net472\ru\" />
+      <Folder Include="bin\Debug\net10.0\BuildHost-net472\tr\" />
+      <Folder Include="bin\Debug\net10.0\BuildHost-net472\zh-Hans\" />
+      <Folder Include="bin\Debug\net10.0\BuildHost-net472\zh-Hant\" />
+      <Folder Include="bin\Debug\net10.0\BuildHost-netcore\cs\" />
+      <Folder Include="bin\Debug\net10.0\BuildHost-netcore\de\" />
+      <Folder Include="bin\Debug\net10.0\BuildHost-netcore\es\" />
+      <Folder Include="bin\Debug\net10.0\BuildHost-netcore\fr\" />
+      <Folder Include="bin\Debug\net10.0\BuildHost-netcore\it\" />
+      <Folder Include="bin\Debug\net10.0\BuildHost-netcore\ja\" />
+      <Folder Include="bin\Debug\net10.0\BuildHost-netcore\ko\" />
+      <Folder Include="bin\Debug\net10.0\BuildHost-netcore\pl\" />
+      <Folder Include="bin\Debug\net10.0\BuildHost-netcore\pt-BR\" />
+      <Folder Include="bin\Debug\net10.0\BuildHost-netcore\ru\" />
+      <Folder Include="bin\Debug\net10.0\BuildHost-netcore\tr\" />
+      <Folder Include="bin\Debug\net10.0\BuildHost-netcore\zh-Hans\" />
+      <Folder Include="bin\Debug\net10.0\BuildHost-netcore\zh-Hant\" />
     </ItemGroup>
 
 </Project>
