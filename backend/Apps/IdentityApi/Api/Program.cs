@@ -1,4 +1,4 @@
-namespace IdentityApi.Api;
+namespace Api;
 
 /// <summary>
 /// Точка входа в приложение

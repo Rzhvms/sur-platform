@@ -1,41 +1,42 @@
-using IdentityApi.Application.Ports.Services.Authentication;
-using IdentityApi.Application.Ports.Services.Encryption;
-using IdentityApi.Infrastructure.Services.Encryption;
-using IdentityApi.Infrastructure.Services.Jwt;
-using IdentityApi.Infrastructure.Services.Jwt.Rsa;
-using IdentityApi.Infrastructure.Services.Jwt.Rsa.Interfaces;
-using IdentityApi.Infrastructure.Services.Jwt.Settings;
-using Microsoft.Extensions.Configuration;
+using System.Data;
+using Application.Ports.Repositories;
+using FluentMigrator.Runner;
+using Infrastructure.Migrations;
+using Infrastructure.Repositories.RoleSystem;
+using Infrastructure.Repositories.Users;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.DependencyInjection.Extensions;
+using Npgsql;
+using UserRepository = Infrastructure.Repositories.Users.UserRepository;
 
-namespace IdentityApi.Infrastructure;
+namespace Infrastructure;
 
 /// <summary>
 /// Регистрация зависимостей уровня Infrastructure
 /// </summary>
-public static class InfrastructureStartup
+public static class InfrastructureStartUp
 {
     /// <summary>
     /// Добавление зависимостей
     /// </summary>
-    public static IServiceCollection AddInfrastructure(this IServiceCollection services, IConfiguration configuration)
+    public static void AddInfrastructure(this IServiceCollection services, string connectionString)
     {
-        services.AddOptions<JwtSettings>()
-            .Bind(configuration.GetRequiredSection(JwtSettings.SectionName))
-            .ValidateDataAnnotations()
-            .ValidateOnStart();
+        // Postgres
+        services.AddScoped<IDbConnection>(_ =>
+        {
+            var conn = new NpgsqlConnection(connectionString);
+            conn.Open();
+            return conn;
+        });
+        
+        // FluentMigrator
+        services.AddFluentMigratorCore()
+            .ConfigureRunner(rb => rb
+                .AddPostgres()
+                .WithGlobalConnectionString(connectionString)
+                .ScanIn(typeof(Date_202604290210_AddIdentityTables).Assembly).For.Migrations())
+            .AddLogging(lb => lb.AddFluentMigratorConsole());
 
-        services.AddOptions<JwtKeyStoreSettings>()
-            .Bind(configuration.GetRequiredSection(JwtKeyStoreSettings.SectionName))
-            .ValidateDataAnnotations()
-            .ValidateOnStart();
-
-        services.TryAddSingleton(TimeProvider.System);
-        services.AddSingleton<IPasswordEncryptionService, PasswordEncryptionService>();
-        services.AddSingleton<IRsaKeyProvider, FileSystemRsaKeyProvider>();
-        services.AddSingleton<ITokenService, TokenService>();
-
-        return services;
+        services.AddScoped<IRoleRepository, RoleRepository>();
+        services.AddScoped<IUserRepository, UserRepository>();
     }
 }

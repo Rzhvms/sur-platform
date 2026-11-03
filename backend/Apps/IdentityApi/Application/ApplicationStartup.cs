@@ -1,17 +1,22 @@
+using Application.UseCases.Auth;
+using Application.UseCases.Auth.interfaces;
+using Application.UseCases.Users;
+using Application.UseCases.Users.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 
-namespace IdentityApi.Application;
+namespace Application;
 
 /// <summary>
 /// Регистрация зависимостей уровня Application
 /// </summary>
-public static class ApplicationStartup
+public static class ApplicationStartUp
 {
     /// <summary>
     /// Добавление зависимостей
     /// </summary>
-    public static IServiceCollection AddApplication(this IServiceCollection services)
+    public static void AddApplication(this IServiceCollection services)
     {
-        return services;
+        services.AddScoped<IAuthUseCaseManager, AuthUseCaseManager>();
+        services.AddScoped<IUserUseCaseManager, UserUseCaseManager>();
     }
 }

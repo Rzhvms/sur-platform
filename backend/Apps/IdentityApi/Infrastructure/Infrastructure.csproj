@@ -4,24 +4,23 @@
         <TargetFramework>net10.0</TargetFramework>
         <ImplicitUsings>enable</ImplicitUsings>
         <Nullable>enable</Nullable>
-        <RootNamespace>IdentityApi.Infrastructure</RootNamespace>
-        <AssemblyName>IdentityApi.Infrastructure</AssemblyName>
     </PropertyGroup>
 
     <ItemGroup>
-        <PackageReference Include="Konscious.Security.Cryptography.Argon2" Version="1.3.1" />
-        <PackageReference Include="Microsoft.Extensions.Options.ConfigurationExtensions" Version="10.0.2" />
-        <PackageReference Include="Microsoft.Extensions.Options.DataAnnotations" Version="10.0.2" />
-        <PackageReference Include="System.IdentityModel.Tokens.Jwt" Version="8.17.0" />
+      <PackageReference Include="Dapper" Version="2.1.72" />
+      <PackageReference Include="FluentMigrator" Version="8.0.1" />
+      <PackageReference Include="FluentMigrator.Runner" Version="8.0.1" />
+      <PackageReference Include="FluentMigrator.Runner.Core" Version="8.0.1" />
+      <PackageReference Include="FluentMigrator.Runner.Postgres" Version="8.0.1" />
+      <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="11.0.0-preview.2.26159.112" />
+      <PackageReference Include="Npgsql" Version="10.0.2" />
     </ItemGroup>
 
     <ItemGroup>
-        <ProjectReference Include="..\Application\Application.csproj" />
-        <ProjectReference Include="..\Domain\Domain.csproj" />
-    </ItemGroup>
-
-    <ItemGroup>
-      <Folder Include="Services\" />
+      <ProjectReference Include="..\Application\Application.csproj" />
+      <ProjectReference Include="..\Domain\Domain.csproj" />
+      <ProjectReference Include="..\..\..\Libs\Core\Core.Database\Core.Database.csproj" />
+      <ProjectReference Include="..\..\..\Libs\IdentityLib\IdentityLib\IdentityLib.csproj" />
     </ItemGroup>
 
 </Project>
