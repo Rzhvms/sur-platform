@@ -1,229 +1,156 @@
-using System.Security.Claims;
+using System.Security.Cryptography;
+using System.Text;
+using Application.Constants;
+using Application.Models;
 using Application.Ports.Repositories;
+using Application.Ports.Services.Encryption;
+using Application.Ports.Services.Jwt;
 using Application.UseCases.Auth.Dto.Request;
-using Application.UseCases.Auth.Dto.Response.Base;
 using Application.UseCases.Auth.Dto.Response.ConnectToken;
 using Application.UseCases.Auth.Dto.Response.CreateUser;
 using Application.UseCases.Auth.Dto.Response.RefreshToken;
 using Application.UseCases.Auth.Dto.Response.RevocateToken;
 using Application.UseCases.Auth.interfaces;
-using CoreLib.Audit;
-using CoreLib.User;
-using Domain.Entities.IdentityUser;
-using Application.Ports.Services.Encryption;
-using Application.ErrorCodes;
-using Application.Models;
-using Application.Ports.Services.Jwt;
-using Microsoft.Extensions.Logging;
+using Core.Abstractions.Exceptions;
+using Domain.DalModels;
+using Codes = Application.ErrorCodes.ErrorCodes;
 
 namespace Application.UseCases.Auth;
 
 /// <inheritdoc />
-public class AuthUseCaseManager(
-    IPasswordEncryptionService encryptionService,
-    ILogger<AuthUseCaseManager> logger,
-    IUserRepository userRepository,
-    IRoleRepository roleRepository,
-    IJwtGenerationService jwtGenerationService,
-    IAuditService auditService,
-    ICurrentUserService currentUser)
-    : IAuthUseCaseManager
+public sealed class AuthUseCaseManager(
+    IPasswordEncryptionService passwords,
+    IUserRepository users,
+    IRoleRepository roles,
+    ISessionRepository sessions,
+    IJwtGenerationService jwt,
+    TimeProvider clock) : IAuthUseCaseManager
 {
-    /// <inheritdoc />
+    /// <inheritdoc/>
     public async Task<CreateUserResponse> CreateUserAsync(CreateUserRequest request)
     {
-        // Проверяем, существует ли пользователь
-        var existingUser = await userRepository.GetUserByEmailAsync(request.Email);
-        if (existingUser != null)
+
+        var email = request.Email.Trim().ToLowerInvariant();
+        if (await users.GetUserByEmailAsync(email) is not null)
+            return new CreateUserErrorResponse { Code = ((int)Codes.UserAlreadyExists).ToString(), Message = "Пользователь уже существует" };
+        var role = await roles.GetRoleByNameAsync(request.RoleName)
+            ?? throw new EntityNotFoundException("Роль не найдена");
+        var id = Guid.NewGuid();
+        var now = clock.GetUtcNow().UtcDateTime;
+        await users.CreateUserAsync(new UserProfileDal
         {
-            return new CreateUserErrorResponse
-            {
-                Message = "Пользователь с такой почтой уже существует.",
-                Code = ErrorCodes.UserAlreadyExists.ToString("D")
-            };
-        }
-
-        var salt = encryptionService.GenerateSalt();
-        var role = await roleRepository.GetRoleByRoleCode(request.RoleName);
-
-        var user = new User
+            Id = Guid.NewGuid(), UserId = id, Email = request.Email.Trim(), NormalizedEmail = email,
+            FirstName = request.FirstName, LastName = request.LastName, Patronymic = request.Patronymic,
+            CreatedAt = now, UpdatedAt = now
+        }, new UserCredentialDal
         {
-            Id = Guid.NewGuid(),
-            Email = request.Email,
-            Password = encryptionService.HashPassword(request.Password, salt),
-            HashSalt = Convert.ToBase64String(salt),
-            RoleId = role.Id,
-            FirstName = request.FirstName,
-            LastName = request.LastName,
-            Patronymic = request.Patronymic,
-            CreatedAt = DateTime.UtcNow,
-        };
+            Id = Guid.NewGuid(), UserId = id,
+            Password = passwords.HashPassword(request.Password, passwords.GenerateSalt()), PasswordChangedAt = now
+        }, role.Id);
 
-        await userRepository.CreateUserAsync(user);
-        
-        logger.LogInformation("Пользователь {Email} успешно создан", user.Email);
-        await auditService.LogAsync("CreateUser", "User", user.Id, currentUser.UserId, currentUser.UserName, $"Создан пользователь {user.Email}");
-
-        return new CreateUserSuccessResponse
-        {
-            UserId = user.Id
-        };
+        return new CreateUserSuccessResponse { UserId = id };
     }
-    
-    /// <inheritdoc />
+
+    /// <inheritdoc/>
     public async Task<ConnectTokenResponse> ConnectTokenAsync(ConnectTokenRequest request)
     {
-        var user = await userRepository.GetUserByEmailAsync(request.Email);
 
-        if (user == null)
+        var user = await users.GetUserByEmailAsync(request.Email.Trim().ToLowerInvariant());
+        var credential = user is null ? null : await users.GetCredentialAsync(user.UserId);
+        var now = clock.GetUtcNow().UtcDateTime;
+        if (user is null || credential is null || !user.IsActive || user.LockoutUntil > now ||
+            !passwords.VerifyPassword(request.Password, credential.Password))
+            return new ConnectTokenErrorResponse { Code = ((int)Codes.CredentialsAreNotValid).ToString(), Message = "Неверная почта или пароль" };
+
+        var expires = now.AddMinutes(jwt.GetRefreshTokenLifetimeInMinutes());
+        var session = new SessionDal
         {
-            return CreateErrorResponse<ConnectTokenErrorResponse>(ErrorCodes.UserDoesNotExist);
-        }
-        
-        if (!encryptionService.VerifyPassword(request.Password, user.Password))
-        {
-            return CreateErrorResponse<ConnectTokenErrorResponse>(ErrorCodes.CredentialsAreNotValid);
-        }
-        
-        user.RefreshToken = CreateRefreshTokenAsync();
-
-        await userRepository.UpdateUserAsync(user);
-
-        var jwtUserData = await CreateJwtUserDataAsync(user);
-        
-        var accessToken = jwtGenerationService.GenerateAccessToken(jwtUserData);
-
-        await auditService.LogAsync("Login", "User", user.Id, user.Id, $"{user.LastName} {user.FirstName}", $"Вход пользователя {user.Email}");
-
-        return new ConnectTokenSuccessResponse
-        {
-            AccessToken = accessToken,
-            RefreshToken = user.RefreshToken.Value
+            Id = Guid.NewGuid(), UserId = user.UserId, CreatedAt = now, UpdatedAt = now, ExpiresAt = expires
         };
+        var refresh = jwt.GenerateRefreshToken();
+        await sessions.CreateAsync(session, new RefreshTokenDal
+        {
+            Id = Guid.NewGuid(), SessionId = session.Id, TokenHash = HashRefresh(refresh), CreatedAt = now, ExpiresAt = expires
+        });
+        var access = await GenerateAccessAsync(session);
+
+        return new ConnectTokenSuccessResponse { AccessToken = access, RefreshToken = refresh };
     }
 
-    /// <inheritdoc />
-    public async Task<RevocateTokenResponse> RevocateRefreshTokenAsync(Guid userId)
-    {
-        var user = await userRepository.GetUserByUserIdAsync(userId);
-        if (user == null) return CreateErrorResponse<RevocateTokenErrorResponse>(ErrorCodes.UserDoesNotExist);
-
-        if (user.RefreshToken != null)
-        {
-            user.RefreshToken.Active = false;
-            await userRepository.UpdateUserAsync(user);
-        }
-
-        logger.LogInformation("Пользователь {UserId} успешно вышел из системы.", user.Id);
-        await auditService.LogAsync("Logout", "User", user.Id, user.Id, $"{user.LastName} {user.FirstName}", $"Выход пользователя из системы");
-
-        return new RevocateTokenSuccessResponse()
-        {
-            Message = $"Пользователь вышел из системы в {DateTime.UtcNow:O} (UTC)."
-        };
-    }
-    
-    /// <inheritdoc />
+    /// <inheritdoc/>
     public async Task<RefreshTokenResponse> RefreshTokenAsync(RefreshTokenRequest request)
     {
-        var isValid = jwtGenerationService.IsTokenValid(request.AccessToken, false);
-        if (!isValid) return CreateErrorResponse<RefreshTokenErrorResponse>(ErrorCodes.AccessTokenIsNotValid);
 
-        var userId = jwtGenerationService.GetUserIdFromToken(request.AccessToken);
-        var user = await userRepository.GetUserByUserIdAsync(userId);
-
-        if (user == null) return CreateErrorResponse<RefreshTokenErrorResponse>(ErrorCodes.UserDoesNotExist);
-
-        var token = user.RefreshToken;
-        ArgumentNullException.ThrowIfNull(token);
-        
-        if (!token.Active) return CreateErrorResponse<RefreshTokenErrorResponse>(ErrorCodes.RefreshTokenIsNotActive);
-        if (token.ExpirationDate < DateTime.UtcNow) return CreateErrorResponse<RefreshTokenErrorResponse>(ErrorCodes.RefreshTokenHasExpired);
-        if (token.Value != request.RefreshToken) return CreateErrorResponse<RefreshTokenErrorResponse>(ErrorCodes.RefreshTokenIsNotCorrect);
-
-        var jwtUserData = await CreateJwtUserDataAsync(user);
-        
-        var newAccessToken = jwtGenerationService.GenerateAccessToken(jwtUserData);
-        var newRefreshTokenValue = jwtGenerationService.GenerateRefreshToken();
-
-        user.RefreshToken!.Value = newRefreshTokenValue;
-        user.RefreshToken.Active = true;
-        user.RefreshToken.ExpirationDate = DateTime.UtcNow.AddMinutes(jwtGenerationService.GetRefreshTokenLifetimeInMinutes());
-
-        await userRepository.UpdateUserAsync(user);
-
-        logger.LogInformation("Refresh-токен обновлен для пользователя {UserId}", user.Id);
-        await auditService.LogAsync("RefreshToken", "User", user.Id, user.Id, $"{user.LastName} {user.FirstName}", $"Обновление токенов");
-
-        return new RefreshTokenSuccessResponse
+        var token = await sessions.GetRefreshAsync(HashRefresh(request.RefreshToken));
+        var now = clock.GetUtcNow().UtcDateTime;
+        if (token is null)
+            return InvalidRefresh();
+        var session = await sessions.GetAsync(token.SessionId);
+        if (session is null || session.RevokedAt is not null || session.ExpiresAt <= now)
+            return InvalidRefresh();
+        if (token.RevokedAt is not null)
         {
-            AccessToken = newAccessToken,
-            RefreshToken = newRefreshTokenValue,
-            RefreshTokenExpirationDate = user.RefreshToken.ExpirationDate
-        };
+            await sessions.RevokeAsync(session.Id, now, SessionRevokeReasons.RefreshReuse);
+
+            return InvalidRefresh();
+        }
+        var user = await users.GetUserByUserIdAsync(session.UserId);
+        if (token.ExpiresAt <= now || user is not { IsActive: true })
+            return InvalidRefresh();
+
+        var raw = jwt.GenerateRefreshToken();
+        var expiration = now.AddMinutes(jwt.GetRefreshTokenLifetimeInMinutes());
+        if (expiration > session.ExpiresAt) expiration = session.ExpiresAt;
+        if (!await sessions.RotateAsync(token.Id, new RefreshTokenDal
+        {
+            Id = Guid.NewGuid(), SessionId = session.Id, TokenHash = HashRefresh(raw), CreatedAt = now, ExpiresAt = expiration
+        }, now))
+        {
+            return InvalidRefresh();
+        }
+        var access = await GenerateAccessAsync(session);
+
+        return new RefreshTokenSuccessResponse { AccessToken = access, RefreshToken = raw, RefreshTokenExpirationDate = expiration };
     }
 
-    /// <inheritdoc />
+    /// <inheritdoc/>
+    public async Task<RevocateTokenResponse> RevocateRefreshTokenAsync(Guid userId)
+    {
+
+        await sessions.RevokeUserAsync(userId, clock.GetUtcNow().UtcDateTime, SessionRevokeReasons.Logout);
+
+        return new RevocateTokenSuccessResponse { Message = "Сессии завершены" };
+    }
+
+    /// <inheritdoc/>
     public async Task ChangePasswordAsync(Guid userId, ChangePasswordRequest request)
     {
-        var user = await userRepository.GetUserByUserIdAsync(userId);
-        ArgumentNullException.ThrowIfNull(user);
-        
-        var newPasswordHash = encryptionService.HashPassword(request.Password, Convert.FromBase64String(user.HashSalt));
 
-        await userRepository.ChangeUserPasswordAsync(user.Id, newPasswordHash, user.HashSalt);
-        await auditService.LogAsync("ChangePassword", "User", user.Id, user.Id, $"{user.LastName} {user.FirstName}", $"Смена пароля");
-    }
-    
-    /// <summary>
-    /// Формирование модели для генерации Jwt
-    /// </summary>
-    private async Task<JwtUserData> CreateJwtUserDataAsync(User user)
-    {
-        var role = await roleRepository.GetRoleByIdAsync(user.RoleId);
-        
-        // Добавляем информацию о роли и правах в клеймы
-        var claims = new List<Claim>
-        {
-            new(ClaimTypes.Role, role.RoleCode)
-        };
+        if (await users.GetCredentialAsync(userId) is null)
+            throw new EntityNotFoundException("Пользователь не найден");
+        var now = clock.GetUtcNow().UtcDateTime;
+        await users.ChangeUserPasswordAsync(userId, passwords.HashPassword(request.Password, passwords.GenerateSalt()), now);
 
-        var jwtUserData = new JwtUserData
-        {
-            UserId = user.Id,
-            Email = user.Email,
-            FirstName = user.FirstName,
-            LastName = user.LastName,
-            Patronymic = user.Patronymic,
-            Claims = claims
-        };
-
-        return jwtUserData;
-    }
-    
-    /// <summary>
-    /// Создает новый refresh token с параметрами из jwtGenerationService.
-    /// </summary>
-    private RefreshToken CreateRefreshTokenAsync()
-    {
-        var lifetimeMinutes = jwtGenerationService.GetRefreshTokenLifetimeInMinutes();
-        return new RefreshToken
-        {
-            Value = jwtGenerationService.GenerateRefreshToken(),
-            Active = true,
-            ExpirationDate = DateTime.UtcNow.AddMinutes(lifetimeMinutes)
-        };
     }
 
     /// <summary>
-    /// Универсальный метод для формирования ошибки с кодом и описанием.
+    /// Выпускает access-токен с правами всех ролей пользователя
     /// </summary>
-    private static TResponse CreateErrorResponse<TResponse>(ErrorCodes errorCode) where TResponse : IBaseErrorResponse, new()
+    private async Task<string> GenerateAccessAsync(SessionDal session) => jwt.GenerateAccessToken(new AccessTokenClaims
     {
-        return new TResponse
-        {
-            Message = Enum.GetName(typeof(ErrorCodes), errorCode),
-            Code = ((int)errorCode).ToString()
-        };
-    }
+        UserId = session.UserId, SessionId = session.Id, RightIdList = await roles.GetUserRightIdsAsync(session.UserId)
+    });
+
+    /// <summary>
+    /// Вычисляет хеш случайного refresh-токена для хранения в базе
+    /// </summary>
+    private static string HashRefresh(string value) => Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(value)));
+
+    /// <summary>
+    /// Создаёт общий ответ недействительной сессии
+    /// </summary>
+    private static RefreshTokenErrorResponse InvalidRefresh() => new()
+    {
+        Code = ((int)Codes.RefreshTokenIsNotCorrect).ToString(), Message = "Сессия недействительна"
+    };
 }

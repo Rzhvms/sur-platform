@@ -1,13 +1,14 @@
 using Api.Swagger;
+using Application.Constants;
+using Core.Api.Controllers.ControllerTypes.Constants;
 using Asp.Versioning.ApiExplorer;
 using Microsoft.Extensions.Options;
 using Swashbuckle.AspNetCore.SwaggerGen;
 using Application;
 using Core.Api.Controllers;
-using CoreLib.Audit;
-using CoreLib.Database.Migrations;
-using CoreLib.User;
-using CoreLib.Middlewares;
+using Core.Database.Migrations;
+using Core.Api.User;
+using Core.Api.Middlewares;
 using Infrastructure.Services;
 using Infrastructure;
 using Infrastructure.Services.Jwt.RsaKeys.Interfaces;
@@ -38,11 +39,10 @@ public sealed class Startup(IWebHostEnvironment env, IConfiguration configuratio
         
         services.AddControllers();
         services.AddApplication();
-        services.AddInfrastructure(connectionString!);
+        services.AddInfrastructure(connectionString ?? throw new InvalidOperationException("Не задана строка подключения DefaultConnection"));
         
         services.AddCoreControllers();
         services.AddCoreUser();
-        services.AddCoreAudit(Configuration);
         
         services.AddIdentityServices(Configuration);
         
@@ -72,7 +72,11 @@ public sealed class Startup(IWebHostEnvironment env, IConfiguration configuratio
                 options.TokenValidationParameters.IssuerSigningKey = rsaKeyProvider.ValidationKey;
             });
     
-        services.AddAuthorization();
+        services.AddAuthorization(options =>
+        {
+            options.AddPolicy(ControllerPolicies.Provider, policy =>
+                policy.RequireAuthenticatedUser().RequireClaim(AccessTokenClaimTypes.Right, IdentityRights.ManageUsers));
+        });
         
         services.AddCors(options =>
         {

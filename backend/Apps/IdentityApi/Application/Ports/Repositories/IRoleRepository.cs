@@ -1,4 +1,4 @@
-using Domain.Entities.RoleSystem;
+using Domain.DalModels;
 
 namespace Application.Ports.Repositories;
 
@@ -8,12 +8,12 @@ namespace Application.Ports.Repositories;
 public interface IRoleRepository
 {
     /// <summary>
-    /// Получение роли по <see cref="Role.RoleCode"/>
+    /// Получение роли по названию
     /// </summary>
-    Task<Role> GetRoleByRoleCode(string roleCode);
-    
+    Task<RoleDal?> GetRoleByNameAsync(string name);
+
     /// <summary>
-    /// Получение роли по идентификатору.
+    /// Возвращает уникальные права всех назначенных ролей пользователя
     /// </summary>
-    Task<Role> GetRoleByIdAsync(Guid id);
+    Task<Guid[]> GetUserRightIdsAsync(Guid userId);
 }

@@ -1,8 +1,8 @@
+using Core.Database.DapperExtensions.EntityMapper;
 using System.Data;
 using Application.Ports.Repositories;
-using CoreLib.Database.DapperExtensions.EntityMapper;
 using Dapper;
-using Domain.Entities.RoleSystem;
+using Domain.DalModels;
 
 namespace Infrastructure.Repositories.RoleSystem;
 
@@ -10,20 +10,22 @@ namespace Infrastructure.Repositories.RoleSystem;
 public class RoleRepository(IDbConnection dbConnection) : IRoleRepository
 {
     /// <inheritdoc/>
-    public async Task<Role> GetRoleByRoleCode(string roleCode)
+    public async Task<RoleDal?> GetRoleByNameAsync(string name)
     {
-        var sql = $@"SELECT * FROM {EntityMapper.TbName<Role>()} 
-                     WHERE {EntityMapper.ColName<Role>(x => x.RoleCode)} = @RoleCode";
-        
-        return await dbConnection.QuerySingleAsync<Role>(sql, new { RoleCode = roleCode });
+        return await dbConnection.QuerySingleOrDefaultAsync<RoleDal>(
+            $"SELECT * FROM {EntityMapper.TbName<RoleDal>()} WHERE {EntityMapper.ColName<RoleDal>(x => x.Name)} = @name", new { name });
     }
 
     /// <inheritdoc/>
-    public async Task<Role> GetRoleByIdAsync(Guid id)
+    public async Task<Guid[]> GetUserRightIdsAsync(Guid userId)
     {
-        var sql = $@"SELECT * FROM {EntityMapper.TbName<Role>()} 
-                     WHERE {EntityMapper.ColName<Role>(x => x.Id)} = @Id";
-        
-        return await dbConnection.QuerySingleAsync<Role>(sql, new { Id = id });
+        var rightIdList = await dbConnection.QueryAsync<Guid>($"""
+            SELECT DISTINCT rr.{EntityMapper.ColName<RoleRightDal>(x => x.RightId)}
+            FROM {EntityMapper.TbName<RoleRightDal>()} rr
+            JOIN {EntityMapper.TbName<UserRoleDal>()} ur ON ur.{EntityMapper.ColName<RoleRightDal>(x => x.RoleId)} = rr.{EntityMapper.ColName<RoleRightDal>(x => x.RoleId)}
+            WHERE ur.{EntityMapper.ColName<UserProfileDal>(x => x.UserId)} = @userId
+            """, new { userId });
+
+        return rightIdList.ToArray();
     }
 }

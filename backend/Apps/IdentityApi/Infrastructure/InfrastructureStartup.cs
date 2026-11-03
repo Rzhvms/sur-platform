@@ -3,10 +3,10 @@ using Application.Ports.Repositories;
 using FluentMigrator.Runner;
 using Infrastructure.Migrations;
 using Infrastructure.Repositories.RoleSystem;
+using Infrastructure.Repositories.Sessions;
 using Infrastructure.Repositories.Users;
 using Microsoft.Extensions.DependencyInjection;
 using Npgsql;
-using UserRepository = Infrastructure.Repositories.Users.UserRepository;
 
 namespace Infrastructure;
 
@@ -20,23 +20,20 @@ public static class InfrastructureStartUp
     /// </summary>
     public static void AddInfrastructure(this IServiceCollection services, string connectionString)
     {
-        // Postgres
+        ArgumentException.ThrowIfNullOrWhiteSpace(connectionString);
         services.AddScoped<IDbConnection>(_ =>
         {
-            var conn = new NpgsqlConnection(connectionString);
-            conn.Open();
-            return conn;
+            var connection = new NpgsqlConnection(connectionString);
+            connection.Open();
+            return connection;
         });
-        
-        // FluentMigrator
         services.AddFluentMigratorCore()
-            .ConfigureRunner(rb => rb
-                .AddPostgres()
+            .ConfigureRunner(runner => runner.AddPostgres()
                 .WithGlobalConnectionString(connectionString)
-                .ScanIn(typeof(Date_202604290210_AddIdentityTables).Assembly).For.Migrations())
-            .AddLogging(lb => lb.AddFluentMigratorConsole());
-
-        services.AddScoped<IRoleRepository, RoleRepository>();
+                .ScanIn(typeof(Date_202611032300_AddIdentityTables).Assembly).For.Migrations())
+            .AddLogging(logging => logging.AddFluentMigratorConsole());
         services.AddScoped<IUserRepository, UserRepository>();
+        services.AddScoped<IRoleRepository, RoleRepository>();
+        services.AddScoped<ISessionRepository, SessionRepository>();
     }
 }

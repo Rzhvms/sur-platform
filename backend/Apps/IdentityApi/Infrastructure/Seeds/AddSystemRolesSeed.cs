@@ -1,5 +1,6 @@
-using CoreLib.Database.DapperExtensions.EntityMapper;
-using Domain.Entities.RoleSystem;
+using Application.Constants;
+using Core.Database.DapperExtensions.EntityMapper;
+using Domain.DalModels;
 using FluentMigrator;
 
 namespace Infrastructure.Seeds;
@@ -7,51 +8,74 @@ namespace Infrastructure.Seeds;
 /// <summary>
 /// Заполнение таблицы ролей системными значениями по умолчанию.
 /// </summary>
-[Migration(202604302100)]
+[Migration(202611032301)]
 public class AddSystemRolesSeed : Migration
 {
-    private readonly string _roleTableName = EntityMapper.TbName<Role>();
+    private readonly string _roleTableName = EntityMapper.TbName<RoleDal>(false);
+    private readonly string _rightTableName = EntityMapper.TbName<RightDal>(false);
+    private readonly string _roleRightTableName = EntityMapper.TbName<RoleRightDal>(false);
 
+    /// <inheritdoc/>
     public override void Up()
     {
-        Insert.IntoTable(_roleTableName).Row(new
+        if (!Schema.Table(_roleTableName).Exists() ||
+            !Schema.Table(_rightTableName).Exists() ||
+            !Schema.Table(_roleRightTableName).Exists())
         {
-            Id = Guid.NewGuid(),
-            RoleCode = "Viewer",
-            Name = "Просмотрщик",
-            PermissionsMask = 0,
-            IsSystem = true,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = (DateTime?)null
+            throw new InvalidOperationException("Не созданы таблицы ролей и прав");
+        }
+
+        var administratorId = Guid.NewGuid();
+
+        Insert.IntoTable(_roleTableName).Row(new RoleDal
+        {
+            Id = administratorId,
+            Name = "Administrator",
+            IsSystem = true
         });
 
-        Insert.IntoTable(_roleTableName).Row(new
+        Insert.IntoTable(_roleTableName).Row(new RoleDal
         {
             Id = Guid.NewGuid(),
-            RoleCode = "Editor",
-            Name = "Редактор",
-            PermissionsMask = 0,
-            IsSystem = true,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = (DateTime?)null
+            Name = "Viewer",
+            IsSystem = true
         });
 
-        Insert.IntoTable(_roleTableName).Row(new
+        Insert.IntoTable(_roleTableName).Row(new RoleDal
         {
             Id = Guid.NewGuid(),
-            RoleCode = "Administrator",
-            Name = "Администратор",
-            PermissionsMask = 0,
-            IsSystem = true,
-            CreatedAt = DateTime.UtcNow,
-            UpdatedAt = (DateTime?)null
+            Name = "Editor",
+            IsSystem = true
+        });
+
+        Insert.IntoTable(_rightTableName).Row(new RightDal
+        {
+            Id = Guid.Parse(IdentityRights.ManageUsers),
+            Name = "Управление пользователями",
+            IsSystem = true
+        });
+
+        Insert.IntoTable(_roleRightTableName).Row(new RoleRightDal
+        {
+            Id = Guid.NewGuid(),
+            RoleId = administratorId,
+            RightId = Guid.Parse(IdentityRights.ManageUsers)
         });
     }
 
+    /// <inheritdoc/>
     public override void Down()
     {
-        Delete.FromTable(_roleTableName).Row(new { RoleCode = "Administrator" });
-        Delete.FromTable(_roleTableName).Row(new { RoleCode = "Editor" });
-        Delete.FromTable(_roleTableName).Row(new { RoleCode = "Viewer" });
+        if (Schema.Table(_rightTableName).Exists())
+        {
+            Delete.FromTable(_rightTableName).Row(new { Id = Guid.Parse(IdentityRights.ManageUsers) });
+        }
+
+        if (Schema.Table(_roleTableName).Exists())
+        {
+            Delete.FromTable(_roleTableName).Row(new { Name = "Administrator" });
+            Delete.FromTable(_roleTableName).Row(new { Name = "Editor" });
+            Delete.FromTable(_roleTableName).Row(new { Name = "Viewer" });
+        }
     }
 }

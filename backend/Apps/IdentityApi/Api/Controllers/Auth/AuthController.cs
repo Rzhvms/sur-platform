@@ -4,7 +4,7 @@ using Application.UseCases.Auth.Dto.Response.CreateUser;
 using Application.UseCases.Auth.Dto.Response.RefreshToken;
 using Application.UseCases.Auth.Dto.Response.RevocateToken;
 using Application.UseCases.Auth.interfaces;
-using CoreLib.Extensions;
+using Core.Api.Extensions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -18,7 +18,7 @@ public class AuthController(IAuthUseCaseManager authUseCaseManager) : Controller
     /// Создание пользователя / регистрация
     /// </summary>
     [HttpPost("register")]
-    [Authorize(Roles = "Administrator")]
+    [Authorize(Policy = Core.Api.Controllers.ControllerTypes.Constants.ControllerPolicies.Provider)]
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<CreateUserResponse> RegisterAsync(CreateUserRequest request)
     {

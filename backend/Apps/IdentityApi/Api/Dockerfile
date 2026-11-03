@@ -11,7 +11,9 @@ COPY ["Apps/IdentityApi/Application/Application.csproj", "Apps/IdentityApi/Appli
 COPY ["Apps/IdentityApi/Domain/Domain.csproj", "Apps/IdentityApi/Domain/"]
 COPY ["Apps/IdentityApi/Infrastructure/Infrastructure.csproj", "Apps/IdentityApi/Infrastructure/"]
 
-COPY ["Libs/CoreLib/CoreLib/CoreLib.csproj", "Libs/CoreLib/CoreLib/"]
+COPY ["Libs/Core/Core.Abstractions/Core.Abstractions.csproj", "Libs/Core/Core.Abstractions/"]
+COPY ["Libs/Core/Core.Database/Core.Database.csproj", "Libs/Core/Core.Database/"]
+COPY ["Libs/Core/Core.Api/Core.Api.csproj", "Libs/Core/Core.Api/"]
 
 RUN dotnet restore "Apps/IdentityApi/Api/Api.csproj"
 COPY . .

@@ -1,7 +1,7 @@
 using Application.UseCases.Users.Dto.Request;
 using Application.UseCases.Users.Dto.Response;
 using Application.UseCases.Users.Interfaces;
-using CoreLib.Extensions;
+using Core.Api.Extensions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -16,6 +16,7 @@ public class UserController(IUserUseCaseManager useCaseManager) : ControllerBase
     /// Получить список пользователей
     /// </summary>
     [HttpGet("list")]
+    [Authorize(Policy = Core.Api.Controllers.ControllerTypes.Constants.ControllerPolicies.Provider)]
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<GetUserListResponse> GetUserListAsync()
     {
@@ -26,6 +27,7 @@ public class UserController(IUserUseCaseManager useCaseManager) : ControllerBase
     /// Получить пользователя по идентификатору
     /// </summary>
     [HttpGet("{userId}")]
+    [Authorize(Policy = Core.Api.Controllers.ControllerTypes.Constants.ControllerPolicies.Provider)]
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<GetUserResponse> GetUserByIdAsync([FromRoute] Guid userId)
     {
@@ -36,6 +38,7 @@ public class UserController(IUserUseCaseManager useCaseManager) : ControllerBase
     /// Удалить пользователя по идентификатору
     /// </summary>
     [HttpDelete("{userId}")]
+    [Authorize(Policy = Core.Api.Controllers.ControllerTypes.Constants.ControllerPolicies.Provider)]
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task DeleteUserByIdAsync([FromRoute] Guid userId)
     {

@@ -1,4 +1,3 @@
-using CoreLib.Api.Controllers.ControllerTypes;
 using Infrastructure.Services.Jwt.RsaKeys.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
@@ -20,7 +19,7 @@ namespace Api.Controllers.System;
 /// - RFC 8615 (.well-known URIs)
 /// </remarks>
 [Route(".well-known")]
-public class WellKnownController(IRsaKeyProvider keyProvider, IConfiguration configuration) : SystemControllerBase
+public class WellKnownController(IRsaKeyProvider keyProvider, IConfiguration configuration) : ControllerBase
 {
     // todo: хочу от него избавиться, не вижу пользы пока что
 

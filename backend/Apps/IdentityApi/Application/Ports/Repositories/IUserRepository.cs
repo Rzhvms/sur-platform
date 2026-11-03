@@ -1,4 +1,4 @@
-using Domain.Entities.IdentityUser;
+using Domain.DalModels;
 
 namespace Application.Ports.Repositories;
 
@@ -10,40 +10,35 @@ public interface IUserRepository
     /// <summary>
     /// Получает пользователя по адресу электронной почты
     /// </summary>
-    Task<User?> GetUserByEmailAsync(string email);
+    Task<UserProfileDal?> GetUserByEmailAsync(string email);
 
     /// <summary>
     /// Получает пользователя по уникальному идентификатору
     /// </summary>
-    Task<User?> GetUserByUserIdAsync(Guid userId);
+    Task<UserProfileDal?> GetUserByUserIdAsync(Guid userId);
+
+    /// <summary>
+    /// Получает данные проверки пароля пользователя
+    /// </summary>
+    Task<UserCredentialDal?> GetCredentialAsync(Guid userId);
 
     /// <summary>
     /// Создает нового пользователя
     /// </summary>
-    Task CreateUserAsync(User user);
+    Task CreateUserAsync(UserProfileDal profile, UserCredentialDal credential, Guid roleId);
 
-    /// <summary>
-    /// Обновляет данные существующего пользователя.
-    /// </summary>
-    Task UpdateUserAsync(User user);
-    
     /// <summary>
     /// Получение всех пользователей.
     /// </summary>
-    Task<IEnumerable<User>> GetAllUsersAsync();
-
-    /// <summary>
-    /// Постраничное получение списка пользователей
-    /// </summary>
-    Task<IEnumerable<User>> GetPagedUsersAsync(int page, int pageSize);
+    Task<IEnumerable<UserProfileDal>> GetAllUsersAsync();
 
     /// <summary>
     /// Обновление пароля пользователя
     /// </summary>
-    Task ChangeUserPasswordAsync(Guid id, string password, string hashSalt);
+    Task ChangeUserPasswordAsync(Guid userId, string password, DateTime changedAt);
 
     /// <summary>
     /// Удаление пользователя по идентификатору
     /// </summary>
-    Task DeleteUserByIdAsync(Guid id);
+    Task DeleteUserByIdAsync(Guid userId);
 }
