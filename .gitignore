@@ -67,6 +67,7 @@ desktop.ini
 
 # Local configuration
 
+AGENTS.md
 appsettings.Development.json
 appsettings.Local.json
 appsettings.*.Local.json

@@ -1,6 +1,7 @@
 using Core.Api.Controllers.ControllerTypes.Attributes;
 using Core.Api.Controllers.ControllerTypes.Base;
 using Core.Api.Controllers.ControllerTypes.Constants;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ApplicationModels;
 
@@ -19,6 +20,26 @@ public sealed class ControllerRouteConvention : IApplicationModelConvention
             if (!typeof(ApiControllerBase).IsAssignableFrom(controller.ControllerType))
             {
                 continue;
+            }
+
+            if (typeof(BaseProviderController).IsAssignableFrom(controller.ControllerType) ||
+                controller.Attributes.OfType<ProviderControllerAttribute>().Any())
+            {
+                if (controller.Attributes.OfType<IAllowAnonymous>().Any() ||
+                    controller.Actions.Any(action => action.Attributes.OfType<IAllowAnonymous>().Any()))
+                {
+                    throw new InvalidOperationException($"Provider-контроллер {controller.ControllerName} не может разрешать анонимный доступ");
+                }
+            }
+
+            foreach (var selector in controller.Selectors.Concat(controller.Actions.SelectMany(action => action.Selectors)))
+            {
+                var template = selector.AttributeRouteModel?.Template;
+
+                if (template is not null && (template.StartsWith('/') || template.StartsWith("~/", StringComparison.Ordinal)))
+                {
+                    throw new InvalidOperationException($"Контроллер {controller.ControllerName} должен использовать относительные маршруты");
+                }
             }
 
             var prefixAttribute = controller.Attributes.OfType<ControllerPrefixAttribute>().FirstOrDefault();

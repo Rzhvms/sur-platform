@@ -1,22 +1,20 @@
-using Application.UseCases.Users.Dto.Request;
 using Application.UseCases.Users.Dto.Response;
 using Application.UseCases.Users.Interfaces;
-using Core.Api.Extensions;
-using Microsoft.AspNetCore.Authorization;
+using Core.Api.Controllers.ControllerTypes;
 using Microsoft.AspNetCore.Mvc;
 
-namespace Api.Controllers.Users;
+namespace Api.Controllers.Provider.Users;
 
-[ApiController]
-[Route("user")]
-[Authorize]
-public class UserController(IUserUseCaseManager useCaseManager) : ControllerBase
+/// <summary>
+/// Административные операции управления пользователями
+/// </summary>
+[Route("users")]
+public class ProviderUserController(IUserUseCaseManager useCaseManager) : BaseProviderController
 {
     /// <summary>
     /// Получить список пользователей
     /// </summary>
     [HttpGet("list")]
-    [Authorize(Policy = Core.Api.Controllers.ControllerTypes.Constants.ControllerPolicies.Provider)]
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<GetUserListResponse> GetUserListAsync()
     {
@@ -27,7 +25,6 @@ public class UserController(IUserUseCaseManager useCaseManager) : ControllerBase
     /// Получить пользователя по идентификатору
     /// </summary>
     [HttpGet("{userId}")]
-    [Authorize(Policy = Core.Api.Controllers.ControllerTypes.Constants.ControllerPolicies.Provider)]
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<GetUserResponse> GetUserByIdAsync([FromRoute] Guid userId)
     {
@@ -38,21 +35,10 @@ public class UserController(IUserUseCaseManager useCaseManager) : ControllerBase
     /// Удалить пользователя по идентификатору
     /// </summary>
     [HttpDelete("{userId}")]
-    [Authorize(Policy = Core.Api.Controllers.ControllerTypes.Constants.ControllerPolicies.Provider)]
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task DeleteUserByIdAsync([FromRoute] Guid userId)
     {
         await useCaseManager.DeleteUserByIdAsync(userId);
     }
 
-    /// <summary>
-    /// Изменить пароль.
-    /// </summary>
-    [HttpPatch("change-password")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<ChangeUserPasswordResponse> ChangeUserPasswordAsync(ChangeUserPasswordRequest request)
-    {
-        var id = User.GetUserId();
-        return await useCaseManager.ChangePasswordAsync(id, request);
-    }
 }

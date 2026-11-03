@@ -1,4 +1,5 @@
 using Domain.DalModels;
+using Application.Models;
 
 namespace Application.Ports.Repositories;
 
@@ -7,6 +8,21 @@ namespace Application.Ports.Repositories;
 /// </summary>
 public interface IUserRepository
 {
+    /// <summary>
+    /// Проверяет наличие профиля по нормализованной почте
+    /// </summary>
+    Task<bool> ExistsByEmailAsync(string normalizedEmail);
+
+    /// <summary>
+    /// Проверяет наличие парольных данных пользователя
+    /// </summary>
+    Task<bool> ExistsAsync(Guid userId);
+
+    /// <summary>
+    /// Получает данные проверки входа одним запросом
+    /// </summary>
+    Task<UserLoginData?> GetLoginDataAsync(string normalizedEmail);
+
     /// <summary>
     /// Получает пользователя по адресу электронной почты
     /// </summary>

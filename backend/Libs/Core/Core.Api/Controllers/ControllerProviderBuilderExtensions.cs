@@ -13,8 +13,10 @@ public static class ControllerProviderBuilderExtensions
     /// <summary>
     /// Регистрация зависимостей
     /// </summary>
-    public static void AddCoreControllers(this IServiceCollection services)
+    public static void AddCoreControllers(this IServiceCollection services, string adminRight = ControllerPolicies.AdminRight)
     {
+        ArgumentException.ThrowIfNullOrWhiteSpace(adminRight);
+
         services.AddApiVersioning(options =>
             {
                 options.DefaultApiVersion = ApiVersion.Default;
@@ -39,7 +41,7 @@ public static class ControllerProviderBuilderExtensions
             options.AddPolicy(ControllerPolicies.Provider, policy =>
             {
                 policy.RequireAuthenticatedUser();
-                policy.RequireClaim(ControllerPolicies.RightsClaimType, ControllerPolicies.AdminRight);
+                policy.RequireClaim(ControllerPolicies.RightsClaimType, adminRight);
             });
         });
     }

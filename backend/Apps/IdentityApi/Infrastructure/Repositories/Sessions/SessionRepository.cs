@@ -1,6 +1,7 @@
 using Core.Database.DapperExtensions.EntityMapper;
 using System.Data;
 using Application.Constants;
+using Application.Models;
 using Application.Ports.Repositories;
 using Dapper;
 using Domain.DalModels;
@@ -34,8 +35,47 @@ public sealed class SessionRepository(IDbConnection connection) : ISessionReposi
         connection.QuerySingleOrDefaultAsync<SessionDal>($"SELECT * FROM {EntityMapper.TbName<SessionDal>()} WHERE {EntityMapper.ColName<SessionDal>(x => x.Id)}=@sessionId", new { sessionId });
 
     /// <inheritdoc/>
+    public async Task<bool> IsActiveAsync(Guid userId, Guid sessionId, DateTime now, CancellationToken cancellationToken)
+    {
+        var command = new CommandDefinition($"""
+            SELECT EXISTS(
+                SELECT 1 FROM {EntityMapper.TbName<SessionDal>()} s
+                JOIN {EntityMapper.TbName<UserProfileDal>()} u
+                    ON u.{EntityMapper.ColName<UserProfileDal>(x => x.UserId)} = s.{EntityMapper.ColName<SessionDal>(x => x.UserId)}
+                WHERE s.{EntityMapper.ColName<SessionDal>(x => x.Id)} = @sessionId
+                    AND s.{EntityMapper.ColName<SessionDal>(x => x.UserId)} = @userId
+                    AND s.{EntityMapper.ColName<SessionDal>(x => x.RevokedAt)} IS NULL
+                    AND s.{EntityMapper.ColName<SessionDal>(x => x.ExpiresAt)} > @now
+                    AND u.{EntityMapper.ColName<UserProfileDal>(x => x.IsActive)} = true)
+            """, new { userId, sessionId, now }, cancellationToken: cancellationToken);
+
+        return await connection.QuerySingleAsync<bool>(command);
+    }
+
+    /// <inheritdoc/>
     public Task<RefreshTokenDal?> GetRefreshAsync(string hash) =>
         connection.QuerySingleOrDefaultAsync<RefreshTokenDal>($"SELECT * FROM {EntityMapper.TbName<RefreshTokenDal>()} WHERE {EntityMapper.ColName<RefreshTokenDal>(x => x.TokenHash)}=@hash", new { hash });
+
+    /// <inheritdoc/>
+    public async Task<RefreshSessionData?> GetRefreshSessionAsync(string tokenHash)
+    {
+        return await connection.QuerySingleOrDefaultAsync<RefreshSessionData>($"""
+            SELECT t.{EntityMapper.ColName<RefreshTokenDal>(x => x.Id)} AS "{nameof(RefreshSessionData.TokenId)}",
+                t.{EntityMapper.ColName<RefreshTokenDal>(x => x.SessionId)},
+                s.{EntityMapper.ColName<SessionDal>(x => x.UserId)},
+                t.{EntityMapper.ColName<RefreshTokenDal>(x => x.ExpiresAt)} AS "{nameof(RefreshSessionData.TokenExpiresAt)}",
+                t.{EntityMapper.ColName<RefreshTokenDal>(x => x.RevokedAt)} AS "{nameof(RefreshSessionData.TokenRevokedAt)}",
+                s.{EntityMapper.ColName<SessionDal>(x => x.ExpiresAt)} AS "{nameof(RefreshSessionData.SessionExpiresAt)}",
+                s.{EntityMapper.ColName<SessionDal>(x => x.RevokedAt)} AS "{nameof(RefreshSessionData.SessionRevokedAt)}",
+                u.{EntityMapper.ColName<UserProfileDal>(x => x.IsActive)} AS "{nameof(RefreshSessionData.IsUserActive)}"
+            FROM {EntityMapper.TbName<RefreshTokenDal>()} t
+            JOIN {EntityMapper.TbName<SessionDal>()} s
+                ON s.{EntityMapper.ColName<SessionDal>(x => x.Id)} = t.{EntityMapper.ColName<RefreshTokenDal>(x => x.SessionId)}
+            JOIN {EntityMapper.TbName<UserProfileDal>()} u
+                ON u.{EntityMapper.ColName<UserProfileDal>(x => x.UserId)} = s.{EntityMapper.ColName<SessionDal>(x => x.UserId)}
+            WHERE t.{EntityMapper.ColName<RefreshTokenDal>(x => x.TokenHash)} = @tokenHash
+            """, new { tokenHash });
+    }
 
     /// <inheritdoc/>
     public async Task<bool> RotateAsync(Guid tokenId, RefreshTokenDal next, DateTime now)
@@ -67,14 +107,31 @@ public sealed class SessionRepository(IDbConnection connection) : ISessionReposi
     }
 
     /// <inheritdoc/>
-    public async Task RevokeAsync(Guid sessionId, DateTime now, string reason)
+    public async Task<bool> RevokeAsync(Guid sessionId, Guid userId, DateTime now, string reason)
     {
         using var transaction = connection.BeginTransaction();
+
+        var affected = await connection.ExecuteAsync($"""
+            UPDATE {EntityMapper.TbName<SessionDal>()}
+            SET {EntityMapper.ColName<SessionDal>(x => x.RevokedAt)} = @now,
+                {EntityMapper.ColName<SessionDal>(x => x.RevokeReason)} = @reason,
+                {EntityMapper.ColName<SessionDal>(x => x.UpdatedAt)} = @now
+            WHERE {EntityMapper.ColName<SessionDal>(x => x.Id)} = @sessionId
+                AND {EntityMapper.ColName<SessionDal>(x => x.UserId)} = @userId
+                AND {EntityMapper.ColName<SessionDal>(x => x.RevokedAt)} IS NULL
+            """, new { sessionId, userId, now, reason }, transaction);
+
+        if (affected != 1)
+        {
+            return false;
+        }
+
         await connection.ExecuteAsync($"""
-            UPDATE {EntityMapper.TbName<SessionDal>()} SET {EntityMapper.ColName<SessionDal>(x => x.RevokedAt)}=@now,{EntityMapper.ColName<SessionDal>(x => x.RevokeReason)}=@reason,{EntityMapper.ColName<SessionDal>(x => x.UpdatedAt)}=@now WHERE {EntityMapper.ColName<SessionDal>(x => x.Id)}=@sessionId AND {EntityMapper.ColName<SessionDal>(x => x.RevokedAt)} IS NULL;
             UPDATE {EntityMapper.TbName<RefreshTokenDal>()} SET {EntityMapper.ColName<RefreshTokenDal>(x => x.RevokedAt)}=@now WHERE {EntityMapper.ColName<RefreshTokenDal>(x => x.SessionId)}=@sessionId AND {EntityMapper.ColName<RefreshTokenDal>(x => x.RevokedAt)} IS NULL;
-            """, new { sessionId, now, reason }, transaction);
+            """, new { sessionId, now }, transaction);
+
         transaction.Commit();
+        return true;
     }
 
     /// <inheritdoc/>

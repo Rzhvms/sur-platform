@@ -1,6 +1,7 @@
 using Api.Swagger;
+using System.Security.Claims;
 using Application.Constants;
-using Core.Api.Controllers.ControllerTypes.Constants;
+using Application.UseCases.Auth.interfaces;
 using Asp.Versioning.ApiExplorer;
 using Microsoft.Extensions.Options;
 using Swashbuckle.AspNetCore.SwaggerGen;
@@ -41,7 +42,7 @@ public sealed class Startup(IWebHostEnvironment env, IConfiguration configuratio
         services.AddApplication();
         services.AddInfrastructure(connectionString ?? throw new InvalidOperationException("Не задана строка подключения DefaultConnection"));
         
-        services.AddCoreControllers();
+        services.AddCoreControllers(IdentityRights.ManageUsers);
         services.AddCoreUser();
         
         services.AddIdentityServices(Configuration);
@@ -64,6 +65,31 @@ public sealed class Startup(IWebHostEnvironment env, IConfiguration configuratio
 
                     ClockSkew = TimeSpan.Zero
                 };
+
+                options.Events = new JwtBearerEvents
+                {
+                    OnTokenValidated = async context =>
+                    {
+                        var userIdValue = context.Principal?.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                        var sessionIdValue = context.Principal?.FindFirst(AccessTokenClaimTypes.SessionId)?.Value;
+
+                        if (!Guid.TryParse(userIdValue, out var userId) || userId == Guid.Empty ||
+                            !Guid.TryParse(sessionIdValue, out var sessionId) || sessionId == Guid.Empty)
+                        {
+                            context.Fail("Токен не содержит идентификаторы пользователя и сессии");
+                            return;
+                        }
+
+                        var authUseCaseManager = context.HttpContext.RequestServices.GetRequiredService<IAuthUseCaseManager>();
+                        var isActive = await authUseCaseManager.IsSessionActiveAsync(
+                            userId, sessionId, context.HttpContext.RequestAborted);
+
+                        if (!isActive)
+                        {
+                            context.Fail("Сессия недействительна");
+                        }
+                    }
+                };
             });
 
         services.AddOptions<JwtBearerOptions>(JwtBearerDefaults.AuthenticationScheme)
@@ -72,11 +98,7 @@ public sealed class Startup(IWebHostEnvironment env, IConfiguration configuratio
                 options.TokenValidationParameters.IssuerSigningKey = rsaKeyProvider.ValidationKey;
             });
     
-        services.AddAuthorization(options =>
-        {
-            options.AddPolicy(ControllerPolicies.Provider, policy =>
-                policy.RequireAuthenticatedUser().RequireClaim(AccessTokenClaimTypes.Right, IdentityRights.ManageUsers));
-        });
+        services.AddAuthorization();
         
         services.AddCors(options =>
         {
@@ -96,10 +118,6 @@ public sealed class Startup(IWebHostEnvironment env, IConfiguration configuratio
 
         services.AddSwaggerGen(options =>
         {
-            options.AddServer(new OpenApiServer
-            {
-                Url = "/identity"
-            });
             options.AddSecurityDefinition("bearer", new OpenApiSecurityScheme
             {
                 Name = "JWT Authentication",

@@ -10,12 +10,17 @@ public interface IJwtGenerationService
     /// <summary>
     /// Генерирует access token
     /// </summary>
-    string GenerateAccessToken(AccessTokenClaims claims);
+    string GenerateAccessToken(AccessTokenClaims claims, DateTime sessionExpiresAt);
 
     /// <summary>
     /// Генерирует refresh token
     /// </summary>
     string GenerateRefreshToken();
+
+    /// <summary>
+    /// Вычисляет хеш случайного refresh-токена для хранения в базе
+    /// </summary>
+    string HashRefreshToken(string token);
 
     /// <summary>
     /// Возвращает время жизни refresh token в минутах

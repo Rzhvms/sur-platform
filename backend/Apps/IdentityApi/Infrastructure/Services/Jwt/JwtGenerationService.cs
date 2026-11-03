@@ -1,6 +1,8 @@
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
+using System.Buffers;
+using System.Text;
 using Application.Constants;
 using Application.Exceptions;
 using Application.Models;
@@ -18,6 +20,8 @@ namespace Infrastructure.Services.Jwt;
 public sealed class JwtGenerationService : IJwtGenerationService
 {
     private const string JwtAuthenticationType = "Bearer";
+    private const int StackTokenByteLength = 256;
+    private const int RefreshHashByteLength = 32;
 
     private readonly JwtSettings _settings;
     private readonly RsaSecurityKey _signingKey;
@@ -40,7 +44,7 @@ public sealed class JwtGenerationService : IJwtGenerationService
     }
 
     /// <inheritdoc/>
-    public string GenerateAccessToken(AccessTokenClaims claims)
+    public string GenerateAccessToken(AccessTokenClaims claims, DateTime sessionExpiresAt)
     {
         ArgumentNullException.ThrowIfNull(claims);
         if (claims.UserId == Guid.Empty || claims.SessionId == Guid.Empty)
@@ -50,13 +54,31 @@ public sealed class JwtGenerationService : IJwtGenerationService
 
         ArgumentNullException.ThrowIfNull(claims.RightIdList);
         var now = _timeProvider.GetUtcNow();
+        var expiresAt = now.AddSeconds(_settings.AccessTokenSettings.LifeTimeInSeconds).UtcDateTime;
+
+        if (sessionExpiresAt.Kind != DateTimeKind.Utc)
+        {
+            throw new ArgumentException("Время окончания сессии должно быть задано в UTC", nameof(sessionExpiresAt));
+        }
+
+        if (sessionExpiresAt < expiresAt)
+        {
+            expiresAt = sessionExpiresAt;
+        }
+
+        var expires = DateTimeOffset.FromUnixTimeSeconds(new DateTimeOffset(expiresAt).ToUnixTimeSeconds());
+
+        if (expires <= now)
+        {
+            throw new InvalidTokenException("Срок действия сессии истёк");
+        }
 
         return CreateToken(
             issuer: _settings.AccessTokenSettings.Issuer,
             audience: _settings.AccessTokenSettings.Audience,
             claims: BuildAccessTokenClaims(claims),
             notBefore: now.UtcDateTime,
-            expires: now.AddSeconds(_settings.AccessTokenSettings.LifeTimeInSeconds).UtcDateTime,
+            expires: expires.UtcDateTime,
             signingKey: _signingKey);
     }
 
@@ -66,6 +88,34 @@ public sealed class JwtGenerationService : IJwtGenerationService
         var buffer = new byte[_settings.RefreshTokenSettings.Length];
         RandomNumberGenerator.Fill(buffer);
         return Convert.ToBase64String(buffer);
+    }
+
+    /// <inheritdoc/>
+    public string HashRefreshToken(string token)
+    {
+        ArgumentNullException.ThrowIfNull(token);
+
+        var byteCount = Encoding.UTF8.GetByteCount(token);
+        byte[]? rentedBuffer = null;
+        Span<byte> tokenBytes = byteCount <= StackTokenByteLength
+            ? stackalloc byte[StackTokenByteLength]
+            : (rentedBuffer = ArrayPool<byte>.Shared.Rent(byteCount));
+        Span<byte> hash = stackalloc byte[RefreshHashByteLength];
+
+        try
+        {
+            var written = Encoding.UTF8.GetBytes(token.AsSpan(), tokenBytes);
+            SHA256.HashData(tokenBytes[..written], hash);
+
+            return Convert.ToHexString(hash);
+        }
+        finally
+        {
+            if (rentedBuffer is not null)
+            {
+                ArrayPool<byte>.Shared.Return(rentedBuffer, clearArray: true);
+            }
+        }
     }
 
     /// <inheritdoc />

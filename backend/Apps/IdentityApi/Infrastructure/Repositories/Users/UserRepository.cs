@@ -1,6 +1,7 @@
 using Core.Database.DapperExtensions.EntityMapper;
 using System.Data;
 using Application.Constants;
+using Application.Models;
 using Application.Ports.Repositories;
 using Dapper;
 using Domain.DalModels;
@@ -10,6 +11,37 @@ namespace Infrastructure.Repositories.Users;
 /// <inheritdoc/>
 public class UserRepository(IDbConnection dbConnection) : IUserRepository
 {
+    /// <inheritdoc/>
+    public async Task<bool> ExistsByEmailAsync(string normalizedEmail)
+    {
+        return await dbConnection.QuerySingleAsync<bool>(
+            $"SELECT EXISTS(SELECT 1 FROM {EntityMapper.TbName<UserProfileDal>()} WHERE {EntityMapper.ColName<UserProfileDal>(x => x.NormalizedEmail)} = @normalizedEmail)",
+            new { normalizedEmail });
+    }
+
+    /// <inheritdoc/>
+    public async Task<bool> ExistsAsync(Guid userId)
+    {
+        return await dbConnection.QuerySingleAsync<bool>(
+            $"SELECT EXISTS(SELECT 1 FROM {EntityMapper.TbName<UserCredentialDal>()} WHERE {EntityMapper.ColName<UserCredentialDal>(x => x.UserId)} = @userId)",
+            new { userId });
+    }
+
+    /// <inheritdoc/>
+    public async Task<UserLoginData?> GetLoginDataAsync(string normalizedEmail)
+    {
+        return await dbConnection.QuerySingleOrDefaultAsync<UserLoginData>($"""
+            SELECT u.{EntityMapper.ColName<UserProfileDal>(x => x.UserId)},
+                c.{EntityMapper.ColName<UserCredentialDal>(x => x.Password)},
+                u.{EntityMapper.ColName<UserProfileDal>(x => x.IsActive)},
+                u.{EntityMapper.ColName<UserProfileDal>(x => x.LockoutUntil)}
+            FROM {EntityMapper.TbName<UserProfileDal>()} u
+            JOIN {EntityMapper.TbName<UserCredentialDal>()} c
+                ON c.{EntityMapper.ColName<UserCredentialDal>(x => x.UserId)} = u.{EntityMapper.ColName<UserProfileDal>(x => x.UserId)}
+            WHERE u.{EntityMapper.ColName<UserProfileDal>(x => x.NormalizedEmail)} = @normalizedEmail
+            """, new { normalizedEmail });
+    }
+
     /// <inheritdoc/>
     public async Task<UserProfileDal?> GetUserByEmailAsync(string email)
     {

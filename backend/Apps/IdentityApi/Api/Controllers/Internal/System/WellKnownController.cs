@@ -1,8 +1,10 @@
 using Infrastructure.Services.Jwt.RsaKeys.Interfaces;
+using Core.Api.Controllers.ControllerTypes;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 
-namespace Api.Controllers.System;
+namespace Api.Controllers.Internal.System;
 
 /// <summary>
 /// Контроллер предоставляет публичные метаданные Identity сервиса
@@ -18,8 +20,9 @@ namespace Api.Controllers.System;
 /// - OpenID Connect Discovery
 /// - RFC 8615 (.well-known URIs)
 /// </remarks>
+[AllowAnonymous]
 [Route(".well-known")]
-public class WellKnownController(IRsaKeyProvider keyProvider, IConfiguration configuration) : ControllerBase
+public class WellKnownController(IRsaKeyProvider keyProvider, IConfiguration configuration) : BaseInternalController
 {
     // todo: хочу от него избавиться, не вижу пользы пока что
 
@@ -67,12 +70,13 @@ public class WellKnownController(IRsaKeyProvider keyProvider, IConfiguration con
     public IActionResult GetConfig()
     {
         var issuer = configuration["Jwt:AccessTokenSettings:Issuer"];
-        var baseUrl = $"{Request.Scheme}://{Request.Host}{Request.PathBase}";
+        var jwksUri = Url.ActionLink(nameof(GetJwks))
+            ?? throw new InvalidOperationException("Не удалось сформировать адрес JWKS");
 
         return Ok(new
         {
             issuer = issuer,
-            jwks_uri = $"{baseUrl}/.well-known/jwks.json"
+            jwks_uri = jwksUri
         });
     }
 }

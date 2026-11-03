@@ -1,30 +1,22 @@
 using Application.UseCases.Auth.Dto.Request;
 using Application.UseCases.Auth.Dto.Response.ConnectToken;
-using Application.UseCases.Auth.Dto.Response.CreateUser;
 using Application.UseCases.Auth.Dto.Response.RefreshToken;
 using Application.UseCases.Auth.Dto.Response.RevocateToken;
 using Application.UseCases.Auth.interfaces;
+using Application.Constants;
 using Core.Api.Extensions;
+using Core.Api.Controllers.ControllerTypes;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
-namespace Api.Controllers.Auth;
+namespace Api.Controllers.Public.Auth;
 
-[ApiController]
-[Route("api/connect")]
-public class AuthController(IAuthUseCaseManager authUseCaseManager) : ControllerBase
+/// <summary>
+/// Клиентские операции авторизации и управления токенами
+/// </summary>
+[Route("connect")]
+public class AuthController(IAuthUseCaseManager authUseCaseManager) : BasePublicController
 {
-    /// <summary>
-    /// Создание пользователя / регистрация
-    /// </summary>
-    [HttpPost("register")]
-    [Authorize(Policy = Core.Api.Controllers.ControllerTypes.Constants.ControllerPolicies.Provider)]
-    [ProducesResponseType(StatusCodes.Status200OK)]
-    public async Task<CreateUserResponse> RegisterAsync(CreateUserRequest request)
-    {
-        return await authUseCaseManager.CreateUserAsync(request);
-    }
-    
     /// <summary>
     /// Авторизация пользователя
     /// </summary>
@@ -48,7 +40,13 @@ public class AuthController(IAuthUseCaseManager authUseCaseManager) : Controller
     public async Task<IActionResult> RevocateRefreshTokenAsync()
     {
         var userId = User.GetUserId();
-        var response = await authUseCaseManager.RevocateRefreshTokenAsync(userId);
+
+        if (!Guid.TryParse(User.FindFirst(AccessTokenClaimTypes.SessionId)?.Value, out var sessionId) || sessionId == Guid.Empty)
+        {
+            return Unauthorized();
+        }
+
+        var response = await authUseCaseManager.RevocateRefreshTokenAsync(userId, sessionId);
         return response is RevocateTokenErrorResponse error ? BadRequest(error) : Ok(response);
     }
     

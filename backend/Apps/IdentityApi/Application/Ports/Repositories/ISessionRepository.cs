@@ -1,4 +1,5 @@
 using Domain.DalModels;
+using Application.Models;
 
 namespace Application.Ports.Repositories;
 
@@ -18,9 +19,19 @@ public interface ISessionRepository
     Task<SessionDal?> GetAsync(Guid sessionId);
 
     /// <summary>
+    /// Проверяет принадлежность и действительность сессии активного пользователя
+    /// </summary>
+    Task<bool> IsActiveAsync(Guid userId, Guid sessionId, DateTime now, CancellationToken cancellationToken);
+
+    /// <summary>
     /// Находит refresh-токен по хешу
     /// </summary>
     Task<RefreshTokenDal?> GetRefreshAsync(string hash);
+
+    /// <summary>
+    /// Получает данные refresh-токена, сессии и состояния пользователя одним запросом
+    /// </summary>
+    Task<RefreshSessionData?> GetRefreshSessionAsync(string tokenHash);
 
     /// <summary>
     /// Однократно заменяет действующий токен и обновляет время активности сессии
@@ -30,7 +41,7 @@ public interface ISessionRepository
     /// <summary>
     /// Завершает сессию и отзывает её токены
     /// </summary>
-    Task RevokeAsync(Guid sessionId, DateTime now, string reason);
+    Task<bool> RevokeAsync(Guid sessionId, Guid userId, DateTime now, string reason);
 
     /// <summary>
     /// Завершает все сессии пользователя

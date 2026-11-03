@@ -25,7 +25,12 @@ public interface IAuthUseCaseManager
     /// <summary>
     /// Деавторизация. Отзыв токена.
     /// </summary>
-    Task<RevocateTokenResponse> RevocateRefreshTokenAsync(Guid userId);
+    Task<RevocateTokenResponse> RevocateRefreshTokenAsync(Guid userId, Guid sessionId);
+
+    /// <summary>
+    /// Проверяет действительность сессии из access-токена
+    /// </summary>
+    Task<bool> IsSessionActiveAsync(Guid userId, Guid sessionId, CancellationToken cancellationToken);
     
     /// <summary>
     /// Обновление токена.
