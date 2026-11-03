@@ -34,9 +34,4 @@ public sealed record RefreshTokenDal
     /// Время отзыва в UTC
     /// </summary>
     public DateTime? RevokedAt { get; set; }
-
-    /// <summary>
-    /// Идентификатор токена, выпущенного при обновлении
-    /// </summary>
-    public Guid? ReplacedById { get; set; } // todo: возможно не нужно
 }

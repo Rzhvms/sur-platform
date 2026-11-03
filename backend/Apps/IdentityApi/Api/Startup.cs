@@ -8,9 +8,9 @@ using CoreLib.Audit;
 using CoreLib.Database.Migrations;
 using CoreLib.User;
 using CoreLib.Middlewares;
-using IdentityLib;
+using Infrastructure.Services;
 using Infrastructure;
-using IdentityLib.Jwt.RsaKeys.Interfaces;
+using Infrastructure.Services.Jwt.RsaKeys.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
@@ -44,7 +44,7 @@ public sealed class Startup(IWebHostEnvironment env, IConfiguration configuratio
         services.AddCoreUser();
         services.AddCoreAudit(Configuration);
         
-        services.AddIdentityLib(Configuration);
+        services.AddIdentityServices(Configuration);
         
         services
             .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)

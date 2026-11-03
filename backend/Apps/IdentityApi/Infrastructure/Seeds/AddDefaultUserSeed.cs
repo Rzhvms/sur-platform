@@ -2,7 +2,7 @@ using Application.Ports.Repositories;
 using CoreLib.Database.DapperExtensions.EntityMapper;
 using Domain.Entities.IdentityUser;
 using FluentMigrator;
-using IdentityLib.Encryption.Interfaces;
+using Application.Ports.Services.Encryption;
 
 namespace Infrastructure.Seeds;
 

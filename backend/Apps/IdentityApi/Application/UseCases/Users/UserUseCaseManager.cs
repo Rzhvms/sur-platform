@@ -5,7 +5,7 @@ using Application.UseCases.Users.Interfaces;
 using CoreLib.Audit;
 using CoreLib.Exceptions;
 using CoreLib.User;
-using IdentityLib.Encryption.Interfaces;
+using Application.Ports.Services.Encryption;
 
 namespace Application.UseCases.Users;
 

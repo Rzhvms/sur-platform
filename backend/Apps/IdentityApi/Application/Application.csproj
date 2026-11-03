@@ -11,7 +11,6 @@
     </ItemGroup>
 
     <ItemGroup>
-      <ProjectReference Include="..\..\..\Libs\IdentityLib\IdentityLib\IdentityLib.csproj" />
       <ProjectReference Include="..\Domain\Domain.csproj" />
       <ProjectReference Include="..\..\..\Libs\Core\Core.Abstractions\Core.Abstractions.csproj" />
     </ItemGroup>

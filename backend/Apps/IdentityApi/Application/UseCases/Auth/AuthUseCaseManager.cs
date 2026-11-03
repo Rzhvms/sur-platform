@@ -10,10 +10,10 @@ using Application.UseCases.Auth.interfaces;
 using CoreLib.Audit;
 using CoreLib.User;
 using Domain.Entities.IdentityUser;
-using IdentityLib.Encryption.Interfaces;
-using IdentityLib.ErrorCodes;
-using IdentityLib.Jwt.Entities;
-using IdentityLib.Jwt.Interfaces;
+using Application.Ports.Services.Encryption;
+using Application.ErrorCodes;
+using Application.Models;
+using Application.Ports.Services.Jwt;
 using Microsoft.Extensions.Logging;
 
 namespace Application.UseCases.Auth;

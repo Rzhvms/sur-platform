@@ -1,5 +1,5 @@
 using CoreLib.Api.Controllers.ControllerTypes;
-using IdentityLib.Jwt.RsaKeys.Interfaces;
+using Infrastructure.Services.Jwt.RsaKeys.Interfaces;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.IdentityModel.Tokens;
 
