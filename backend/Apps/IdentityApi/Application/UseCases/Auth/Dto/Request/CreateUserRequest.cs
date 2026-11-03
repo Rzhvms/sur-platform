@@ -47,12 +47,4 @@ public record CreateUserRequest
     [MaxLength(50)]
     [JsonPropertyName("patronymic")]
     public string? Patronymic { get; init; }
-    
-    /// <summary>
-    /// Название роли (Viewer / Editor / Administrator)
-    /// </summary>
-    [JsonPropertyName("roleName")]
-    [Required]
-    [AllowedValues("Viewer", "Editor", "Administrator")]
-    public required string RoleName { get; init; }
 }

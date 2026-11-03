@@ -1,7 +1,7 @@
 namespace Application.Models;
 
 /// <summary>
-/// Данные, необходимые для проверки учётных данных пользователя
+/// Данные, необходимые для проверки учетных данных пользователя
 /// </summary>
 public sealed record UserLoginData
 {

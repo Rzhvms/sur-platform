@@ -2,40 +2,43 @@ using System.Text.Json.Serialization;
 
 namespace Application.UseCases.Users.Dto.Response;
 
-public record GetUserResponse
+/// <summary>
+/// Выходная dto-модель получения пользователя
+/// </summary>
+public sealed record GetUserResponse
 {
     /// <summary>
-    /// Идентификатор пользователя.
+    /// Идентификатор пользователя
     /// </summary>
     [JsonPropertyName("userId")]
     public Guid Id { get; init; }
 
     /// <summary>
-    /// Электронная почта.
+    /// Электронная почта
     /// </summary>
     [JsonPropertyName("email")]
     public string Email { get; init; } = null!;
 
     /// <summary>
-    /// Идентификатор роли.
+    /// Идентификатор роли
     /// </summary>
     [JsonPropertyName("roleId")]
     public Guid RoleId { get; init; }
     
     /// <summary>
-    /// Имя пользователя.
+    /// Имя пользователя
     /// </summary>
     [JsonPropertyName("firstName")]
     public string? FirstName { get; init; }
 
     /// <summary>
-    /// Фамилия пользователя.
+    /// Фамилия пользователя
     /// </summary>
     [JsonPropertyName("lastName")]
     public string? LastName { get; init; }
     
     /// <summary>
-    /// Отчество пользователя.
+    /// Отчество пользователя
     /// </summary>
     [JsonPropertyName("patronymic")]
     public string? Patronymic { get; init; }

@@ -9,42 +9,42 @@ namespace Application.Ports.Repositories;
 public interface ISessionRepository
 {
     /// <summary>
-    /// Создаёт сессию и её первый refresh-токен атомарно
+    /// Создать сессию и ее первый refresh-токен атомарно
     /// </summary>
     Task CreateAsync(SessionDal session, RefreshTokenDal token);
 
     /// <summary>
-    /// Находит сессию
+    /// Получение сессии
     /// </summary>
     Task<SessionDal?> GetAsync(Guid sessionId);
 
     /// <summary>
-    /// Проверяет принадлежность и действительность сессии активного пользователя
+    /// Проверка принадлежности и действительность сессии активного пользователя
     /// </summary>
-    Task<bool> IsActiveAsync(Guid userId, Guid sessionId, DateTime now, CancellationToken cancellationToken);
+    Task<bool> IsActiveAsync(Guid userId, Guid sessionId, DateTime currentDateTime);
 
     /// <summary>
-    /// Находит refresh-токен по хешу
+    /// Получить refresh-токен по хешу
     /// </summary>
     Task<RefreshTokenDal?> GetRefreshAsync(string hash);
 
     /// <summary>
-    /// Получает данные refresh-токена, сессии и состояния пользователя одним запросом
+    /// Получить данные refresh-токена, сессии и состояния пользователя одним запросом
     /// </summary>
     Task<RefreshSessionData?> GetRefreshSessionAsync(string tokenHash);
 
     /// <summary>
     /// Однократно заменяет действующий токен и обновляет время активности сессии
     /// </summary>
-    Task<bool> RotateAsync(Guid tokenId, RefreshTokenDal next, DateTime now);
+    Task<bool> RotateAsync(Guid tokenId, RefreshTokenDal next, DateTime currentDateTime);
 
     /// <summary>
-    /// Завершает сессию и отзывает её токены
+    /// Отозвать сессию и токены
     /// </summary>
-    Task<bool> RevokeAsync(Guid sessionId, Guid userId, DateTime now, string reason);
+    Task<bool> RevokeAsync(Guid sessionId, Guid userId, DateTime currentDateTime, string reason);
 
     /// <summary>
-    /// Завершает все сессии пользователя
+    /// Завершить все сессии пользователя
     /// </summary>
-    Task RevokeUserAsync(Guid userId, DateTime now, string reason);
+    Task RevokeUserSessionsAsync(Guid userId, DateTime currentDateTime, string reason);
 }

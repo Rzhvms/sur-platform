@@ -25,6 +25,8 @@ public static class EntityMapper
     private static readonly ConcurrentDictionary<Type, string> TableNameCache = new();
     private static readonly ConcurrentDictionary<MemberInfo, string> ColumnNameCache = new();
 
+    public static string ParameterPrefix => "@";
+    
     /// <summary>
     /// Получение имени таблицы для сущности типа <typeparamref name="TEntity"/>
     /// </summary>

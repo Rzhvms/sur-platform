@@ -1,60 +1,47 @@
+using System.Buffers;
 using System.IdentityModel.Tokens.Jwt;
 using System.Security.Claims;
 using System.Security.Cryptography;
-using System.Buffers;
 using System.Text;
 using Application.Constants;
 using Application.Exceptions;
 using Application.Models;
-using Application.Ports.Services.Jwt;
-using Infrastructure.Services.Jwt.RsaKeys.Interfaces;
-using Infrastructure.Services.Jwt.Settings;
-using Microsoft.Extensions.Options;
+using Application.Settings;
 using Microsoft.IdentityModel.Tokens;
 
-namespace Infrastructure.Services.Jwt;
+namespace Application.Helpers.Jwt;
 
 /// <summary>
 /// Сервис генерации и проверки JWT
 /// </summary>
-public sealed class JwtGenerationService : IJwtGenerationService
+public static class JwtGenerationHelper
 {
     private const string JwtAuthenticationType = "Bearer";
     private const int StackTokenByteLength = 256;
     private const int RefreshHashByteLength = 32;
 
-    private readonly JwtSettings _settings;
-    private readonly RsaSecurityKey _signingKey;
-    private readonly RsaSecurityKey _validationKey;
-    private readonly TimeProvider _timeProvider;
-
     /// <summary>
-    /// Инициализирует сервис генерации и проверки JWT
+    /// Генерирует access token
     /// </summary>
-    public JwtGenerationService(IOptions<JwtSettings> settings, IRsaKeyProvider keyProvider, TimeProvider timeProvider)
-    {
-        ArgumentNullException.ThrowIfNull(settings);
-        ArgumentNullException.ThrowIfNull(keyProvider);
-        ArgumentNullException.ThrowIfNull(timeProvider);
-
-        _settings = settings.Value ?? throw new ArgumentNullException(nameof(settings));
-        _signingKey = keyProvider.SigningKey;
-        _validationKey = keyProvider.ValidationKey;
-        _timeProvider = timeProvider;
-    }
-
-    /// <inheritdoc/>
-    public string GenerateAccessToken(AccessTokenClaims claims, DateTime sessionExpiresAt)
+    public static string GenerateAccessToken(AccessTokenClaims claims, DateTime sessionExpiresAt,
+        JwtSettings settings, RsaSecurityKey signingKey, DateTime currentDateTime)
     {
         ArgumentNullException.ThrowIfNull(claims);
+        ArgumentNullException.ThrowIfNull(settings);
+        ArgumentNullException.ThrowIfNull(signingKey);
+
+        if (currentDateTime.Kind != DateTimeKind.Utc)
+        {
+            throw new ArgumentException("Текущее время должно быть задано в UTC", nameof(currentDateTime));
+        }
+
         if (claims.UserId == Guid.Empty || claims.SessionId == Guid.Empty)
         {
             throw new ArgumentException("Идентификаторы пользователя и сессии обязательны", nameof(claims));
         }
 
         ArgumentNullException.ThrowIfNull(claims.RightIdList);
-        var now = _timeProvider.GetUtcNow();
-        var expiresAt = now.AddSeconds(_settings.AccessTokenSettings.LifeTimeInSeconds).UtcDateTime;
+        var expiresAt = currentDateTime.AddSeconds(settings.AccessTokenSettings.LifeTimeInSeconds);
 
         if (sessionExpiresAt.Kind != DateTimeKind.Utc)
         {
@@ -66,40 +53,48 @@ public sealed class JwtGenerationService : IJwtGenerationService
             expiresAt = sessionExpiresAt;
         }
 
-        var expires = DateTimeOffset.FromUnixTimeSeconds(new DateTimeOffset(expiresAt).ToUnixTimeSeconds());
+        var expiresDateTime = DateTimeOffset.FromUnixTimeSeconds(new DateTimeOffset(expiresAt).ToUnixTimeSeconds());
 
-        if (expires <= now)
+        if (expiresDateTime <= currentDateTime)
         {
-            throw new InvalidTokenException("Срок действия сессии истёк");
+            throw new InvalidTokenException("Срок действия сессии истек");
         }
 
         return CreateToken(
-            issuer: _settings.AccessTokenSettings.Issuer,
-            audience: _settings.AccessTokenSettings.Audience,
+            issuer: settings.AccessTokenSettings.Issuer,
+            audience: settings.AccessTokenSettings.Audience,
             claims: BuildAccessTokenClaims(claims),
-            notBefore: now.UtcDateTime,
-            expires: expires.UtcDateTime,
-            signingKey: _signingKey);
+            notBefore: currentDateTime,
+            expires: expiresDateTime.UtcDateTime,
+            signingKey: signingKey);
     }
 
-    /// <inheritdoc />
-    public string GenerateRefreshToken()
+    /// <summary>
+    /// Генерирует refresh token
+    /// </summary>
+    public static string GenerateRefreshToken(JwtSettings settings)
     {
-        var buffer = new byte[_settings.RefreshTokenSettings.Length];
+        ArgumentNullException.ThrowIfNull(settings);
+
+        var buffer = new byte[settings.RefreshTokenSettings.Length];
         RandomNumberGenerator.Fill(buffer);
         return Convert.ToBase64String(buffer);
     }
 
-    /// <inheritdoc/>
-    public string HashRefreshToken(string token)
+    /// <summary>
+    /// Вычисляет хеш случайного refresh-токена для хранения в базе
+    /// </summary>
+    public static string HashRefreshToken(string token)
     {
         ArgumentNullException.ThrowIfNull(token);
 
         var byteCount = Encoding.UTF8.GetByteCount(token);
         byte[]? rentedBuffer = null;
-        Span<byte> tokenBytes = byteCount <= StackTokenByteLength
+        
+        var tokenBytes = byteCount <= StackTokenByteLength
             ? stackalloc byte[StackTokenByteLength]
-            : (rentedBuffer = ArrayPool<byte>.Shared.Rent(byteCount));
+            : rentedBuffer = ArrayPool<byte>.Shared.Rent(byteCount);
+        
         Span<byte> hash = stackalloc byte[RefreshHashByteLength];
 
         try
@@ -118,30 +113,40 @@ public sealed class JwtGenerationService : IJwtGenerationService
         }
     }
 
-    /// <inheritdoc />
-    public int GetRefreshTokenLifetimeInMinutes()
-        => _settings.RefreshTokenSettings.LifeTimeInMinutes;
-
-    /// <inheritdoc />
-    public Guid GetUserIdFromToken(string token)
+    /// <summary>
+    /// Возвращает время жизни refresh token в минутах
+    /// </summary>
+    public static int GetRefreshTokenLifetimeInMinutes(JwtSettings settings)
     {
-        var principal = ValidateToken(token, validateLifetime: false);
+        ArgumentNullException.ThrowIfNull(settings);
+
+        return settings.RefreshTokenSettings.LifeTimeInMinutes;
+    }
+
+    /// <summary>
+    /// Извлекает идентификатор пользователя из токена
+    /// </summary>
+    public static Guid GetUserIdFromToken(string token, JwtSettings settings, RsaSecurityKey validationKey)
+    {
+        var principal = ValidateToken(token, validateLifetime: false, settings, validationKey);
 
         var rawUserId = principal.FindFirst(JwtRegisteredClaimNames.Sub)?.Value;
         if (string.IsNullOrWhiteSpace(rawUserId) || !Guid.TryParse(rawUserId, out var userId))
         {
-            throw new InvalidTokenException("Token does not contain a valid UserId.");
+            throw new InvalidTokenException("Токен не содержит валидный идентификатор пользователя");
         }
 
         return userId;
     }
 
-    /// <inheritdoc />
-    public bool IsTokenValid(string token, bool validateLifeTime)
+    /// <summary>
+    /// Проверяет валидность токена
+    /// </summary>
+    public static bool IsTokenValid(string token, bool validateLifeTime, JwtSettings settings, RsaSecurityKey validationKey)
     {
         try
         {
-            _ = ValidateToken(token, validateLifetime: validateLifeTime);
+            _ = ValidateToken(token, validateLifetime: validateLifeTime, settings, validationKey);
             return true;
         }
         catch
@@ -149,7 +154,9 @@ public sealed class JwtGenerationService : IJwtGenerationService
             return false;
         }
     }
-
+    
+    #region Private methods
+    
     /// <summary>
     /// Формирует идентификаторы пользователя, сессии и уникальных прав
     /// </summary>
@@ -162,7 +169,7 @@ public sealed class JwtGenerationService : IJwtGenerationService
             new(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString("N"))
         };
 
-        var uniqueRightIds = new HashSet<Guid>();
+        var uniqueRightIdSet = new HashSet<Guid>();
         foreach (var rightId in data.RightIdList)
         {
             if (rightId == Guid.Empty)
@@ -170,7 +177,7 @@ public sealed class JwtGenerationService : IJwtGenerationService
                 throw new ArgumentException("Идентификатор права не может быть пустым", nameof(data));
             }
 
-            if (uniqueRightIds.Add(rightId))
+            if (uniqueRightIdSet.Add(rightId))
             {
                 claims.Add(new Claim(AccessTokenClaimTypes.Right, rightId.ToString("D")));
             }
@@ -182,7 +189,7 @@ public sealed class JwtGenerationService : IJwtGenerationService
     /// <summary>
     /// Формирование токена
     /// </summary>
-    private string CreateToken(string issuer, string audience, IEnumerable<Claim> claims, 
+    private static string CreateToken(string issuer, string audience, IEnumerable<Claim> claims, 
         DateTime notBefore, DateTime expires, RsaSecurityKey signingKey)
     {
         var identity = new ClaimsIdentity(claims, JwtAuthenticationType);
@@ -204,11 +211,14 @@ public sealed class JwtGenerationService : IJwtGenerationService
     /// <summary>
     /// Валидация токена
     /// </summary>
-    private ClaimsPrincipal ValidateToken(string token, bool validateLifetime)
+    private static ClaimsPrincipal ValidateToken(string token, bool validateLifetime, JwtSettings settings, RsaSecurityKey validationKey)
     {
+        ArgumentNullException.ThrowIfNull(settings);
+        ArgumentNullException.ThrowIfNull(validationKey);
+
         if (string.IsNullOrWhiteSpace(token))
         {
-            throw new InvalidTokenException("Token is empty.");
+            throw new InvalidTokenException("Token is empty");
         }
 
         var validationParameters = new TokenValidationParameters
@@ -219,14 +229,17 @@ public sealed class JwtGenerationService : IJwtGenerationService
             ValidateIssuerSigningKey = true,
             RequireSignedTokens = true,
             RequireExpirationTime = validateLifetime,
-            ValidIssuer = _settings.AccessTokenSettings.Issuer,
-            ValidAudience = _settings.AccessTokenSettings.Audience,
-            IssuerSigningKey = _validationKey,
+            ValidIssuer = settings.AccessTokenSettings.Issuer,
+            ValidAudience = settings.AccessTokenSettings.Audience,
+            IssuerSigningKey = validationKey,
             NameClaimType = JwtRegisteredClaimNames.Sub,
             ClockSkew = TimeSpan.Zero
         };
 
-        var handler = new JwtSecurityTokenHandler { MapInboundClaims = false };
+        var handler = new JwtSecurityTokenHandler
+        {
+            MapInboundClaims = false
+        };
 
         try
         {
@@ -234,7 +247,9 @@ public sealed class JwtGenerationService : IJwtGenerationService
         }
         catch (Exception ex) when (ex is SecurityTokenException or ArgumentException or FormatException)
         {
-            throw new InvalidTokenException("Token is invalid.", ex);
+            throw new InvalidTokenException("Token is invalid", ex);
         }
     }
+    
+    #endregion
 }

@@ -33,20 +33,12 @@ public class Date_202611032300_AddIdentityTables : Migration
                 .WithColumn(EntityMapper.ColName<UserProfileDal>(x => x.Phone, false)).AsString(20).Nullable()
                 .WithColumn(EntityMapper.ColName<UserProfileDal>(x => x.Email, false)).AsString(50).Nullable()
                 .WithColumn(EntityMapper.ColName<UserProfileDal>(x => x.NormalizedEmail, false)).AsString(50).Nullable()
-                .WithColumn(EntityMapper.ColName<UserProfileDal>(x => x.IsActive, false)).AsBoolean().NotNullable()
-                .WithColumn(EntityMapper.ColName<UserProfileDal>(x => x.IsEmailConfirmed, false)).AsBoolean().NotNullable()
-                .WithColumn(EntityMapper.ColName<UserProfileDal>(x => x.IsPhoneConfirmed, false)).AsBoolean().NotNullable()
-                .WithColumn(EntityMapper.ColName<UserProfileDal>(x => x.LockoutUntil, false)).AsDateTimeOffset().Nullable()
-                .WithColumn(EntityMapper.ColName<UserProfileDal>(x => x.CreatedAt, false)).AsDateTimeOffset().NotNullable()
-                .WithColumn(EntityMapper.ColName<UserProfileDal>(x => x.UpdatedAt, false)).AsDateTimeOffset().NotNullable();
-        }
-
-        if (!Schema.Table(_userProfileTableName).Index("uq_user_profile_normalized_email").Exists())
-        {
-            Create.Index("uq_user_profile_normalized_email")
-                .OnTable(_userProfileTableName)
-                .OnColumn(EntityMapper.ColName<UserProfileDal>(x => x.NormalizedEmail, false)).Ascending()
-                .WithOptions().Unique();
+                .WithColumn(EntityMapper.ColName<UserProfileDal>(x => x.IsActive, false)).AsBoolean().NotNullable().WithDefaultValue(true)
+                .WithColumn(EntityMapper.ColName<UserProfileDal>(x => x.IsEmailConfirmed, false)).AsBoolean().NotNullable().WithDefaultValue(false)
+                .WithColumn(EntityMapper.ColName<UserProfileDal>(x => x.IsPhoneConfirmed, false)).AsBoolean().NotNullable().WithDefaultValue(false)
+                .WithColumn(EntityMapper.ColName<UserProfileDal>(x => x.LockoutUntil, false)).AsDateTime().Nullable()
+                .WithColumn(EntityMapper.ColName<UserProfileDal>(x => x.CreatedAt, false)).AsDateTime().NotNullable()
+                .WithColumn(EntityMapper.ColName<UserProfileDal>(x => x.UpdatedAt, false)).AsDateTime().NotNullable();
         }
 
         if (!Schema.Table(_userCredentialTableName).Exists())
@@ -57,7 +49,7 @@ public class Date_202611032300_AddIdentityTables : Migration
                     .ForeignKey(_userProfileTableName, EntityMapper.ColName<UserProfileDal>(x => x.UserId, false))
                     .OnDelete(System.Data.Rule.Cascade)
                 .WithColumn(EntityMapper.ColName<UserCredentialDal>(x => x.Password, false)).AsString().NotNullable()
-                .WithColumn(EntityMapper.ColName<UserCredentialDal>(x => x.PasswordChangedAt, false)).AsDateTimeOffset().NotNullable();
+                .WithColumn(EntityMapper.ColName<UserCredentialDal>(x => x.PasswordChangedAt, false)).AsDateTime().NotNullable();
         }
 
         if (!Schema.Table(_roleTableName).Exists())
@@ -65,7 +57,7 @@ public class Date_202611032300_AddIdentityTables : Migration
             Create.Table(_roleTableName)
                 .WithColumn(EntityMapper.ColName<RoleDal>(x => x.Id, false)).AsGuid().PrimaryKey().NotNullable()
                 .WithColumn(EntityMapper.ColName<RoleDal>(x => x.Name, false)).AsString(100).Unique().NotNullable()
-                .WithColumn(EntityMapper.ColName<RoleDal>(x => x.IsSystem, false)).AsBoolean().NotNullable();
+                .WithColumn(EntityMapper.ColName<RoleDal>(x => x.IsSystem, false)).AsBoolean().NotNullable().WithDefaultValue(false);
         }
 
         if (!Schema.Table(_rightTableName).Exists())
@@ -73,7 +65,7 @@ public class Date_202611032300_AddIdentityTables : Migration
             Create.Table(_rightTableName)
                 .WithColumn(EntityMapper.ColName<RightDal>(x => x.Id, false)).AsGuid().PrimaryKey().NotNullable()
                 .WithColumn(EntityMapper.ColName<RightDal>(x => x.Name, false)).AsString(100).Unique().NotNullable()
-                .WithColumn(EntityMapper.ColName<RightDal>(x => x.IsSystem, false)).AsBoolean().NotNullable();
+                .WithColumn(EntityMapper.ColName<RightDal>(x => x.IsSystem, false)).AsBoolean().NotNullable().WithDefaultValue(false);
         }
 
         if (!Schema.Table(_roleRightTableName).Exists())
@@ -87,14 +79,7 @@ public class Date_202611032300_AddIdentityTables : Migration
                     .ForeignKey(_rightTableName, EntityMapper.ColName<RightDal>(x => x.Id, false))
                     .OnDelete(System.Data.Rule.Cascade);
         }
-
-        if (!Schema.Table(_roleRightTableName).Constraint("uq_role_right").Exists())
-        {
-            Create.UniqueConstraint("uq_role_right")
-                .OnTable(_roleRightTableName)
-                .Columns(EntityMapper.ColName<RoleRightDal>(x => x.RoleId, false), EntityMapper.ColName<RoleRightDal>(x => x.RightId, false));
-        }
-
+        
         if (!Schema.Table(_userRoleTableName).Exists())
         {
             Create.Table(_userRoleTableName)
@@ -105,13 +90,6 @@ public class Date_202611032300_AddIdentityTables : Migration
                     .ForeignKey(_roleTableName, EntityMapper.ColName<RoleDal>(x => x.Id, false));
         }
 
-        if (!Schema.Table(_userRoleTableName).Constraint("pk_user_role").Exists())
-        {
-            Create.PrimaryKey("pk_user_role")
-                .OnTable(_userRoleTableName)
-                .Columns(EntityMapper.ColName<UserRoleDal>(x => x.UserId, false), EntityMapper.ColName<UserRoleDal>(x => x.RoleId, false));
-        }
-
         if (!Schema.Table(_sessionTableName).Exists())
         {
             Create.Table(_sessionTableName)
@@ -119,10 +97,10 @@ public class Date_202611032300_AddIdentityTables : Migration
                 .WithColumn(EntityMapper.ColName<SessionDal>(x => x.UserId, false)).AsGuid().NotNullable()
                     .ForeignKey(_userProfileTableName, EntityMapper.ColName<UserProfileDal>(x => x.UserId, false))
                     .OnDelete(System.Data.Rule.Cascade)
-                .WithColumn(EntityMapper.ColName<SessionDal>(x => x.CreatedAt, false)).AsDateTimeOffset().NotNullable()
-                .WithColumn(EntityMapper.ColName<SessionDal>(x => x.UpdatedAt, false)).AsDateTimeOffset().NotNullable()
-                .WithColumn(EntityMapper.ColName<SessionDal>(x => x.ExpiresAt, false)).AsDateTimeOffset().NotNullable()
-                .WithColumn(EntityMapper.ColName<SessionDal>(x => x.RevokedAt, false)).AsDateTimeOffset().Nullable()
+                .WithColumn(EntityMapper.ColName<SessionDal>(x => x.CreatedAt, false)).AsDateTime().NotNullable()
+                .WithColumn(EntityMapper.ColName<SessionDal>(x => x.UpdatedAt, false)).AsDateTime().NotNullable()
+                .WithColumn(EntityMapper.ColName<SessionDal>(x => x.ExpiresAt, false)).AsDateTime().NotNullable()
+                .WithColumn(EntityMapper.ColName<SessionDal>(x => x.RevokedAt, false)).AsDateTime().Nullable()
                 .WithColumn(EntityMapper.ColName<SessionDal>(x => x.RevokeReason, false)).AsString().Nullable()
                 .WithColumn(EntityMapper.ColName<SessionDal>(x => x.DeviceName, false)).AsString().Nullable();
         }
@@ -134,24 +112,10 @@ public class Date_202611032300_AddIdentityTables : Migration
                 .WithColumn(EntityMapper.ColName<RefreshTokenDal>(x => x.SessionId, false)).AsGuid().NotNullable()
                     .ForeignKey(_sessionTableName, EntityMapper.ColName<SessionDal>(x => x.Id, false))
                     .OnDelete(System.Data.Rule.Cascade)
-                .WithColumn(EntityMapper.ColName<RefreshTokenDal>(x => x.TokenHash, false)).AsString(64).Unique().NotNullable()
-                .WithColumn(EntityMapper.ColName<RefreshTokenDal>(x => x.CreatedAt, false)).AsDateTimeOffset().NotNullable()
-                .WithColumn(EntityMapper.ColName<RefreshTokenDal>(x => x.ExpiresAt, false)).AsDateTimeOffset().NotNullable()
-                .WithColumn(EntityMapper.ColName<RefreshTokenDal>(x => x.RevokedAt, false)).AsDateTimeOffset().Nullable();
-        }
-
-        if (!Schema.Table(_sessionTableName).Index("ix_session_user").Exists())
-        {
-            Create.Index("ix_session_user")
-                .OnTable(_sessionTableName)
-                .OnColumn(EntityMapper.ColName<SessionDal>(x => x.UserId, false)).Ascending();
-        }
-
-        if (!Schema.Table(_refreshTokenTableName).Index("ix_refresh_session").Exists())
-        {
-            Create.Index("ix_refresh_session")
-                .OnTable(_refreshTokenTableName)
-                .OnColumn(EntityMapper.ColName<RefreshTokenDal>(x => x.SessionId, false)).Ascending();
+                .WithColumn(EntityMapper.ColName<RefreshTokenDal>(x => x.TokenHash, false)).AsString(100).Unique().NotNullable()
+                .WithColumn(EntityMapper.ColName<RefreshTokenDal>(x => x.CreatedAt, false)).AsDateTime().NotNullable()
+                .WithColumn(EntityMapper.ColName<RefreshTokenDal>(x => x.ExpiresAt, false)).AsDateTime().NotNullable()
+                .WithColumn(EntityMapper.ColName<RefreshTokenDal>(x => x.RevokedAt, false)).AsDateTime().Nullable();
         }
     }
 

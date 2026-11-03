@@ -15,7 +15,7 @@ public class ProviderUserController(IUserUseCaseManager useCaseManager) : BasePr
     /// Получить список пользователей
     /// </summary>
     [HttpGet("list")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(GetUserListResponse), StatusCodes.Status200OK)]
     public async Task<GetUserListResponse> GetUserListAsync()
     {
         return await useCaseManager.GetUserListAsync();
@@ -25,7 +25,7 @@ public class ProviderUserController(IUserUseCaseManager useCaseManager) : BasePr
     /// Получить пользователя по идентификатору
     /// </summary>
     [HttpGet("{userId}")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(GetUserResponse), StatusCodes.Status200OK)]
     public async Task<GetUserResponse> GetUserByIdAsync([FromRoute] Guid userId)
     {
         return await useCaseManager.GetUserByIdAsync(userId);
@@ -40,5 +40,4 @@ public class ProviderUserController(IUserUseCaseManager useCaseManager) : BasePr
     {
         await useCaseManager.DeleteUserByIdAsync(userId);
     }
-
 }

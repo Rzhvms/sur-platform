@@ -1,6 +1,6 @@
 using System.ComponentModel.DataAnnotations;
 
-namespace Infrastructure.Services.Jwt.Settings;
+namespace Application.Settings;
 
 /// <summary>
 /// Настройки хранения RSA-ключей

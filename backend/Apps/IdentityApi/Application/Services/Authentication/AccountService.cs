@@ -1,5 +1,5 @@
+using Application.Helpers.Encryption;
 using Application.Ports.Repositories;
-using Application.Ports.Services.Encryption;
 using Application.UseCases.Auth.Dto.Request;
 using Core.Abstractions.Exceptions;
 using Domain.DalModels;
@@ -7,31 +7,29 @@ using Domain.DalModels;
 namespace Application.Services.Authentication;
 
 /// <summary>
-/// Регистрация и проверка учётных данных пользователей
+/// Регистрация и проверка учетных данных пользователей
 /// </summary>
-public sealed class AccountService(
-    IUserRepository userRepository,
-    IRoleRepository roleRepository,
-    IPasswordEncryptionService encryptionService,
-    TimeProvider clock)
+public sealed class AccountService(IUserRepository userRepository, IRoleRepository roleRepository)
 {
     /// <summary>
-    /// Создаёт пользователя либо возвращает отсутствие результата при занятой почте
+    /// Создание пользователя либо возврат отсутствия результата при занятой почте
     /// </summary>
     public async Task<Guid?> CreateAsync(CreateUserRequest request)
     {
         var email = request.Email.Trim();
         var normalizedEmail = email.ToLowerInvariant();
 
-        if (await userRepository.ExistsByEmailAsync(normalizedEmail))
+        var isEmailExists = await userRepository.ExistsByEmailAsync(normalizedEmail);
+        if (isEmailExists)
         {
             return null;
         }
 
-        var role = await roleRepository.GetRoleByNameAsync(request.RoleName)
-            ?? throw new EntityNotFoundException("Роль не найдена");
+        var role = await roleRepository.GetRoleByNameAsync(request.RoleName);
+        
         var userId = Guid.NewGuid();
-        var now = clock.GetUtcNow().UtcDateTime;
+        var currentDateTime = DateTime.UtcNow;
+        
         var profile = new UserProfileDal
         {
             Id = Guid.NewGuid(),
@@ -41,18 +39,19 @@ public sealed class AccountService(
             FirstName = request.FirstName,
             LastName = request.LastName,
             Patronymic = request.Patronymic,
-            CreatedAt = now,
-            UpdatedAt = now
+            CreatedAt = currentDateTime,
+            UpdatedAt = currentDateTime
         };
+        
         var credential = new UserCredentialDal
         {
             Id = Guid.NewGuid(),
             UserId = userId,
             Password = HashPassword(request.Password),
-            PasswordChangedAt = now
+            PasswordChangedAt = currentDateTime
         };
 
-        await userRepository.CreateUserAsync(profile, credential, role.Id);
+        await userRepository.CreateUserAsync(profile, credential, role!.Id);
 
         return userId;
     }
@@ -63,10 +62,10 @@ public sealed class AccountService(
     public async Task<Guid?> AuthenticateAsync(string email, string password)
     {
         var user = await userRepository.GetLoginDataAsync(email.Trim().ToLowerInvariant());
-        var now = clock.GetUtcNow().UtcDateTime;
+        var currentDateTime = DateTime.UtcNow;
 
-        if (user is null || !user.IsActive || user.LockoutUntil > now ||
-            !encryptionService.VerifyPassword(password, user.Password))
+        if (user is null || !user.IsActive || user.LockoutUntil > currentDateTime ||
+            !PasswordEncryptionHelper.VerifyPassword(password, user.Password))
         {
             return null;
         }
@@ -75,24 +74,26 @@ public sealed class AccountService(
     }
 
     /// <summary>
-    /// Изменяет пароль пользователя с отзывом его сессий в репозитории
+    /// Изменение пароля пользователя с отзывом его сессий в репозитории
     /// </summary>
     public async Task ChangePasswordAsync(Guid userId, string password)
     {
-        if (!await userRepository.ExistsAsync(userId))
+        var isUserExist = await userRepository.IsExistAsync(userId);
+        if (!isUserExist)
         {
-            throw new EntityNotFoundException("Пользователь не найден");
+            throw new EntityNotFoundException($"Пользователь {userId} не найден");
         }
 
         var passwordHash = HashPassword(password);
-        await userRepository.ChangeUserPasswordAsync(userId, passwordHash, clock.GetUtcNow().UtcDateTime);
+        await userRepository.ChangeUserPasswordAsync(userId, passwordHash, DateTime.UtcNow);
     }
 
     /// <summary>
-    /// Создаёт самодостаточный хеш пароля с новой солью
+    /// Создание хеша пароля
     /// </summary>
     private string HashPassword(string password)
     {
-        return encryptionService.HashPassword(password, encryptionService.GenerateSalt());
+        var hashSalt = PasswordEncryptionHelper.GenerateSalt();
+        return PasswordEncryptionHelper.HashPassword(password, hashSalt);
     }
 }

@@ -5,6 +5,8 @@ namespace Application.Constants;
 /// </summary>
 public static class IdentityRights
 {
+    // todo: небезопасно
+    
     /// <summary>
     /// Управление пользователями
     /// </summary>

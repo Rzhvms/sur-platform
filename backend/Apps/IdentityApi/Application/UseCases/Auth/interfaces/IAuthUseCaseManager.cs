@@ -18,27 +18,27 @@ public interface IAuthUseCaseManager
     Task<CreateUserResponse> CreateUserAsync(CreateUserRequest request);
 
     /// <summary>
-    /// Авторизация. Получение токенов.
+    /// Авторизация. Получение токенов
     /// </summary>
     Task<ConnectTokenResponse> ConnectTokenAsync(ConnectTokenRequest request);
 
     /// <summary>
-    /// Деавторизация. Отзыв токена.
+    /// Деавторизация. Отзыв токена
     /// </summary>
     Task<RevocateTokenResponse> RevocateRefreshTokenAsync(Guid userId, Guid sessionId);
 
     /// <summary>
-    /// Проверяет действительность сессии из access-токена
+    /// Проверка действительности сессии из access-токена
     /// </summary>
     Task<bool> IsSessionActiveAsync(Guid userId, Guid sessionId, CancellationToken cancellationToken);
     
     /// <summary>
-    /// Обновление токена.
+    /// Обновление токена
     /// </summary>
     Task<RefreshTokenResponse> RefreshTokenAsync(RefreshTokenRequest request);
 
     /// <summary>
-    /// Изменение пароля.
+    /// Изменение пароля
     /// </summary>
     Task ChangePasswordAsync(Guid userId, ChangePasswordRequest request);
 }

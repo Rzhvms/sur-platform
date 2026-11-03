@@ -1,45 +1,42 @@
 using Application.Constants;
+using Application.Helpers.Jwt;
 using Application.Models;
 using Application.Ports.Repositories;
-using Application.Ports.Services.Jwt;
 using Domain.DalModels;
 
 namespace Application.Services.Authentication;
 
 /// <summary>
-/// Создание, обновление и проверка авторизационных сессий
+/// Сервис для управления авторизационными сессиями
 /// </summary>
-public sealed class SessionService(
-    ISessionRepository sessionRepository,
-    IRoleRepository roleRepository,
-    IJwtGenerationService jwtGenerationService,
-    TimeProvider clock)
+public sealed class SessionService(ISessionRepository sessionRepository, IRoleRepository roleRepository)
 {
     /// <summary>
-    /// Создаёт отдельную сессию и пару токенов для нового входа
+    /// Создание сессии и токенов для нового входа
     /// </summary>
     public async Task<SessionTokens> CreateAsync(Guid userId)
     {
-        var now = clock.GetUtcNow().UtcDateTime;
+        var currentDateTime = DateTime.UtcNow;
         var session = new SessionDal
         {
             Id = Guid.NewGuid(),
             UserId = userId,
-            CreatedAt = now,
-            UpdatedAt = now,
-            ExpiresAt = now.AddMinutes(jwtGenerationService.GetRefreshTokenLifetimeInMinutes())
+            CreatedAt = currentDateTime,
+            UpdatedAt = currentDateTime,
+            ExpiresAt = currentDateTime.AddMinutes(JwtGenerationHelper.GetRefreshTokenLifetimeInMinutes())
         };
-        var refreshToken = jwtGenerationService.GenerateRefreshToken();
+        
+        var refreshToken = JwtGenerationHelper.GenerateRefreshToken();
         var accessToken = await GenerateAccessAsync(userId, session.Id, session.ExpiresAt);
-        var token = CreateRefreshToken(session.Id, refreshToken, now, session.ExpiresAt);
-
+        
+        var token = CreateRefreshTokenModel(session.Id, refreshToken, currentDateTime, session.ExpiresAt);
         await sessionRepository.CreateAsync(session, token);
 
         return new SessionTokens(accessToken, refreshToken, session.ExpiresAt);
     }
 
     /// <summary>
-    /// Обновляет токены действующей сессии и отзывает её при повторном использовании refresh-токена
+    /// Обновляет токены действующей сессии и отзывает ее при повторном использовании refresh-токена
     /// </summary>
     public async Task<SessionTokens?> RefreshAsync(string refreshToken)
     {
@@ -48,67 +45,66 @@ public sealed class SessionService(
             return null;
         }
 
-        var tokenHash = jwtGenerationService.HashRefreshToken(refreshToken);
+        var tokenHash = JwtGenerationHelper.HashRefreshToken(refreshToken);
         var session = await sessionRepository.GetRefreshSessionAsync(tokenHash);
-        var now = clock.GetUtcNow().UtcDateTime;
+        var currentDateTime = DateTime.UtcNow;
 
-        if (session is null || session.SessionRevokedAt is not null || session.SessionExpiresAt <= now)
+        if (session is null || session.SessionRevokedAt is not null || session.SessionExpiresAt <= currentDateTime)
         {
             return null;
         }
 
         if (session.TokenRevokedAt is not null)
         {
-            await sessionRepository.RevokeAsync(session.SessionId, session.UserId, now, SessionRevokeReasons.RefreshReuse);
+            await sessionRepository.RevokeAsync(
+                session.SessionId, session.UserId, 
+                currentDateTime, SessionRevokeReasons.RefreshReuse);
+            
             return null;
         }
 
-        if (session.TokenExpiresAt <= now || !session.IsUserActive)
+        if (session.TokenExpiresAt <= currentDateTime || !session.IsUserActive)
         {
             return null;
         }
 
-        var expiresAt = now.AddMinutes(jwtGenerationService.GetRefreshTokenLifetimeInMinutes());
+        var expiresAt = currentDateTime.AddMinutes(JwtGenerationHelper.GetRefreshTokenLifetimeInMinutes());
 
         if (expiresAt > session.SessionExpiresAt)
         {
             expiresAt = session.SessionExpiresAt;
         }
 
-        var nextRefreshToken = jwtGenerationService.GenerateRefreshToken();
+        var nextRefreshToken = JwtGenerationHelper.GenerateRefreshToken();
         var accessToken = await GenerateAccessAsync(session.UserId, session.SessionId, session.SessionExpiresAt);
-        var nextToken = CreateRefreshToken(session.SessionId, nextRefreshToken, now, expiresAt);
+        var nextToken = CreateRefreshTokenModel(session.SessionId, nextRefreshToken, currentDateTime, expiresAt);
 
-        if (!await sessionRepository.RotateAsync(session.TokenId, nextToken, now))
-        {
-            return null;
-        }
-
-        return new SessionTokens(accessToken, nextRefreshToken, expiresAt);
+        var rotated = await sessionRepository.RotateAsync(session.TokenId, nextToken, currentDateTime);
+        return rotated ? new SessionTokens(accessToken, nextRefreshToken, expiresAt) : null;
     }
 
     /// <summary>
     /// Завершает только указанную сессию пользователя
     /// </summary>
-    public Task<bool> RevokeAsync(Guid userId, Guid sessionId)
+    public async Task<bool> RevokeAsync(Guid userId, Guid sessionId)
     {
-        return sessionRepository.RevokeAsync(sessionId, userId, clock.GetUtcNow().UtcDateTime, SessionRevokeReasons.Logout);
+        return await sessionRepository.RevokeAsync(sessionId, userId, DateTime.UtcNow, SessionRevokeReasons.Logout);
     }
 
     /// <summary>
     /// Проверяет принадлежность и действительность сессии пользователя
     /// </summary>
-    public Task<bool> IsActiveAsync(Guid userId, Guid sessionId, CancellationToken cancellationToken)
+    public async Task<bool> IsActiveAsync(Guid userId, Guid sessionId)
     {
-        return sessionRepository.IsActiveAsync(userId, sessionId, clock.GetUtcNow().UtcDateTime, cancellationToken);
+        return await sessionRepository.IsActiveAsync(userId, sessionId, DateTime.UtcNow);
     }
 
     /// <summary>
-    /// Выпускает access-токен с правами всех ролей пользователя
+    /// Генерация access-токен с правами всех ролей пользователя
     /// </summary>
     private async Task<string> GenerateAccessAsync(Guid userId, Guid sessionId, DateTime sessionExpiresAt)
     {
-        var rightIdList = await roleRepository.GetUserRightIdsAsync(userId);
+        var rightIdList = await roleRepository.GetUserRightIdListAsync(userId);
         var claims = new AccessTokenClaims
         {
             UserId = userId,
@@ -116,20 +112,20 @@ public sealed class SessionService(
             RightIdList = rightIdList
         };
 
-        return jwtGenerationService.GenerateAccessToken(claims, sessionExpiresAt);
+        return JwtGenerationHelper.GenerateAccessToken(claims, sessionExpiresAt);
     }
 
     /// <summary>
-    /// Формирует запись refresh-токена без хранения его исходного значения
+    /// Формирование модели refresh-токена
     /// </summary>
-    private RefreshTokenDal CreateRefreshToken(Guid sessionId, string refreshToken, DateTime now, DateTime expiresAt)
+    private RefreshTokenDal CreateRefreshTokenModel(Guid sessionId, string refreshToken, DateTime currentDateTime, DateTime expiresAt)
     {
         return new RefreshTokenDal
         {
             Id = Guid.NewGuid(),
             SessionId = sessionId,
-            TokenHash = jwtGenerationService.HashRefreshToken(refreshToken),
-            CreatedAt = now,
+            TokenHash = JwtGenerationHelper.HashRefreshToken(refreshToken),
+            CreatedAt = currentDateTime,
             ExpiresAt = expiresAt
         };
     }

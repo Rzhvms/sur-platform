@@ -8,15 +8,21 @@ using Domain.DalModels;
 
 namespace Infrastructure.Repositories.Sessions;
 
-/// <summary>
-/// Хранение сессий и ротация refresh-токенов
-/// </summary>
-public sealed class SessionRepository(IDbConnection connection) : ISessionRepository
+/// <inheritdoc/>
+public sealed class SessionRepository : ISessionRepository
 {
+    private readonly IDbConnection _dbConnection;
+    
+    ///
+    public SessionRepository(IDbConnection dbConnection)
+    {
+        _dbConnection = dbConnection;
+    }
+    
     private static readonly string InsertRefreshSql = $"""
-        INSERT INTO {EntityMapper.TbName<RefreshTokenDal>()}({EntityMapper.ColName<RefreshTokenDal>(x => x.Id)},{EntityMapper.ColName<RefreshTokenDal>(x => x.SessionId)},{EntityMapper.ColName<RefreshTokenDal>(x => x.TokenHash)},{EntityMapper.ColName<RefreshTokenDal>(x => x.CreatedAt)},{EntityMapper.ColName<RefreshTokenDal>(x => x.ExpiresAt)},{EntityMapper.ColName<RefreshTokenDal>(x => x.RevokedAt)})
-        VALUES(@Id,@SessionId,@TokenHash,@CreatedAt,@ExpiresAt,@RevokedAt)
-        """;
+                                                       INSERT INTO {EntityMapper.TbName<RefreshTokenDal>()}
+                                                       VALUES(@Id, @SessionId, @TokenHash, @CreatedAt, @ExpiresAt, @RevokedAt)
+                                                       """;
 
     /// <inheritdoc/>
     public async Task CreateAsync(SessionDal session, RefreshTokenDal token)
@@ -35,7 +41,7 @@ public sealed class SessionRepository(IDbConnection connection) : ISessionReposi
         connection.QuerySingleOrDefaultAsync<SessionDal>($"SELECT * FROM {EntityMapper.TbName<SessionDal>()} WHERE {EntityMapper.ColName<SessionDal>(x => x.Id)}=@sessionId", new { sessionId });
 
     /// <inheritdoc/>
-    public async Task<bool> IsActiveAsync(Guid userId, Guid sessionId, DateTime now, CancellationToken cancellationToken)
+    public async Task<bool> IsActiveAsync(Guid userId, Guid sessionId, DateTime now)
     {
         var command = new CommandDefinition($"""
             SELECT EXISTS(

@@ -2,11 +2,14 @@ using System.Text.Json.Serialization;
 
 namespace Application.UseCases.Users.Dto.Response;
 
-public record GetUserListResponse
+/// <summary>
+/// Выходная dto-модель получения списка пользователей
+/// </summary>
+public sealed record GetUserListResponse
 {
     /// <summary>
     /// Список пользователей
     /// </summary>
     [JsonPropertyName("userList")]
-    public List<GetUserResponse> UserList { get; init; }
+    public required List<GetUserResponse> UserList { get; init; }
 }

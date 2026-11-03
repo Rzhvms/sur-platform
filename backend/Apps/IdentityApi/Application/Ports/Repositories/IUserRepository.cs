@@ -9,44 +9,44 @@ namespace Application.Ports.Repositories;
 public interface IUserRepository
 {
     /// <summary>
-    /// Проверяет наличие профиля по нормализованной почте
+    /// Проверка наличия профиля по нормализованной почте
     /// </summary>
     Task<bool> ExistsByEmailAsync(string normalizedEmail);
 
     /// <summary>
-    /// Проверяет наличие парольных данных пользователя
+    /// Проверка наличия парольных данных пользователя
     /// </summary>
-    Task<bool> ExistsAsync(Guid userId);
+    Task<bool> IsExistAsync(Guid userId);
 
     /// <summary>
-    /// Получает данные проверки входа одним запросом
+    /// Получение данных проверки входа одним запросом
     /// </summary>
     Task<UserLoginData?> GetLoginDataAsync(string normalizedEmail);
 
     /// <summary>
-    /// Получает пользователя по адресу электронной почты
+    /// Получение пользователя по адресу электронной почты
     /// </summary>
     Task<UserProfileDal?> GetUserByEmailAsync(string email);
 
     /// <summary>
-    /// Получает пользователя по уникальному идентификатору
+    /// Получение пользователя по уникальному идентификатору
     /// </summary>
-    Task<UserProfileDal?> GetUserByUserIdAsync(Guid userId);
+    Task<UserProfileDal> GetUserByUserIdAsync(Guid userId);
 
     /// <summary>
-    /// Получает данные проверки пароля пользователя
+    /// Получение данных проверки пароля пользователя
     /// </summary>
-    Task<UserCredentialDal?> GetCredentialAsync(Guid userId);
+    Task<UserCredentialDal> GetCredentialAsync(Guid userId);
 
     /// <summary>
-    /// Создает нового пользователя
+    /// Создание нового пользователя
     /// </summary>
     Task CreateUserAsync(UserProfileDal profile, UserCredentialDal credential, Guid roleId);
 
     /// <summary>
-    /// Получение всех пользователей.
+    /// Получение всех пользователей
     /// </summary>
-    Task<IEnumerable<UserProfileDal>> GetAllUsersAsync();
+    Task<IEnumerable<UserProfileDal>> GetUserProfilesAsync();
 
     /// <summary>
     /// Обновление пароля пользователя

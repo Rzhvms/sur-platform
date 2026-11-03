@@ -1,13 +1,18 @@
 using System.Security.Cryptography;
 using System.Text;
-using Application.Ports.Services.Encryption;
 using Konscious.Security.Cryptography;
 
-namespace Infrastructure.Services.Encryption;
+namespace Application.Helpers.Encryption;
 
-/// <inheritdoc />
-public class PasswordEncryptionService : IPasswordEncryptionService
+/// <summary>
+/// Вспомогательный сервис шифрования паролей
+/// </summary>
+public static class PasswordEncryptionHelper
 {
+    #region Constants
+    
+    // Константы для заумного хэширования пароля
+    
     private const int SaltSize = 16;
     private const int HashSize = 32;
 
@@ -15,14 +20,24 @@ public class PasswordEncryptionService : IPasswordEncryptionService
     private const int MemorySize = 19456;
     private const int Parallelism = 1;
 
-    /// <inheritdoc />
-    public byte[] GenerateSalt()
+    private const string Argon2Id = "argon2id";
+    private const string ColonMark = ":";
+    
+    #endregion
+    
+    /// <summary>
+    /// Генерация дополнительной hash-строки для пароля
+    /// </summary>
+    public static byte[] GenerateSalt()
     {
         return RandomNumberGenerator.GetBytes(SaltSize);
     }
     
-    /// <inheritdoc />
-    public string HashPassword(string password, byte[] hashSalt)
+    /// <summary>
+    /// Хэширование пароля
+    /// Принцип: algorithm:iterations:memory:parallelism:salt:hash
+    /// </summary>
+    public static string HashPassword(string password, byte[] hashSalt)
     {
         ArgumentNullException.ThrowIfNull(password);
 
@@ -36,24 +51,25 @@ public class PasswordEncryptionService : IPasswordEncryptionService
 
         var hash = argon2.GetBytes(HashSize);
 
-        return string.Join(
-            ':',
-            "argon2id",
-            Iterations,
-            MemorySize,
-            Parallelism,
+        var someDifficultRow = string.Join(
+            ColonMark, Argon2Id, Iterations,
+            MemorySize, Parallelism,
             Convert.ToBase64String(hashSalt),
             Convert.ToBase64String(hash));
+        
+        return someDifficultRow;
     }
 
-    /// <inheritdoc />
-    public bool VerifyPassword(string password, string storedHash)
+    /// <summary>
+    /// Проверка пароля относительно сохраненной строки-хэша
+    /// </summary>
+    public static bool VerifyPassword(string password, string storedHash)
     {
         ArgumentNullException.ThrowIfNull(password);
         ArgumentNullException.ThrowIfNull(storedHash);
 
-        var parts = storedHash.Split(':');
-        if (parts.Length != 6 || !parts[0].Equals("argon2id", StringComparison.OrdinalIgnoreCase))
+        var parts = storedHash.Split(ColonMark);
+        if (parts.Length != 6 || !parts[0].Equals(Argon2Id, StringComparison.OrdinalIgnoreCase))
         {
             return false;
         }

@@ -1,6 +1,7 @@
 using Core.Database.DapperExtensions.EntityMapper;
 using System.Data;
 using Application.Ports.Repositories;
+using Core.Abstractions.Exceptions;
 using Dapper;
 using Domain.DalModels;
 
@@ -12,20 +13,35 @@ public class RoleRepository(IDbConnection dbConnection) : IRoleRepository
     /// <inheritdoc/>
     public async Task<RoleDal?> GetRoleByNameAsync(string name)
     {
-        return await dbConnection.QuerySingleOrDefaultAsync<RoleDal>(
-            $"SELECT * FROM {EntityMapper.TbName<RoleDal>()} WHERE {EntityMapper.ColName<RoleDal>(x => x.Name)} = @name", new { name });
+        var searchQuery = $"""
+                           SELECT * FROM {EntityMapper.TbName<RoleDal>()}
+                           WHERE {EntityMapper.ColName<RoleDal>(x => x.Name)} = {EntityMapper.ParameterPrefix}{nameof(name)}
+                           """;
+        
+        var result = await dbConnection.QuerySingleOrDefaultAsync<RoleDal>(searchQuery, new { name });
+        
+        if (result is null)
+        {
+            throw new EntityNotFoundException($"Роль с названием {name} не найдена");
+        }
+        
+        return result;
     }
 
     /// <inheritdoc/>
-    public async Task<Guid[]> GetUserRightIdsAsync(Guid userId)
+    public async Task<List<Guid>> GetUserRightIdListAsync(Guid userId)
     {
-        var rightIdList = await dbConnection.QueryAsync<Guid>($"""
-            SELECT DISTINCT rr.{EntityMapper.ColName<RoleRightDal>(x => x.RightId)}
-            FROM {EntityMapper.TbName<RoleRightDal>()} rr
-            JOIN {EntityMapper.TbName<UserRoleDal>()} ur ON ur.{EntityMapper.ColName<RoleRightDal>(x => x.RoleId)} = rr.{EntityMapper.ColName<RoleRightDal>(x => x.RoleId)}
-            WHERE ur.{EntityMapper.ColName<UserProfileDal>(x => x.UserId)} = @userId
-            """, new { userId });
+        var searchQuery = $"""
+                           SELECT rr.{EntityMapper.ColName<RoleRightDal>(x => x.RightId)}
+                           FROM {EntityMapper.TbName<RoleRightDal>()} rr
+                           JOIN {EntityMapper.TbName<UserRoleDal>()} ur 
+                           ON ur.{EntityMapper.ColName<RoleRightDal>(x => x.RoleId)} = 
+                              rr.{EntityMapper.ColName<UserRoleDal>(x => x.RoleId)}
+                           WHERE ur.{EntityMapper.ColName<UserProfileDal>(x => x.UserId)} = {EntityMapper.ParameterPrefix}{nameof(userId)}
+                           """;
+        
+        var rightIdList = await dbConnection.QueryAsync<Guid>(searchQuery, new { userId });
 
-        return rightIdList.ToArray();
+        return rightIdList.AsList();
     }
 }

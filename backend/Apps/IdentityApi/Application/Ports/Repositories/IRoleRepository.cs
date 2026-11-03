@@ -13,7 +13,7 @@ public interface IRoleRepository
     Task<RoleDal?> GetRoleByNameAsync(string name);
 
     /// <summary>
-    /// Возвращает уникальные права всех назначенных ролей пользователя
+    /// Получение уникальных прав всех назначенных ролей пользователя
     /// </summary>
-    Task<Guid[]> GetUserRightIdsAsync(Guid userId);
+    Task<List<Guid>> GetUserRightIdListAsync(Guid userId);
 }

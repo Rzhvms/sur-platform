@@ -11,4 +11,5 @@ namespace Api.Controllers.Internal.Users;
 [Authorize]
 public class SessionController : BaseInternalController
 {
+    // todo
 }

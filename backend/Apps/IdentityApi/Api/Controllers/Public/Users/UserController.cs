@@ -13,13 +13,13 @@ namespace Api.Controllers.Public.Users;
 /// </summary>
 [Route("users")]
 [Authorize]
-public class UserController(IUserUseCaseManager useCaseManager) : BasePublicController
+public sealed class UserController(IUserUseCaseManager useCaseManager) : BasePublicController
 {
     /// <summary>
-    /// Изменить пароль.
+    /// Изменить пароль
     /// </summary>
     [HttpPatch("change-password")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(ChangeUserPasswordRequest), StatusCodes.Status200OK)]
     public async Task<ChangeUserPasswordResponse> ChangeUserPasswordAsync(ChangeUserPasswordRequest request)
     {
         var id = User.GetUserId();

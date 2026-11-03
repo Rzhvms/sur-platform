@@ -1,6 +1,6 @@
 using System.Security.Cryptography;
+using Application.Settings;
 using Infrastructure.Services.Jwt.RsaKeys.Interfaces;
-using Infrastructure.Services.Jwt.Settings;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 
@@ -9,7 +9,7 @@ namespace Infrastructure.Services.Jwt.RsaKeys.Services;
 /// <summary>
 /// Файловая реализация провайдера RSA-ключей
 /// </summary>
-public sealed class FileSystemRsaKeyProvider : IRsaKeyProvider
+internal sealed class FileSystemRsaKeyProvider : IRsaKeyProvider
 {
     private readonly RSA _signingRsa;
     private readonly RSA _validationRsa;
@@ -17,6 +17,7 @@ public sealed class FileSystemRsaKeyProvider : IRsaKeyProvider
     public RsaSecurityKey SigningKey { get; }
     public RsaSecurityKey ValidationKey { get; }
 
+    /// 
     public FileSystemRsaKeyProvider(IOptions<JwtKeyStoreSettings> options)
     {
         ArgumentNullException.ThrowIfNull(options);
@@ -34,10 +35,7 @@ public sealed class FileSystemRsaKeyProvider : IRsaKeyProvider
 
         if (!File.Exists(privateKeyPath) || !File.Exists(publicKeyPath))
         {
-            GenerateAndStoreKeys(
-                privateKeyPath,
-                publicKeyPath,
-                settings.RsaKeySize);
+            GenerateAndStoreKeys(privateKeyPath, publicKeyPath, settings.RsaKeySize);
         }
 
         _signingRsa = RSA.Create();

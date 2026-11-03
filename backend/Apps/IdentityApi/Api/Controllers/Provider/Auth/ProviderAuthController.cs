@@ -13,10 +13,10 @@ namespace Api.Controllers.Provider.Auth;
 public class ProviderAuthController(IAuthUseCaseManager authUseCaseManager) : BaseProviderController
 {
     /// <summary>
-    /// Создание пользователя / регистрация
+    /// Регистрация пользователя
     /// </summary>
     [HttpPost("register")]
-    [ProducesResponseType(StatusCodes.Status200OK)]
+    [ProducesResponseType(typeof(CreateUserRequest), StatusCodes.Status200OK)]
     public async Task<CreateUserResponse> RegisterAsync(CreateUserRequest request)
     {
         return await authUseCaseManager.CreateUserAsync(request);

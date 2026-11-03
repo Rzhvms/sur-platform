@@ -7,8 +7,7 @@ using Microsoft.IdentityModel.Tokens;
 namespace Api.Controllers.Internal.System;
 
 /// <summary>
-/// Контроллер предоставляет публичные метаданные Identity сервиса
-/// в соответствии со стандартами OpenID Connect и JWT (JWKS).
+/// Контроллер для предоставления публичных метаданных Identity сервиса
 /// </summary>
 /// <remarks>
 /// Используется для:
@@ -24,8 +23,6 @@ namespace Api.Controllers.Internal.System;
 [Route(".well-known")]
 public class WellKnownController(IRsaKeyProvider keyProvider, IConfiguration configuration) : BaseInternalController
 {
-    // todo: хочу от него избавиться, не вижу пользы пока что
-
     /// <summary>
     /// Возвращает JSON Web Key Set — публичные ключи для проверки JWT.
     /// </summary>
@@ -57,7 +54,7 @@ public class WellKnownController(IRsaKeyProvider keyProvider, IConfiguration con
     }
 
     /// <summary>
-    /// OpenID Connect discovery endpoint.
+    /// OpenID Connect discovery endpoint
     /// </summary>
     /// <remarks>
     /// Позволяет клиентам автоматически определить:
@@ -69,6 +66,7 @@ public class WellKnownController(IRsaKeyProvider keyProvider, IConfiguration con
     [HttpGet("openid-configuration")]
     public IActionResult GetConfig()
     {
+        // todo: вынести в setting GetSection
         var issuer = configuration["Jwt:AccessTokenSettings:Issuer"];
         var jwksUri = Url.ActionLink(nameof(GetJwks))
             ?? throw new InvalidOperationException("Не удалось сформировать адрес JWKS");
