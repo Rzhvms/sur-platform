@@ -30,7 +30,11 @@ public class ErrorHandlingMiddleware
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Unhandled exception");
+            _logger.LogError("Ошибка запроса {TraceId}: {ErrorType}", context.TraceIdentifier, ex.GetType().Name);
+            if (context.Response.HasStarted)
+            {
+                throw;
+            }
 
             var statusCode = ex is BaseException ? StatusCodes.Status400BadRequest : StatusCodes.Status500InternalServerError;
 
@@ -39,8 +43,8 @@ public class ErrorHandlingMiddleware
 
             await context.Response.WriteAsJsonAsync(new
             {
-                error = ex.Message,
-                type = ex.GetType().Name,
+                error = ex is BaseException ? ex.Message : "Внутренняя ошибка сервера",
+                type = ex is BaseException ? ex.GetType().Name : "InternalServerError",
                 traceId = context.TraceIdentifier
             });
         }

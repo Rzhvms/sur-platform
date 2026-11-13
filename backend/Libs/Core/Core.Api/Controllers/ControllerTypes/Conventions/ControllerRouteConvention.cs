@@ -1,3 +1,4 @@
+using System.Reflection;
 using Core.Api.Controllers.ControllerTypes.Attributes;
 using Core.Api.Controllers.ControllerTypes.Base;
 using Core.Api.Controllers.ControllerTypes.Constants;
@@ -42,7 +43,7 @@ public sealed class ControllerRouteConvention : IApplicationModelConvention
                 }
             }
 
-            var prefixAttribute = controller.Attributes.OfType<ControllerPrefixAttribute>().FirstOrDefault();
+            var prefixAttribute = controller.ControllerType.GetCustomAttribute<ControllerPrefixAttribute>(inherit: true);
             var prefix = prefixAttribute is null ? ControllerPrefix.ApiVersionPrefix : $"{ControllerPrefix.ApiVersionPrefix}/{prefixAttribute.Prefix}";
             ApplyPrefix(controller, prefix);
         }

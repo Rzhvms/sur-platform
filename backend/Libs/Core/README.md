@@ -10,10 +10,10 @@ Core — общая папка для независимых проектов Cl
 
 Название Core.Api отражает назначение компонентов HTTP API. Проект остаётся ClassLibrary, не запускает собственный веб-сервер и не содержит бизнес-логику сервисов.
 
-В IdentityApi слой Api подключает Core.Api; Infrastructure — Core.Database и Core.Abstractions; Application — Core.Abstractions. Domain не зависит от этих библиотек. Репозитории, SQL-запросы и сами миграции IdentityApi остаются в Infrastructure микросервиса.
+В SurPlatform слой Api подключает Core.Api; Infrastructure — Core.Database и Core.Abstractions; Application — Core.Abstractions. Domain не зависит от этих библиотек. Репозитории, SQL-запросы и сами миграции SurPlatform остаются в Infrastructure приложения.
 
 `ICurrentUserService` находится в `Core.Abstractions.User`, а его реализация через `IHttpContextAccessor` и регистрация `AddCoreUser` — в `Core.Api.User`. Обработка исключений использует общие типы `Core.Abstractions.Exceptions`.
 
-Расширение `MigrateDatabase` в Core.Database сохраняет исходный контракт с `IApplicationBuilder`. IdentityApi вызывает `app.MigrateDatabase()` до обработки HTTP-запросов. Для этого расширения Core.Database содержит ссылку на платформу ASP.NET Core.
+Расширение `MigrateDatabase` в Core.Database сохраняет исходный контракт с `IApplicationBuilder`. SurPlatform подготавливает базы через `ClientDatabaseInitializer` и допускает запросы после проверки схемы конкретного клиента. Для этого расширения Core.Database содержит ссылку на платформу ASP.NET Core.
 
-Для сборки контейнера IdentityApi контекстом Docker служит папка backend. Dockerfile копирует файлы проектов всех трёх библиотек до восстановления зависимостей.
+Для сборки контейнера SurPlatform контекстом Docker служит папка backend. Dockerfile копирует файлы проектов всех трёх библиотек до восстановления зависимостей.

@@ -68,6 +68,7 @@ desktop.ini
 # Local configuration
 
 AGENTS.md
+!/AGENTS.md
 appsettings.Development.json
 appsettings.Local.json
 appsettings.*.Local.json
@@ -86,3 +87,5 @@ temp/
 
 .docker/
 docker-compose.override.yml
+
+/graphify-out/

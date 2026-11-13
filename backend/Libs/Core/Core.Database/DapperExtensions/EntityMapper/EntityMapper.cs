@@ -25,8 +25,26 @@ public static class EntityMapper
     private static readonly ConcurrentDictionary<Type, string> TableNameCache = new();
     private static readonly ConcurrentDictionary<MemberInfo, string> ColumnNameCache = new();
 
-    public static string ParameterPrefix => "@";
-    
+    /// <summary>
+    /// Префикс именованного параметра SQL
+    /// </summary>
+    public static string ParameterPrefix => NamedParameterPrefix;
+
+    /// <summary>
+    /// Синтаксис именованного параметра для провайдера базы
+    /// </summary>
+    private const string NamedParameterPrefix = "@";
+
+    /// <summary>
+    /// Формирует ссылку на именованный параметр SQL
+    /// </summary>
+    /// <param name="name">Имя параметра без префикса</param>
+    /// <returns>Ссылка для включения в запрос</returns>
+    public static string ParameterName(string name)
+    {
+        return ParameterPrefix + name;
+    }
+
     /// <summary>
     /// Получение имени таблицы для сущности типа <typeparamref name="TEntity"/>
     /// </summary>
@@ -43,7 +61,7 @@ public static class EntityMapper
         ArgumentNullException.ThrowIfNull(entityType);
 
         var name = TableNameCache.GetOrAdd(entityType, static t => t.Name);
-        return withQuotes ? Quote(name) : name;
+        return withQuotes ? Identifier(name) : name;
     }
 
     /// <summary>
@@ -58,7 +76,7 @@ public static class EntityMapper
         var member = ExtractMember(expression);
         var name = ColumnNameCache.GetOrAdd(member, static m => m.Name);
 
-        return withQuotes ? Quote(name) : name;
+        return withQuotes ? Identifier(name) : name;
     }
 
     /// <summary>
@@ -80,6 +98,11 @@ public static class EntityMapper
     }
 
     /// <summary>
+    /// Сообщение для выражения, которое не указывает на столбец модели
+    /// </summary>
+    private const string InvalidColumnExpressionFormat = "Expression '{0}' must be a property or field access";
+
+    /// <summary>
     /// Извлечение самого глубокого <see cref="MemberExpression"/> из выражения
     /// </summary>
     private static MemberExpression ExtractDeepestMemberExpression(Expression expression)
@@ -95,7 +118,7 @@ public static class EntityMapper
 
         if (result is null)
         {
-            throw new ArgumentException($"Expression '{expression}' must be a property or field access");
+            throw new ArgumentException(string.Format(System.Globalization.CultureInfo.InvariantCulture, InvalidColumnExpressionFormat, expression));
         }
 
         return result;
@@ -104,5 +127,19 @@ public static class EntityMapper
     /// <summary>
     /// Обернуть параметр в двойные кавычки
     /// </summary>
-    private static string Quote(string parameter) => $"\"{parameter}\"";
+    /// <param name="parameter">Имя объекта базы данных</param>
+    /// <returns>Экранированный идентификатор SQL</returns>
+    public static string Identifier(string parameter)
+    {
+        return DoubleQuote + parameter.Replace(DoubleQuote, EscapedDoubleQuote, StringComparison.Ordinal) + DoubleQuote;
+    }
+    /// <summary>
+    /// Разделитель имени объекта SQL
+    /// </summary>
+    private const string DoubleQuote = "\"";
+
+    /// <summary>
+    /// Кавычка внутри идентификатора SQL
+    /// </summary>
+    private const string EscapedDoubleQuote = "\"\"";
 }

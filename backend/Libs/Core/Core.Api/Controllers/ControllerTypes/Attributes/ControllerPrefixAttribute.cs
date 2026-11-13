@@ -3,7 +3,7 @@ namespace Core.Api.Controllers.ControllerTypes.Attributes;
 /// <summary>
 /// Задает префикс маршрута для контроллера
 /// </summary>
-[AttributeUsage(AttributeTargets.Class)]
+[AttributeUsage(AttributeTargets.Class, Inherited = true)]
 public sealed class ControllerPrefixAttribute : Attribute
 {
     /// <summary>
