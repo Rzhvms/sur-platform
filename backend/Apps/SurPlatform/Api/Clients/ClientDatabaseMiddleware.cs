@@ -33,6 +33,12 @@ internal sealed class ClientDatabaseMiddleware(RequestDelegate next)
             return;
         }
 
+        if (http.Request.Path == IdentityRoutes.LivenessPath)
+        {
+            await next(http);
+            return;
+        }
+
         database.Select(client);
         if (http.Request.Path != IdentityRoutes.ReadinessPath && !initializer.IsPrepared(client))
         {

@@ -1,4 +1,5 @@
 using Infrastructure.Constants;
+using Infrastructure.Observability;
 using System.ComponentModel.DataAnnotations;
 using Application.Services.Authentication;
 using Infrastructure.Clients;
@@ -38,6 +39,11 @@ public sealed class IdentityBootstrap(IServiceScopeFactory scopes, IConfiguratio
     /// <exception cref="InvalidOperationException">Некорректные параметры первого администратора</exception>
     public async Task<string?> RunAsync(ClientDatabase client, bool reissue = false)
     {
+        if (!reissue && configuration.GetValue(RecoverySettings.PauseOutbound, false))
+        {
+            return null;
+        }
+
         var section = configuration.GetSection(ClientConfigurationKeys.Clients).GetChildren().Single(c =>
             string.Equals(c[ClientConfigurationKeys.Host], client.Host, StringComparison.OrdinalIgnoreCase));
         var email = section[FirstAdminEmailKey]?.Trim();

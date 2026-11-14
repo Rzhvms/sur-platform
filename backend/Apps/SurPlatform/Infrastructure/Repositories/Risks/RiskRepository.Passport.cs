@@ -16,62 +16,69 @@ internal sealed partial class RiskRepository
     /// <inheritdoc/>
     public Task<RiskDal> CreateAsync(RiskActor actor, RiskPassportRequest request)
     {
-        return WriteAsync(actor, RiskRules.Create, async transaction =>
+        return WriteAsync(actor, RiskRules.Create, transaction => CreateRiskAsync(actor, request, transaction));
+    }
+
+    /// <summary>Регистрирует риск и историю в транзакции вызывающей команды</summary>
+    /// <param name="actor">Инициатор регистрации</param>
+    /// <param name="request">Паспорт нового риска</param>
+    /// <param name="transaction">Транзакция со всеми связанными изменениями</param>
+    /// <returns>Созданный черновик</returns>
+    private async Task<RiskDal> CreateRiskAsync(RiskActor actor, RiskPassportRequest request, IDbTransaction transaction)
+    {
+        if (request.ProcessId is not Guid processId || request.Version is not null)
         {
-            if (request.ProcessId is not Guid processId || request.Version is not null)
-            {
-                throw new IdentityCommandException(400, RiskRules.Invalid);
-            }
+            throw new IdentityCommandException(400, RiskRules.Invalid);
+        }
 
-            var process = await ReadAsync<ProcessDal>(processId, EntityMapper.ColName<ProcessDal>(x => x.Id), transaction);
-            var directorate = await ReadAsync<DirectorateDal>(process.DirectorateId, EntityMapper.ColName<DirectorateDal>(x => x.Id), transaction);
-            if (!process.IsActive || !directorate.IsActive)
-            {
-                throw new IdentityCommandException(409, RiskRules.InactiveReference);
-            }
+        var process = await ReadAsync<ProcessDal>(processId, EntityMapper.ColName<ProcessDal>(x => x.Id), transaction);
+        var directorate = await ReadAsync<DirectorateDal>(process.DirectorateId, EntityMapper.ColName<DirectorateDal>(x => x.Id), transaction);
+        if (!process.IsActive || !directorate.IsActive)
+        {
+            throw new IdentityCommandException(409, RiskRules.InactiveReference);
+        }
 
-            if (!await HasRightAsync(actor, IdentityRights.AdminCode, transaction))
-            {
-                var userId = actor.UserId;
-                var directorateId = process.DirectorateId;
-                var contextQuery = $"""
-                    SELECT EXISTS (SELECT FROM {EntityMapper.TbName<OrgPersonDal>()}
-                        WHERE {EntityMapper.ColName<OrgPersonDal>(x => x.UserId)} = {EntityMapper.ParameterName(nameof(userId))} AND {EntityMapper.ColName<OrgPersonDal>(x => x.IsActive)} AND {EntityMapper.ColName<OrgPersonDal>(x => x.DirectorateId)} = {EntityMapper.ParameterName(nameof(directorateId))})
-                    """;
-                if (!await connection.ExecuteScalarAsync<bool>(contextQuery, new { userId, directorateId }, transaction))
-                {
-                    throw new IdentityCommandException(403, IdentityErrorCodes.AccessDenied);
-                }
-            }
-
-            await ValidatePassportAsync(request, null, transaction);
-            var name = RequiredText(request.Name);
-            var description = RequiredText(request.Description);
-            var draft = RiskRules.Draft;
-            var authorId = actor.UserId;
-            var query = $"""
-                INSERT INTO {EntityMapper.TbName<RiskDal>()} ({EntityMapper.ColName<RiskDal>(x => x.Id)}, {EntityMapper.ColName<RiskDal>(x => x.Name)}, {EntityMapper.ColName<RiskDal>(x => x.Description)}, {EntityMapper.ColName<RiskDal>(x => x.HazardId)}, {EntityMapper.ColName<RiskDal>(x => x.CategoryId)},
-                    {EntityMapper.ColName<RiskDal>(x => x.AssetId)}, {EntityMapper.ColName<RiskDal>(x => x.AuthorId)}, {EntityMapper.ColName<RiskDal>(x => x.Status)})
-                VALUES (gen_random_uuid(), {EntityMapper.ParameterName(nameof(name))}, {EntityMapper.ParameterName(nameof(description))}, {EntityMapper.ParameterName(nameof(request.HazardId))},
-                    {EntityMapper.ParameterName(nameof(request.CategoryId))}, {EntityMapper.ParameterName(nameof(request.AssetId))}, {EntityMapper.ParameterName(nameof(authorId))}, {EntityMapper.ParameterName(nameof(draft))})
-                RETURNING *
+        if (!await HasRightAsync(actor, IdentityRights.AdminCode, transaction))
+        {
+            var userId = actor.UserId;
+            var directorateId = process.DirectorateId;
+            var contextQuery = $"""
+                SELECT EXISTS (SELECT FROM {EntityMapper.TbName<OrgPersonDal>()}
+                    WHERE {EntityMapper.ColName<OrgPersonDal>(x => x.UserId)} = {EntityMapper.ParameterName(nameof(userId))} AND {EntityMapper.ColName<OrgPersonDal>(x => x.IsActive)} AND {EntityMapper.ColName<OrgPersonDal>(x => x.DirectorateId)} = {EntityMapper.ParameterName(nameof(directorateId))})
                 """;
-            var risk = await connection.QuerySingleAsync<RiskDal>(query,
-                new { name, description, request.HazardId, request.CategoryId, request.AssetId, authorId, draft }, transaction);
-            var riskId = risk.Id;
-            var ownerId = process.OwnerId;
-            var linkQuery = $"""
-                INSERT INTO {EntityMapper.TbName<RiskProcessDal>()} ({EntityMapper.ColName<RiskProcessDal>(x => x.Id)}, {EntityMapper.ColName<RiskProcessDal>(x => x.RiskId)}, {EntityMapper.ColName<RiskProcessDal>(x => x.ProcessId)},
-                    {EntityMapper.ColName<RiskProcessDal>(x => x.OwnerId)}, {EntityMapper.ColName<RiskProcessDal>(x => x.IsPrimary)})
-                VALUES (gen_random_uuid(), {EntityMapper.ParameterName(nameof(riskId))}, {EntityMapper.ParameterName(nameof(processId))}, {EntityMapper.ParameterName(nameof(ownerId))}, true)
-                RETURNING *
-                """;
-            var link = await connection.QuerySingleAsync<RiskProcessDal>(linkQuery, new { riskId, processId, ownerId }, transaction);
-            var operationId = Guid.NewGuid();
-            await BusinessHistory.RecordAsync(transaction, operationId, actor.UserId, risk.Id, null, risk,
-                relatedPath: BusinessHistory.ProcessesPath, relatedAfter: link);
-            return risk;
-        });
+            if (!await connection.ExecuteScalarAsync<bool>(contextQuery, new { userId, directorateId }, transaction))
+            {
+                throw new IdentityCommandException(403, IdentityErrorCodes.AccessDenied);
+            }
+        }
+
+        await ValidatePassportAsync(request, null, transaction);
+        var name = RequiredText(request.Name);
+        var description = RequiredText(request.Description);
+        var draft = RiskRules.Draft;
+        var authorId = actor.UserId;
+        var query = $"""
+            INSERT INTO {EntityMapper.TbName<RiskDal>()} ({EntityMapper.ColName<RiskDal>(x => x.Id)}, {EntityMapper.ColName<RiskDal>(x => x.Name)}, {EntityMapper.ColName<RiskDal>(x => x.Description)}, {EntityMapper.ColName<RiskDal>(x => x.HazardId)}, {EntityMapper.ColName<RiskDal>(x => x.CategoryId)},
+                {EntityMapper.ColName<RiskDal>(x => x.AssetId)}, {EntityMapper.ColName<RiskDal>(x => x.AuthorId)}, {EntityMapper.ColName<RiskDal>(x => x.Status)})
+            VALUES (gen_random_uuid(), {EntityMapper.ParameterName(nameof(name))}, {EntityMapper.ParameterName(nameof(description))}, {EntityMapper.ParameterName(nameof(request.HazardId))},
+                {EntityMapper.ParameterName(nameof(request.CategoryId))}, {EntityMapper.ParameterName(nameof(request.AssetId))}, {EntityMapper.ParameterName(nameof(authorId))}, {EntityMapper.ParameterName(nameof(draft))})
+            RETURNING *
+            """;
+        var risk = await connection.QuerySingleAsync<RiskDal>(query,
+            new { name, description, request.HazardId, request.CategoryId, request.AssetId, authorId, draft }, transaction);
+        var riskId = risk.Id;
+        var ownerId = process.OwnerId;
+        var linkQuery = $"""
+            INSERT INTO {EntityMapper.TbName<RiskProcessDal>()} ({EntityMapper.ColName<RiskProcessDal>(x => x.Id)}, {EntityMapper.ColName<RiskProcessDal>(x => x.RiskId)}, {EntityMapper.ColName<RiskProcessDal>(x => x.ProcessId)},
+                {EntityMapper.ColName<RiskProcessDal>(x => x.OwnerId)}, {EntityMapper.ColName<RiskProcessDal>(x => x.IsPrimary)})
+            VALUES (gen_random_uuid(), {EntityMapper.ParameterName(nameof(riskId))}, {EntityMapper.ParameterName(nameof(processId))}, {EntityMapper.ParameterName(nameof(ownerId))}, true)
+            RETURNING *
+            """;
+        var link = await connection.QuerySingleAsync<RiskProcessDal>(linkQuery, new { riskId, processId, ownerId }, transaction);
+        var operationId = Guid.NewGuid();
+        await BusinessHistory.RecordAsync(transaction, operationId, actor.UserId, risk.Id, null, risk,
+            relatedPath: BusinessHistory.ProcessesPath, relatedAfter: link);
+        return risk;
     }
 
     /// <inheritdoc/>

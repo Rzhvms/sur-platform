@@ -20,6 +20,9 @@ namespace Infrastructure.Repositories.Risks;
 /// <summary>Подтверждение и согласование состояния связанной задачи</summary>
 internal sealed partial class RiskRepository
 {
+    /// <summary>Задержка от записи webhook до применения нового наблюдения</summary>
+    private const string JiraWebhookMetric = "jira.webhook";
+
     /// <summary>Перечитывает связанную задачу и применяет наблюдение один раз</summary>
     /// <param name="settings">Снимок настройки</param>
     /// <param name="address">Разрешённый адрес</param>
@@ -35,10 +38,11 @@ internal sealed partial class RiskRepository
             return;
         }
         var signalQuery = $"""
-            SELECT {EntityMapper.ColName<JiraSignalDal>(x => x.Id)} FROM {EntityMapper.TbName<JiraSignalDal>()}
+            SELECT * FROM {EntityMapper.TbName<JiraSignalDal>()}
             WHERE {EntityMapper.ColName<JiraSignalDal>(x => x.IssueId)} = {EntityMapper.ParameterName(nameof(issueId))}
             """;
-        var signalId = await connection.QuerySingleOrDefaultAsync<Guid?>(signalQuery, new { issueId });
+        var signal = await connection.QuerySingleOrDefaultAsync<JiraSignalDal>(signalQuery, new { issueId });
+        var signalId = signal?.Id;
         try
         {
             var issue = await ReadJiraIssueAsync(settings, address, token, issueId, cancellation);
@@ -46,7 +50,7 @@ internal sealed partial class RiskRepository
             {
                 throw new IdentityCommandException(409, JiraRules.Conflict);
             }
-            await WriteAsync(JiraSystemActor(), null, async transaction =>
+            var applied = await WriteAsync(JiraSystemActor(), null, async transaction =>
             {
                 var current = await ReadJiraAsync(transaction);
                 var latest = await ReadJiraDeliveryAsync(delivery.Id, transaction);
@@ -55,7 +59,9 @@ internal sealed partial class RiskRepository
                     return false;
                 }
                 var observed = issue.UpdatedAt.ToUniversalTime();
-                if (latest is not null && (latest.ObservedAt is null || latest.ObservedAt < observed))
+                var changed = latest is not null && (latest.ObservedAt is null || latest.ObservedAt < observed);
+                var accepted = changed;
+                if (changed)
                 {
                     try
                     {
@@ -64,16 +70,25 @@ internal sealed partial class RiskRepository
                     catch (IdentityCommandException error) when (error.Code == JiraRules.TerminalMismatch)
                     {
                         await LogJiraAsync(settings, delivery.Id, issueId, JiraRules.Sync, error.Code, transaction);
+                        accepted = false;
                     }
                     var id = delivery.Id;
+                    var issueKey = issue.Key;
                     var query = $"""
-                        UPDATE {EntityMapper.TbName<JiraDeliveryDal>()} SET {EntityMapper.ColName<JiraDeliveryDal>(x => x.ObservedAt)} = {EntityMapper.ParameterName(nameof(observed))}, {EntityMapper.ColName<JiraDeliveryDal>(x => x.IssueKey)} = {EntityMapper.ParameterName(nameof(issueKey))} WHERE {EntityMapper.ColName<JiraDeliveryDal>(x => x.Id)} = {EntityMapper.ParameterName(nameof(id))}
+                        UPDATE {EntityMapper.TbName<JiraDeliveryDal>()}
+                        SET {EntityMapper.ColName<JiraDeliveryDal>(x => x.ObservedAt)} = {EntityMapper.ParameterName(nameof(observed))},
+                            {EntityMapper.ColName<JiraDeliveryDal>(x => x.IssueKey)} = {EntityMapper.ParameterName(nameof(issueKey))}
+                        WHERE {EntityMapper.ColName<JiraDeliveryDal>(x => x.Id)} = {EntityMapper.ParameterName(nameof(id))}
                         """;
-                    await connection.ExecuteAsync(query, new { id, observed, issueKey = issue.Key }, transaction);
+                    await connection.ExecuteAsync(query, new { id, observed, issueKey }, transaction);
                 }
                 await CompleteJiraSyncAsync(delivery.Id, issueId, signalId, transaction);
-                return true;
+                return accepted;
             });
+            if (applied && signal is not null)
+            {
+                operations.Age(JiraWebhookMetric, signal.CreatedAt);
+            }
         }
         catch (Exception error) when (!cancellation.IsCancellationRequested &&
             (IsJiraFailure(error) || error is Npgsql.PostgresException))

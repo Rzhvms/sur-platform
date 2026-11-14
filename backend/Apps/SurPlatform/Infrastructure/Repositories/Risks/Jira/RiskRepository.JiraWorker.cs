@@ -1,4 +1,6 @@
 using Microsoft.AspNetCore.DataProtection;
+using Infrastructure.Observability;
+using Microsoft.Extensions.Configuration;
 using Infrastructure.Repositories.Risks.Models;
 using System.Data;
 using System.Security.Cryptography;
@@ -20,12 +22,23 @@ namespace Infrastructure.Repositories.Risks;
 /// <summary>Устойчивая доставка и повторное чтение задач Jira</summary>
 internal sealed partial class RiskRepository
 {
+    /// <summary>Классификатор обмена Jira</summary>
+    private const string JiraMetricOperation = "jira";
+
+    /// <summary>Операция Jira завершилась прикладной или транспортной ошибкой</summary>
+    private const string JiraMetricError = "error";
+
     /// <summary>Ограничение порции задач на клиента</summary>
     private const int JiraWorkerBatch = 20;
 
     /// <inheritdoc/>
     public async Task ProcessJiraAsync(CancellationToken cancellation)
     {
+
+        if (jiraConfiguration.GetValue(RecoverySettings.PauseOutbound, false))
+        {
+            return;
+        }
 
         var settings = await ReadJiraAsync();
         var sending = JiraRules.Sending;
@@ -261,6 +274,8 @@ internal sealed partial class RiskRepository
             VALUES ({EntityMapper.ParameterName(nameof(row.Id))}, {EntityMapper.ParameterName(nameof(row.TreatmentId))}, {EntityMapper.ParameterName(nameof(row.IssueId))}, {EntityMapper.ParameterName(nameof(row.Operation))}, {EntityMapper.ParameterName(nameof(row.Code))}, {EntityMapper.ParameterName(nameof(row.OccurredAt))}, {EntityMapper.ParameterName(nameof(row.ResponsibleUserId))}, {EntityMapper.ParameterName(nameof(row.ConfigurationAuthorId))})
             """;
         await connection.ExecuteAsync(query, row, transaction);
+        operations.Outcome(JiraMetricOperation, operation == JiraRules.Create && code == JiraRules.Unknown
+            ? JiraRules.Unknown : JiraMetricError);
     }
 
     /// <summary>Создаёт системного участника без входа по JWT</summary>

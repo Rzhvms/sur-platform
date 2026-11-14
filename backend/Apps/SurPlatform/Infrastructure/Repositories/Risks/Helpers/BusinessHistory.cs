@@ -80,7 +80,7 @@ internal static class BusinessHistory
             return;
         }
 
-        if (after is RiskDal or RiskAssessmentDal or RiskReference)
+        if (after is RiskDal or RiskAssessmentDal or RiskReference or TreatmentDal)
         {
             await RecordSourceVersionAsync(transaction, actorUserId, entityId,
                 entityTypeOverride ?? EntityMapper.TbName<T>(false), after);
@@ -180,6 +180,7 @@ internal static class BusinessHistory
             RiskProcessDal process => process.Version,
             RiskAssessmentDal assessment => assessment.Version,
             RiskReference reference => reference.Version,
+            TreatmentDal treatment => treatment.Version,
             _ => throw new InvalidOperationException()
         };
         var snapshot = JsonSerializer.Serialize(source, JsonSerializerOptions.Web);

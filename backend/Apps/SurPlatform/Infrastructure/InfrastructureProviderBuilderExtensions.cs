@@ -1,3 +1,4 @@
+using Infrastructure.Observability;
 using Infrastructure.Repositories.Risks;
 using Infrastructure.Repositories.Risks.Interfaces;
 using Infrastructure.Repositories.Organization.Interfaces;
@@ -12,6 +13,7 @@ using Infrastructure.Repositories.Organization;
 using Infrastructure.Services.Identity;
 using Infrastructure.Services.Risks;
 using Infrastructure.Services.Jira;
+using Infrastructure.Services.Documents;
 using Infrastructure.Clients;
 using Infrastructure.Repositories.RoleSystem;
 using Infrastructure.Repositories.Sessions;
@@ -32,6 +34,8 @@ public static class InfrastructureProviderBuilderExtensions
     /// <param name="services">Контейнер зависимостей приложения</param>
     public static IServiceCollection AddInfrastructure(this IServiceCollection services)
     {
+        services.AddMetrics();
+        services.AddSingleton<OperationsMetrics>();
         services.AddScoped<ClientDatabaseContext>();
         services.AddScoped<IDbConnection>(provider =>
         {
@@ -59,7 +63,11 @@ public static class InfrastructureProviderBuilderExtensions
         services.AddScoped<ISessionRepository>(provider => provider.GetRequiredService<SessionRepository>());
         services.AddScoped<ITransactionalSessionRepository>(provider => provider.GetRequiredService<SessionRepository>());
         services.AddSingleton<JiraRestClient>();
+        services.AddSingleton<DocumentStorage>();
         services.AddScoped<RiskRepository>();
+        services.AddScoped<IDocumentRepository>(provider => provider.GetRequiredService<RiskRepository>());
+        services.AddScoped<IDocumentWorkerRepository>(provider => provider.GetRequiredService<RiskRepository>());
+        services.AddHostedService<DocumentWorker>();
         services.AddScoped<IJiraRepository>(provider => provider.GetRequiredService<RiskRepository>());
         services.AddScoped<IJiraWorkerRepository>(provider => provider.GetRequiredService<RiskRepository>());
         services.AddHostedService<JiraWorker>();

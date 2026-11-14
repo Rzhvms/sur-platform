@@ -19,6 +19,12 @@ services:
       postgres:
         condition: service_healthy
     environment:
+      Operations__PauseOutbound: ${SUR_PAUSE_OUTBOUND:-false}
+      Documents__Minio__Endpoint: ${SUR_MINIO_ENDPOINT:-minio:9000}
+      Documents__Minio__Bucket: ${SUR_MINIO_BUCKET:-sur-documents}
+      Documents__Minio__UseTls: ${SUR_MINIO_TLS:-false}
+      Documents__Minio__AccessKey: ${SUR_MINIO_ACCESS_KEY:-}
+      Documents__Minio__SecretKey: ${SUR_MINIO_SECRET_KEY:-}
       ASPNETCORE_HTTP_PORTS: "8080"
       ASPNETCORE_ENVIRONMENT: ${SUR_ENVIRONMENT:-Production}
       Http__KnownProxy: 172.29.128.2
@@ -42,7 +48,36 @@ services:
     volumes:
       - jwt-keys:/var/lib/sur/keys
       - data-protection:/var/lib/sur/data-protection
-    networks: [proxy, database]
+    networks: [proxy, database, storage]
+  minio:
+    image: quay.io/minio/minio:RELEASE.2025-09-07T16-13-09Z
+    profiles: [documents]
+    command: server /data
+    environment:
+      MINIO_ROOT_USER: ${SUR_MINIO_ACCESS_KEY:-}
+      MINIO_ROOT_PASSWORD: ${SUR_MINIO_SECRET_KEY:-}
+    volumes:
+      - minio-data:/data
+    networks: [storage]
+  minio-init:
+    image: quay.io/minio/mc:RELEASE.2025-08-13T08-35-41Z
+    profiles: [documents]
+    depends_on: [minio]
+    environment:
+      ACCESS_KEY: ${SUR_MINIO_ACCESS_KEY:-}
+      SECRET_KEY: ${SUR_MINIO_SECRET_KEY:-}
+      BUCKET: ${SUR_MINIO_BUCKET:-sur-documents}
+    entrypoint: ["/bin/sh", "-ec"]
+    command:
+      - |
+        for attempt in $$(seq 1 30); do
+          if mc alias set sur http://minio:9000 "$$ACCESS_KEY" "$$SECRET_KEY" && mc mb --ignore-existing "sur/$$BUCKET"; then
+            exit 0
+          fi
+          sleep 2
+        done
+        exit 1
+    networks: [storage]
   nginx:
     image: nginx:alpine
     depends_on: [backend]
@@ -62,8 +97,11 @@ networks:
         - subnet: 172.29.128.0/28
   database:
     internal: true
+  storage:
+    internal: true
 
 volumes:
   postgres-data:
   jwt-keys:
   data-protection:
+  minio-data:

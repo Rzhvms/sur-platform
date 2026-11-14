@@ -45,6 +45,12 @@ internal static class IdentityRoutes
     /// </summary>
     internal const string Ready = "ready";
 
+    /// <summary>Проверка процесса без обращения к базе</summary>
+    internal const string Live = "live";
+
+    /// <summary>Абсолютный путь проверки процесса</summary>
+    internal const string LivenessPath = IdentityHttp.RootPath + Health + IdentityHttp.RootPath + Live;
+
     /// <summary>
     /// Полный путь проверки готовности клиентской базы
     /// </summary>

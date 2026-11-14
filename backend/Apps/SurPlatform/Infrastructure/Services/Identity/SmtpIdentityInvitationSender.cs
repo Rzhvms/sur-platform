@@ -1,4 +1,6 @@
 using Infrastructure.Constants;
+using Infrastructure.Observability;
+using System.Diagnostics;
 using System.Net;
 using System.Net.Mail;
 using Application.Models;
@@ -9,7 +11,8 @@ namespace Infrastructure.Services.Identity;
 
 /// <inheritdoc/>
 /// <param name="configuration">Параметры SMTP из окружения</param>
-internal sealed class SmtpIdentityInvitationSender(IConfiguration configuration) : IIdentityInvitationSender
+/// <param name="operations">Метрики попыток отправки</param>
+internal sealed class SmtpIdentityInvitationSender(IConfiguration configuration, OperationsMetrics operations) : IIdentityInvitationSender
 {
     /// <summary>
     /// Smtp section
@@ -51,12 +54,26 @@ internal sealed class SmtpIdentityInvitationSender(IConfiguration configuration)
     /// </summary>
     private const string RoleSeparator = ", ";
 
+    /// <summary>Вид передачи для метрик</summary>
+    private const string SmtpOperation = "smtp";
+
+    /// <summary>Письмо передано SMTP</summary>
+    private const string Sent = "sent";
+
+    /// <summary>SMTP не подтвердил передачу</summary>
+    private const string Failed = "error";
+
     /// <summary>Текст при отсутствии действующих зон ответственности</summary>
     private const string NoResponsibilities = "отсутствуют";
 
     /// <inheritdoc/>
     public async Task SendAsync(IdentityInvitation invitation, string password, CancellationToken cancellationToken)
     {
+        if (configuration.GetValue(RecoverySettings.PauseOutbound, false))
+        {
+            throw new InvalidOperationException(MissingSmtp);
+        }
+
         var smtp = configuration.GetSection(SmtpSection);
         var host = smtp[ClientConfigurationKeys.Host];
         var sender = smtp[SenderKey];
@@ -90,6 +107,20 @@ internal sealed class SmtpIdentityInvitationSender(IConfiguration configuration)
                 При первом входе смените временный пароль.
                 """
         };
-        await client.SendMailAsync(message, cancellationToken);
+        var started = Stopwatch.GetTimestamp();
+        try
+        {
+            await client.SendMailAsync(message, cancellationToken);
+            operations.Outcome(SmtpOperation, Sent);
+        }
+        catch (Exception error) when (error is SmtpException or IOException or System.Net.Sockets.SocketException or OperationCanceledException)
+        {
+            operations.Outcome(SmtpOperation, Failed);
+            throw;
+        }
+        finally
+        {
+            operations.Duration(SmtpOperation, started);
+        }
     }
 }

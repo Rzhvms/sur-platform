@@ -295,6 +295,7 @@ public sealed class Startup(IWebHostEnvironment env, IConfiguration configuratio
         {
             options.OperationFilter<IdentityOperationFilter>();
             options.DocumentFilter<SpecialAuthorizationDocumentFilter>();
+            options.OperationFilter<DocumentTransferFilter>();
             options.AddSecurityDefinition(BearerSchemeId, new OpenApiSecurityScheme
             {
                 Name = BearerDisplayName,

@@ -1,6 +1,8 @@
 using System.Data;
+using Infrastructure.Observability;
 using Infrastructure.Clients;
 using Infrastructure.Services.Jira;
+using Infrastructure.Services.Documents;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Configuration;
 using Application.Constants;
@@ -22,11 +24,16 @@ namespace Infrastructure.Repositories.Risks;
 /// <param name="jiraConfiguration">Список разрешённых адресов</param>
 /// <param name="protection">Провайдер защиты реквизитов</param>
 /// <param name="databaseContext">Клиентский контекст шифрования</param>
+/// <param name="operations">Метрики клиентских операций</param>
+/// <param name="documentStorage">Изолированное хранилище MinIO</param>
 /// <param name="sessions">Проверки действующей сессии и эффективных прав</param>
 internal sealed partial class RiskRepository(IDbConnection connection, ITransactionalSessionRepository sessions,
-    JiraRestClient jiraRest, IConfiguration jiraConfiguration, IDataProtectionProvider protection, ClientDatabaseContext databaseContext)
-    : IRiskRepository, IRiskOrganizationRepository, IReviewRepository, ITransactionalReviewWorkerRepository, IJiraRepository, IJiraWorkerRepository
+    JiraRestClient jiraRest, IConfiguration jiraConfiguration, IDataProtectionProvider protection, ClientDatabaseContext databaseContext, DocumentStorage documentStorage, OperationsMetrics operations)
+    : IRiskRepository, IRiskOrganizationRepository, IReviewRepository, ITransactionalReviewWorkerRepository, IJiraRepository, IJiraWorkerRepository, IDocumentRepository, IDocumentWorkerRepository
 {
+    /// <summary>Классификатор конфликтов транзакции реестра</summary>
+    private const string PostgresOperation = "risk.postgres";
+
     /// <summary>Выполняет команду под общей блокировкой с оргструктурой и Identity</summary>
     /// <param name="actor">Инициатор из JWT</param>
     /// <param name="right">Обязательное право</param>
@@ -40,9 +47,23 @@ internal sealed partial class RiskRepository(IDbConnection connection, ITransact
         {
             await RequireRightAsync(actor, right, transaction);
         }
-        var result = await action(transaction);
-        transaction.Commit();
-        return result;
+        try
+        {
+            var result = await action(transaction);
+            transaction.Commit();
+            return result;
+        }
+        catch (Npgsql.PostgresException error) when (error.SqlState is Npgsql.PostgresErrorCodes.SerializationFailure or
+            Npgsql.PostgresErrorCodes.DeadlockDetected or Npgsql.PostgresErrorCodes.UniqueViolation)
+        {
+            operations.Outcome(PostgresOperation, error.SqlState);
+            throw;
+        }
+        catch (IdentityCommandException error) when (error.Code == IdentityErrorCodes.StaleVersion)
+        {
+            operations.Outcome(PostgresOperation, IdentityErrorCodes.StaleVersion);
+            throw;
+        }
     }
 
     /// <summary>Проверяет право в актуальном состоянии клиентской базы</summary>

@@ -275,7 +275,7 @@ internal static class InitialIdentityCatalog
     /// <summary>
     /// Системный код ViewReport
     /// </summary>
-    internal const string ViewReportCode = "view_report";
+    internal const string ViewReportCode = Application.Constants.DocumentRules.View;
 
     /// <summary>
     /// Отображаемое название ViewReport
@@ -285,7 +285,7 @@ internal static class InitialIdentityCatalog
     /// <summary>
     /// Системный код ExportReport
     /// </summary>
-    internal const string ExportReportCode = "export_report";
+    internal const string ExportReportCode = Application.Constants.DocumentRules.Export;
 
     /// <summary>
     /// Отображаемое название ExportReport
@@ -295,7 +295,7 @@ internal static class InitialIdentityCatalog
     /// <summary>
     /// Системный код ImportData
     /// </summary>
-    internal const string ImportDataCode = "import_data";
+    internal const string ImportDataCode = Application.Constants.DocumentRules.ImportRight;
 
     /// <summary>
     /// Отображаемое название ImportData

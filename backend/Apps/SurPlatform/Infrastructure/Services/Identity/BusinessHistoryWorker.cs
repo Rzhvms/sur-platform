@@ -1,4 +1,5 @@
 using System.Data;
+using Infrastructure.Observability;
 using Core.Database.DapperExtensions.EntityMapper;
 using Dapper;
 using Domain.DalModels;
@@ -17,6 +18,9 @@ namespace Infrastructure.Services.Identity;
 public sealed class BusinessHistoryWorker(ClientDatabaseCatalog clients, ClientDatabaseInitializer initializer,
     IServiceScopeFactory scopes, ILogger<BusinessHistoryWorker> logger) : BackgroundService
 {
+    /// <summary>Измеряемая очередь переноса истории</summary>
+    private const string HistoryOperation = "history";
+
     /// <summary>Пауза между попытками переноса</summary>
     private static readonly TimeSpan Interval = TimeSpan.FromSeconds(5);
 
@@ -43,7 +47,8 @@ public sealed class BusinessHistoryWorker(ClientDatabaseCatalog clients, ClientD
                 {
                     using var scope = scopes.CreateScope();
                     scope.ServiceProvider.GetRequiredService<ClientDatabaseContext>().Select(client);
-                    await TransferAsync(scope.ServiceProvider.GetRequiredService<IDbConnection>(), stoppingToken);
+                    await TransferAsync(scope.ServiceProvider.GetRequiredService<IDbConnection>(),
+                        scope.ServiceProvider.GetRequiredService<OperationsMetrics>(), stoppingToken);
                 }
                 catch (Exception error) when (!stoppingToken.IsCancellationRequested)
                 {
@@ -55,19 +60,21 @@ public sealed class BusinessHistoryWorker(ClientDatabaseCatalog clients, ClientD
 
     /// <summary>Захватывает порцию поручений, переносит и удаляет их одной транзакцией</summary>
     /// <param name="connection">Подключение одного клиента</param>
+    /// <param name="operations">Метрики возраста поручений</param>
     /// <param name="cancellationToken">Отмена при остановке</param>
-    private static async Task TransferAsync(IDbConnection connection, CancellationToken cancellationToken)
+    private static async Task TransferAsync(IDbConnection connection, OperationsMetrics operations, CancellationToken cancellationToken)
     {
         using var transaction = connection.BeginTransaction();
         var limit = BatchSize;
         var selectQuery = $"""
-            SELECT {EntityMapper.ColName<BusinessChangeJobDal>(x => x.EventId)} FROM {EntityMapper.TbName<BusinessChangeJobDal>()}
+            SELECT {EntityMapper.ColName<BusinessChangeJobDal>(x => x.EventId)}, {EntityMapper.ColName<BusinessChangeJobDal>(x => x.OccurredAt)} FROM {EntityMapper.TbName<BusinessChangeJobDal>()}
             ORDER BY {EntityMapper.ColName<BusinessChangeJobDal>(x => x.OccurredAt)}, {EntityMapper.ColName<BusinessChangeJobDal>(x => x.EventId)} LIMIT {EntityMapper.ParameterName(nameof(limit))} FOR UPDATE SKIP LOCKED
             """;
-        var ids = (await connection.QueryAsync<Guid>(new CommandDefinition(selectQuery, new { limit },
+        var jobs = (await connection.QueryAsync<BusinessChangeJobDal>(new CommandDefinition(selectQuery, new { limit },
             transaction, cancellationToken: cancellationToken))).ToArray();
-        if (ids.Length > 0)
+        if (jobs.Length > 0)
         {
+            var ids = jobs.Select(job => job.EventId).ToArray();
             var transferQuery = $"""
                 INSERT INTO {EntityMapper.TbName<BusinessChangeDal>()} ({EntityMapper.ColName<BusinessChangeDal>(x => x.EventId)}, {EntityMapper.ColName<BusinessChangeDal>(x => x.OccurredAt)}, {EntityMapper.ColName<BusinessChangeDal>(x => x.Payload)})
                 SELECT {EntityMapper.ColName<BusinessChangeJobDal>(x => x.EventId)}, {EntityMapper.ColName<BusinessChangeJobDal>(x => x.OccurredAt)}, {EntityMapper.ColName<BusinessChangeJobDal>(x => x.Payload)}
@@ -83,5 +90,9 @@ public sealed class BusinessHistoryWorker(ClientDatabaseCatalog clients, ClientD
         }
 
         transaction.Commit();
+        if (jobs.Length > 0)
+        {
+            operations.Age(HistoryOperation, jobs[0].OccurredAt);
+        }
     }
 }
