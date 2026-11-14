@@ -2,8 +2,14 @@
 
 # Build artifacts
 
-bin/
-obj/
+# Артефакты сборки .NET во всех проектах и при любом регистре имени каталога.
+**/[Bb]in/
+**/[Oo]bj/
+
+# Защита от ошибочных каталогов наподобие `bin\Debug`, где обратный слеш
+# оказался частью имени директории (такое возможно после некорректного .csproj).
+**/[Bb]in\\*/
+**/[Oo]bj\\*/
 out/
 publish/
 
@@ -61,6 +67,8 @@ desktop.ini
 
 # Local configuration
 
+AGENTS.md
+!/AGENTS.md
 appsettings.Development.json
 appsettings.Local.json
 appsettings.*.Local.json
@@ -79,3 +87,5 @@ temp/
 
 .docker/
 docker-compose.override.yml
+
+/graphify-out/

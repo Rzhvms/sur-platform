@@ -1,0 +1,214 @@
+# Use a disposable tenant. Replace placeholders from responses as the scenarios progress.
+@public = https://localhost:7224/api/v1/public
+@provider = https://localhost:7224/api/v1/provider
+@adminToken = REPLACE_ADMIN_TOKEN
+@creatorToken = REPLACE_CREATOR_TOKEN
+@viewerToken = REPLACE_VIEWER_TOKEN
+@commenterToken = REPLACE_SECOND_COMMENTER_TOKEN
+@noRiskRightsToken = REPLACE_TOKEN_WITHOUT_RISK_RIGHTS
+@groupId = REPLACE_GROUP_ID
+@groupVersion = REPLACE_GROUP_VERSION
+@hazardId = REPLACE_HAZARD_ID
+@categoryId = REPLACE_CATEGORY_ID
+@processId = REPLACE_PROCESS_IN_CREATOR_DIRECTORATE
+@processVersion = REPLACE_PROCESS_VERSION
+@newOwnerId = REPLACE_ELIGIBLE_NEW_OWNER_PERSON_ID
+@otherProcessId = REPLACE_PROCESS_IN_OTHER_DIRECTORATE
+@riskId = REPLACE_RISK_ID
+@riskVersion = REPLACE_RISK_VERSION
+@staleRiskVersion = REPLACE_PREVIOUS_RISK_VERSION
+@commentId = REPLACE_COMMENT_ID
+@commentVersion = REPLACE_COMMENT_VERSION
+@systemCommentId = REPLACE_SYSTEM_COMMENT_ID
+@systemCommentVersion = REPLACE_SYSTEM_COMMENT_VERSION
+@utcDate = REPLACE_CURRENT_UTC_DATE
+
+### 401 without bearer
+GET {{public}}/risks/board
+
+### 201 creates an active group
+POST {{provider}}/risk-references/HazardGroups
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{"name":"Остановка упаковочной линии"}
+
+### 409 active names are unique, including case variations
+POST {{provider}}/risk-references/HazardGroups
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{"name":"остановка упаковочной линии"}
+
+### 201 creates a hazard in the active group
+POST {{provider}}/risk-references/Hazards
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{"name":"Перегрев двигателя конвейера","groupId":"{{groupId}}"}
+
+### 201 creates a category
+POST {{provider}}/risk-references/Categories
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{"name":"Надёжность оборудования"}
+
+### 200 offers the creator only processes in their directorate
+GET {{public}}/risk-references/processes
+Authorization: Bearer {{creatorToken}}
+
+### 403 rejects a direct request for a process in another directorate
+POST {{public}}/risks
+Authorization: Bearer {{creatorToken}}
+Content-Type: application/json
+
+{"name":"Перегрев конвейера","description":"Перегрев останавливает упаковку","hazardId":"{{hazardId}}","categoryId":"{{categoryId}}","processId":"{{otherProcessId}}"}
+
+### 201 creates a draft with one primary process
+POST {{public}}/risks
+Authorization: Bearer {{creatorToken}}
+Content-Type: application/json
+
+{"name":"Перегрев конвейера","description":"Перегрев останавливает упаковку","hazardId":"{{hazardId}}","categoryId":"{{categoryId}}","processId":"{{processId}}"}
+
+### 403 a known ID does not grant access
+GET {{public}}/risks/{{riskId}}
+Authorization: Bearer {{noRiskRightsToken}}
+
+### 200 view_risk permits reading a risk from another directorate, currentAssessment is null
+GET {{public}}/risks/{{riskId}}
+Authorization: Bearer {{viewerToken}}
+
+### 200 returns six columns, with the matched risk only in DRAFT and no current assessment
+GET {{public}}/risks/board?search=конвейера&processId={{processId}}&limit=1
+Authorization: Bearer {{viewerToken}}
+
+### 200 returns the same risk in the registry
+GET {{public}}/risks?search=конвейера&processId={{processId}}&sort=name&limit=1
+Authorization: Bearer {{viewerToken}}
+
+### 200 with six columns; for a single matching risk, offset=1 leaves all counts at zero
+GET {{public}}/risks/board?search=Перегрев%20конвейера&processId={{processId}}&offset=1&limit=1
+Authorization: Bearer {{viewerToken}}
+
+> {%
+    client.test("The counts equal the number of cards on the returned page", function () {
+        client.assert(response.status === 200);
+        client.assert(response.body.length === 6);
+        client.assert(response.body.every(column => column.count === 0 && column.items.length === 0));
+    });
+%}
+
+### 409 rejects a stale passport version
+PUT {{public}}/risks/{{riskId}}
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{"name":"Перегрев конвейера","description":"Уточнены условия остановки","hazardId":"{{hazardId}}","categoryId":"{{categoryId}}","version":"{{staleRiskVersion}}"}
+
+### 200 deactivates the group
+PUT {{provider}}/risk-references/HazardGroups/{{groupId}}
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{"name":"Остановка упаковочной линии","version":"{{groupVersion}}","isActive":false}
+
+### 200 excludes the hazard of the inactive group from the selector
+GET {{public}}/risk-references/Hazards
+Authorization: Bearer {{creatorToken}}
+
+### 200 preserves the previously selected hazard
+GET {{public}}/risks/{{riskId}}
+Authorization: Bearer {{viewerToken}}
+
+### 409 rejects a new link to a hazard in an inactive group
+POST {{public}}/risks
+Authorization: Bearer {{creatorToken}}
+Content-Type: application/json
+
+{"name":"Перегрев запасного конвейера","description":"Условия остановки","hazardId":"{{hazardId}}","categoryId":"{{categoryId}}","processId":"{{processId}}"}
+
+### 201 creates a user comment
+POST {{public}}/risks/{{riskId}}/comments
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{"text":"Согласовать осмотр двигателя"}
+
+### 403 another user with comment_risk cannot edit the comment
+PUT {{public}}/risks/{{riskId}}/comments/{{commentId}}
+Authorization: Bearer {{commenterToken}}
+Content-Type: application/json
+
+{"text":"Осмотр уже выполнен","version":"{{commentVersion}}"}
+
+### 204 logically deletes the comment
+DELETE {{public}}/risks/{{riskId}}/comments/{{commentId}}?version={{commentVersion}}
+Authorization: Bearer {{adminToken}}
+
+### 200 omits the deleted comment
+GET {{public}}/risks/{{riskId}}/comments
+Authorization: Bearer {{viewerToken}}
+
+### 200 closes the risk and generates a system comment
+POST {{public}}/risks/{{riskId}}/close
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{"version":"{{riskVersion}}","reason":"Линия выведена из эксплуатации"}
+
+### 200 returns the system comment with the reason
+GET {{public}}/risks/{{riskId}}/comments
+Authorization: Bearer {{viewerToken}}
+
+### 409 even an admin cannot delete a system comment
+DELETE {{public}}/risks/{{riskId}}/comments/{{systemCommentId}}?version={{systemCommentVersion}}
+Authorization: Bearer {{adminToken}}
+
+### 200 returns the confirmed closed risk to review, with currentAssessment still null
+POST {{public}}/risks/{{riskId}}/reopen
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{"version":"{{riskVersion}}","confirmed":true}
+
+### 200 updates the process, the risk link and the risk version in one transaction
+PUT {{provider}}/organization/processes/{{processId}}/owner
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{"version":"{{processVersion}}","ownerId":"{{newOwnerId}}","confirmed":true}
+
+### 200 shows the new owner on the existing primary link
+GET {{public}}/risks/{{riskId}}
+Authorization: Bearer {{viewerToken}}
+
+### 200 includes a new system comment about the owner change
+GET {{public}}/risks/{{riskId}}/comments
+Authorization: Bearer {{viewerToken}}
+
+### 403 a viewer cannot read the administrative journal
+GET {{provider}}/business-history?from={{utcDate}}&to={{utcDate}}
+Authorization: Bearer {{viewerToken}}
+
+### 200 immediately after a command, inspect eventId uniqueness and correlated operationId
+GET {{provider}}/business-history?from={{utcDate}}&to={{utcDate}}&limit=100
+Authorization: Bearer {{adminToken}}
+
+### 201 takes a snapshot before or after the worker transfers pending events
+POST {{provider}}/business-history/exports
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{"from":"{{utcDate}}","to":"{{utcDate}}"}
+
+> {%
+    client.test("The export response contains a snapshot and the requested inclusive dates", function () {
+        client.assert(response.status === 201);
+        client.assert(Boolean(response.body.id));
+        const date = request.variables.get("utcDate");
+        client.assert(response.body.from.slice(0, 10) === date);
+        client.assert(response.body.to.slice(0, 10) === date);
+    });
+%}

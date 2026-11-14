@@ -1,0 +1,210 @@
+# Use a disposable tenant. Start with an ACTIVE assessed risk in split or treat mode.
+# Copy versions after every mutation. Prepare two eligible process links in the same directorate.
+@public = https://localhost:7224/api/v1/public
+@provider = https://localhost:7224/api/v1/provider
+@swagger = https://localhost:7224/swagger/v1/swagger.json
+@admin = REPLACE_ADMIN_TOKEN
+@owner = REPLACE_OWNER_TOKEN_WITH_APPROVAL_RIGHT
+@executor = REPLACE_EMPLOYEE_TOKEN_WITHOUT_EXECUTE_RIGHT
+@risk = REPLACE_RISK_ID
+@riskVersion = REPLACE_RISK_VERSION
+@measure = REPLACE_MEASURE_ID
+@otherMeasure = REPLACE_MEASURE_ID_FOR_SECOND_PROCESS
+@otherMeasureVersion = REPLACE_SECOND_MEASURE_VERSION
+@measureVersion = REPLACE_MEASURE_VERSION
+@approval = REPLACE_APPROVAL_ID
+@approvalVersion = REPLACE_APPROVAL_VERSION
+@person = REPLACE_ELIGIBLE_EMPLOYEE_PERSON_ID
+
+### OpenAPI documents successful JSON responses for all treatment operations
+GET {{swagger}}
+
+> {%
+    client.test("Treatment routes expose their successful response schemas", function () {
+        client.assert(response.status === 200);
+        const paths = response.body.paths;
+        const methods = ["get", "post", "put", "delete"];
+        let count = 0;
+        for (const path of Object.keys(paths)) {
+            if (!/\/(treatments|treatment-approvals|treatment-approval-settings)(\/|$)/.test(path)) {
+                continue;
+            }
+            for (const method of methods) {
+                const operation = paths[path][method];
+                if (!operation) {
+                    continue;
+                }
+                count++;
+                const success = operation.responses["200"];
+                client.assert(success && success.content, method + " " + path);
+                client.assert(Object.values(success.content).some(type => type.schema), method + " " + path);
+            }
+        }
+        client.assert(count >= 24, "Expected all stage 5 operations");
+    });
+%}
+
+### Read an assessed split risk and take the selected link ID from its card
+GET {{public}}/risks/{{risk}}
+Authorization: Bearer {{owner}}
+
+> {%
+    client.test("Split risk exposes both current links and preserves the process IDs", function () {
+        client.assert(response.status === 200);
+        const processes = response.body.data.processes;
+        client.assert(processes.length === 2);
+        for (const process of processes) {
+            client.assert(process.riskProcessId && process.riskProcessId !== "00000000-0000-0000-0000-000000000000");
+            client.assert(process.processId && process.riskProcessId !== process.processId);
+        }
+        client.assert(processes[0].riskProcessId !== processes[1].riskProcessId);
+        const primary = processes.find(process => process.isPrimary);
+        client.assert(primary);
+        client.global.set("link", primary.riskProcessId);
+    });
+%}
+
+### Default inclusive approval thresholds
+GET {{provider}}/treatment-approval-settings
+Authorization: Bearer {{admin}}
+
+> {%
+    client.test("Defaults are 0, 50000 and 100000", function () {
+        client.assert(response.status === 200);
+        client.assert(response.body.ownerThreshold === 0);
+        client.assert(response.body.directorThreshold === 50000);
+        client.assert(response.body.ceoThreshold === 100000);
+    });
+%}
+
+### Create a zero-cost draft without an assignment
+POST {{public}}/risks/{{risk}}/treatments
+Authorization: Bearer {{owner}}
+Content-Type: application/json
+
+{"riskProcessId":"{{link}}","title":"Изолировать насос","dueDate":"2026-12-01","costPlanned":0}
+
+> {%
+    client.test("A draft can be created using the link from the risk card", function () {
+        client.assert(response.status === 200);
+        client.assert(response.body.status === "DRAFT");
+        client.assert(response.body.riskProcessId === client.global.get("link"));
+    });
+%}
+
+### Submit twice concurrently with the same version. Expect one request and one 409
+POST {{public}}/treatments/{{measure}}/approvals
+Authorization: Bearer {{owner}}
+Content-Type: application/json
+
+{"version":"{{measureVersion}}"}
+
+> {%
+    if (response.status === 200) {
+        client.test("Zero cost snapshots the OWNER rule", function () {
+            client.assert(response.body.requiredLevel === "OWNER");
+            client.assert(response.body.triggerThreshold === 0);
+            client.assert(response.body.ownerThreshold === 0);
+            client.assert(response.body.directorThreshold === 50000);
+            client.assert(response.body.ceoThreshold === 100000);
+            client.assert(response.body.costPlanned === 0);
+        });
+    }
+%}
+
+### Only requests in the current approver's scope count toward the queue
+GET {{public}}/treatment-approvals?offset=0&limit=1
+Authorization: Bearer {{owner}}
+
+### Approve the request; there is still no assignee
+POST {{public}}/treatment-approvals/{{approval}}/approve
+Authorization: Bearer {{owner}}
+Content-Type: application/json
+
+{"version":"{{approvalVersion}}"}
+
+### Read the approved measure and absence of an assignment
+GET {{public}}/treatments/{{measure}}
+Authorization: Bearer {{owner}}
+
+> {%
+    client.test("Approval alone does not assign an employee", function () {
+        client.assert(response.status === 200);
+        client.assert(response.body.treatment.status === "APPROVED");
+        client.assert(response.body.assignment == null);
+    });
+%}
+
+### Dispatch and assign in the same command; try again with another draft of the same process to check slot conflict
+POST {{public}}/treatments/{{measure}}/dispatch
+Authorization: Bearer {{owner}}
+Content-Type: application/json
+
+{"version":"{{measureVersion}}","assigneeId":"{{person}}"}
+
+### Start the entire waiting set after dispatching a measure on the second process
+POST {{public}}/risks/{{risk}}/treatments/start
+Authorization: Bearer {{admin}}
+Content-Type: application/json
+
+{"version":"{{riskVersion}}"}
+
+### An assignment alone does not grant permission to change status
+POST {{public}}/treatments/{{measure}}/hold
+Authorization: Bearer {{executor}}
+Content-Type: application/json
+
+{"version":"{{measureVersion}}"}
+
+### Complete without an actual cost while another measure remains active
+POST {{public}}/treatments/{{measure}}/complete
+Authorization: Bearer {{owner}}
+Content-Type: application/json
+
+{"version":"{{measureVersion}}"}
+
+> {%
+    client.test("Completion does not require actual cost", function () {
+        client.assert(response.status === 200);
+        client.assert(response.body.status === "DONE");
+        client.assert(response.body.costActual == null);
+    });
+%}
+
+### Completing the last active measure opens a review in the same transaction
+POST {{public}}/treatments/{{otherMeasure}}/complete
+Authorization: Bearer {{admin}}
+Content-Type: application/json
+
+{"version":"{{otherMeasureVersion}}","confirmed":true}
+
+> {%
+    client.test("The last active treatment is terminal", function () {
+        client.assert(response.status === 200 && response.body.status === "DONE");
+    });
+%}
+
+### Verify that the last treatment opened a single review without a new assessment
+GET {{public}}/risks/{{risk}}
+Authorization: Bearer {{admin}}
+
+> {%
+    client.test("The risk is awaiting reevaluation after the terminal transition", function () {
+        client.assert(response.status === 200);
+        client.assert(response.body.data.risk.status === "AWAITING_REVIEW");
+        client.assert(response.body.data.currentAssessment === null);
+        const open = response.body.reviews.filter(item => item.review.status === "WAITING");
+        client.assert(open.length === 1 && open[0].run.reason === "AFTER_TREATMENT");
+    });
+%}
+
+### Use an approved request whose measure is not yet dispatched and another active measure exists
+POST {{public}}/treatment-approvals/{{approval}}/revoke
+Authorization: Bearer {{admin}}
+Content-Type: application/json
+
+{"version":"{{approvalVersion}}","reason":"Пересмотр объёма работ"}
+
+### History preserves the original approval and separate revocation
+GET {{public}}/treatments/{{measure}}/approvals
+Authorization: Bearer {{admin}}

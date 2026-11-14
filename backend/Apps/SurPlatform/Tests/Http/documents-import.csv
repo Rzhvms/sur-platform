@@ -1,0 +1,4 @@
+Name,Description,HazardId,CategoryId,ProcessId
+=1+1,"First line of a spill risk
+Second line of the quoted description",REPLACE_HAZARD,REPLACE_CATEGORY,REPLACE_PROCESS
+Invalid process ID,Rejected import row,REPLACE_HAZARD,REPLACE_CATEGORY,invalid-process
