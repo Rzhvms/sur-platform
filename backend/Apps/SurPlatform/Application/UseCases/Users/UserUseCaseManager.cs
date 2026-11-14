@@ -1,3 +1,6 @@
+using Application.Constants;
+using Application.Exceptions;
+using Application.Models;
 using Application.Helpers.Encryption;
 using Application.Ports.Repositories;
 using Application.UseCases.Users.Dto.Request;
@@ -7,7 +10,7 @@ using Application.UseCases.Users.Interfaces;
 namespace Application.UseCases.Users;
 
 /// <inheritdoc />
-internal sealed class UserUseCaseManager(IUserRepository userRepository) : IUserUseCaseManager
+internal sealed class UserUseCaseManager(IUserRepository userRepository, IRoleRepository roleRepository) : IUserUseCaseManager
 {
     /// <summary>
     /// Incorrect password
@@ -23,6 +26,23 @@ internal sealed class UserUseCaseManager(IUserRepository userRepository) : IUser
     /// Credentials changed
     /// </summary>
     private const string CredentialsChanged = "Учётные данные изменились или срок доступа истёк";
+
+    /// <inheritdoc/>
+    public async Task<CurrentUserAccessResponse> GetCurrentAccessAsync(RiskActor actor)
+    {
+        var access = await roleRepository.GetAccessAsync(actor.UserId);
+        if (access is null || access.AccessVersion != actor.AccessVersion)
+        {
+            throw new IdentityCommandException(401, IdentityErrorCodes.AccessDenied);
+        }
+
+        if (access.MustChangePassword)
+        {
+            throw new IdentityCommandException(403, IdentityErrorCodes.AccessDenied);
+        }
+
+        return new CurrentUserAccessResponse(actor.UserId, access.RightCodes);
+    }
 
     /// <inheritdoc/>
     public async Task<ChangeUserPasswordResponse> ChangePasswordAsync(Guid id, ChangeUserPasswordRequest request)

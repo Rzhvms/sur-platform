@@ -24,4 +24,7 @@ public sealed record IdentityAccess
     /// Эффективные права
     /// </summary>
     public Guid[] RightIds { get; init; } = [];
+
+    /// <summary>Коды назначенных действующих прав</summary>
+    public string[] RightCodes { get; init; } = [];
 }

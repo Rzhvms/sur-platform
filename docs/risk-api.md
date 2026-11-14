@@ -11,6 +11,7 @@
 | `PUT /provider/risk-references/{kind}/{id}` | Редактирование, активация или деактивация с проверкой `version` |
 | `GET /public/risks` | Страница реестра |
 | `GET /public/risks/board` | Шесть колонок со счётчиками и отдельной страницей в каждой |
+| `GET /public/risks/board/{columnStatus}` | Одна колонка с собственными `offset` и `limit` и общим набором фильтров |
 | `GET /public/risks/{id}` | Паспорт, связи, оценки и признак доступности редактирования |
 | `POST /public/risks` | Создание черновика и основной связи с процессом |
 | `PUT /public/risks/{id}` | Сохранение паспорта с проверкой `version` и истории оценок |
@@ -21,7 +22,7 @@
 | `GET /provider/business-history` | Административная страница журнала по датам `from` и `to` |
 | `POST /provider/business-history/exports` | Создание снимка журнала по датам `from` и `to`, ответ содержит идентификатор снимка |
 
-Виды справочников в пути — `HazardGroups`, `Hazards`, `Categories`. Для опасности обязателен `groupId`. Реестр и доска принимают `search`, `directorateId`, `processId`, `ownerId` (ID сотрудника), `assetId`, `categoryId`, `status`, `sort=recent|name`, `offset` и `limit`. Счётчик колонки равен числу карточек в `items` на возвращаемой странице. Статусы идут в порядке `DRAFT`, `ACTIVE`, `IN_PROGRESS`, `AWAITING_REVIEW`, `ACCEPTED`, `CLOSED`. Если текущей оценки нет, `currentAssessment` равен `null`. Карточка риска, ожидающего переоценки, может вернуть последнюю завершённую оценку в `previousAssessment`.
+Виды справочников в пути — `HazardGroups`, `Hazards`, `Categories`. Для опасности обязателен `groupId`. Реестр и доска принимают `search`, `directorateId`, `processId`, `ownerId` (ID сотрудника), `assetId`, `categoryId`, `status`, `sort=recent|name`, `offset` и `limit`. `count` равен числу карточек в `items`. `totalCount` показывает общее число подходящих рисков в колонке до пагинации, в том числе для пустой страницы за пределами списка. Для маршрута одной колонки параметр `status` можно опустить. Если он указан, он должен совпадать с `columnStatus`. Статусы идут в порядке `DRAFT`, `ACTIVE`, `IN_PROGRESS`, `AWAITING_REVIEW`, `ACCEPTED`, `CLOSED`. Если текущей оценки нет, `currentAssessment` равен `null`. Карточка риска, ожидающего переоценки, может вернуть последнюю завершённую оценку в `previousAssessment`.
 
 При создании передаются `name`, `description`, `hazardId`, `categoryId`, `processId` и необязательный `assetId`. При редактировании передаётся полный паспорт с `version`, а `processId` опускается. Устаревшая версия возвращает `409`. Первая запись оценки блокирует редактирование паспорта. Проверка незавершённых мер при закрытии относится к этапу 5.
 

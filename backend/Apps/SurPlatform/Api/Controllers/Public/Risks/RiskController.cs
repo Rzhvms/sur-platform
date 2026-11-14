@@ -25,6 +25,9 @@ public sealed class RiskController(RiskUseCaseManager useCases) : BasePublicCont
     /// <summary>Относительный маршрут операции BoardRoute</summary>
     private const string BoardRoute = "board";
 
+    /// <summary>Маршрут одной колонки для независимой пагинации</summary>
+    private const string BoardColumnRoute = BoardRoute + "/{columnStatus}";
+
     /// <summary>Относительный маршрут операции CloseRoute</summary>
     private const string CloseRoute = RiskRoutes.ById + "/close";
 
@@ -44,9 +47,22 @@ public sealed class RiskController(RiskUseCaseManager useCases) : BasePublicCont
     /// <param name="filter">Отбор и пагинация</param>
     /// <returns>Данные операции текущего клиента</returns>
     [HttpGet(BoardRoute)]
+    [ProducesResponseType<RiskColumn[]>(StatusCodes.Status200OK)]
     public Task<RiskColumn[]> BoardAsync([FromQuery] RiskListQuery filter)
     {
         return useCases.BoardAsync(User.GetRiskActor(), filter);
+    }
+
+    /// <summary>Возвращает выбранную статусную колонку</summary>
+    /// <param name="columnStatus">Статус колонки из справочника состояний риска</param>
+    /// <param name="filter">Отбор и пагинация выбранной колонки</param>
+    /// <returns>Страница карточек и общий итог колонки</returns>
+    [HttpGet(BoardColumnRoute)]
+    [ProducesResponseType<RiskColumn>(StatusCodes.Status200OK)]
+    [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
+    public Task<RiskColumn> BoardColumnAsync(string columnStatus, [FromQuery] RiskListQuery filter)
+    {
+        return useCases.BoardColumnAsync(User.GetRiskActor(), columnStatus, filter);
     }
 
     /// <summary>Возвращает карточку риска</summary>

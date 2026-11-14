@@ -1,0 +1,48 @@
+@public = https://localhost:7224/api/v1/public
+
+### Ordinary user with view_risk and no admin right
+GET {{public}}/users/me
+Authorization: Bearer {{viewerToken}}
+
+> {%
+    client.test("The current user gets stable effective codes and no cached profile", function () {
+        client.assert(response.status === 200);
+        client.assert(response.body.userId === "{{viewerId}}");
+        const rights = response.body.rightCodes;
+        client.assert(rights.includes("view_risk") && !rights.includes("admin"));
+        client.assert(rights.length === new Set(rights).size);
+        client.assert(response.headers.valueOf("Cache-Control").includes("no-store"));
+    });
+%}
+
+### Administrator inherits system rights
+GET {{public}}/users/me
+Authorization: Bearer {{adminToken}}
+
+> {%
+    client.test("The admin gets inherited codes", function () {
+        client.assert(response.status === 200);
+        client.assert(response.body.rightCodes.includes("admin"));
+        client.assert(response.body.rightCodes.includes("view_risk"));
+    });
+%}
+
+### A password-change-only session cannot read the profile
+GET {{public}}/users/me
+Authorization: Bearer {{temporaryPasswordToken}}
+
+> {%
+    client.test("Restricted session is denied", function () {
+        client.assert(response.status === 403);
+    });
+%}
+
+### Use the original token after an administrator revoked a role
+GET {{public}}/users/me
+Authorization: Bearer {{staleToken}}
+
+> {%
+    client.test("A stale access token cannot read the profile", function () {
+        client.assert(response.status === 401);
+    });
+%}

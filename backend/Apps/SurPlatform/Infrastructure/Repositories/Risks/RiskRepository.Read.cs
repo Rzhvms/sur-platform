@@ -20,6 +20,23 @@ internal sealed partial class RiskRepository
     /// <summary>Сортировка по названию</summary>
     private const string NameSort = "name";
 
+    /// <summary>Общий отбор карточек и итогов в одном снимке</summary>
+    private static readonly string FilteredRisks = $"""
+            FROM {EntityMapper.TbName<RiskDal>()} r
+            WHERE (CAST({EntityMapper.ParameterName(nameof(RiskDal.Id))} AS uuid) IS NULL OR r.{EntityMapper.ColName<RiskDal>(x => x.Id)} = {EntityMapper.ParameterName(nameof(RiskDal.Id))})
+              AND strpos(lower(r.{EntityMapper.ColName<RiskDal>(x => x.Name)}), lower({EntityMapper.ParameterName(nameof(RiskListQuery.Search))})) > 0
+              AND (CAST({EntityMapper.ParameterName(nameof(RiskListQuery.Status))} AS text) IS NULL OR r.{EntityMapper.ColName<RiskDal>(x => x.Status)} = {EntityMapper.ParameterName(nameof(RiskListQuery.Status))})
+              AND (CAST({EntityMapper.ParameterName(nameof(RiskListQuery.AssetId))} AS uuid) IS NULL OR r.{EntityMapper.ColName<RiskDal>(x => x.AssetId)} = {EntityMapper.ParameterName(nameof(RiskListQuery.AssetId))})
+              AND (CAST({EntityMapper.ParameterName(nameof(RiskListQuery.CategoryId))} AS uuid) IS NULL OR r.{EntityMapper.ColName<RiskDal>(x => x.CategoryId)} = {EntityMapper.ParameterName(nameof(RiskListQuery.CategoryId))})
+              AND EXISTS (
+                  SELECT FROM {EntityMapper.TbName<RiskProcessDal>()} l JOIN {EntityMapper.TbName<ProcessDal>()} p ON p.{EntityMapper.ColName<ProcessDal>(x => x.Id)} = l.{EntityMapper.ColName<RiskProcessDal>(x => x.ProcessId)}
+                  WHERE l.{EntityMapper.ColName<RiskProcessDal>(x => x.RiskId)} = r.{EntityMapper.ColName<RiskDal>(x => x.Id)} AND l.{EntityMapper.ColName<RiskProcessDal>(x => x.UnlinkedAt)} IS NULL
+                    AND (CAST({EntityMapper.ParameterName(nameof(RiskListQuery.ProcessId))} AS uuid) IS NULL OR p.{EntityMapper.ColName<ProcessDal>(x => x.Id)} = {EntityMapper.ParameterName(nameof(RiskListQuery.ProcessId))})
+                    AND (CAST({EntityMapper.ParameterName(nameof(RiskListQuery.DirectorateId))} AS uuid) IS NULL OR p.{EntityMapper.ColName<ProcessDal>(x => x.DirectorateId)} = {EntityMapper.ParameterName(nameof(RiskListQuery.DirectorateId))})
+                    AND (CAST({EntityMapper.ParameterName(nameof(RiskListQuery.OwnerId))} AS uuid) IS NULL OR l.{EntityMapper.ColName<RiskProcessDal>(x => x.OwnerId)} = {EntityMapper.ParameterName(nameof(RiskListQuery.OwnerId))})
+              )
+        """;
+
     /// <inheritdoc/>
     public async Task<RiskRow[]> ListAsync(RiskActor actor, RiskListQuery filter)
     {
@@ -36,11 +53,12 @@ internal sealed partial class RiskRepository
         using var transaction = connection.BeginTransaction(IsolationLevel.RepeatableRead);
         await RequireRightAsync(actor, RiskRules.View, transaction);
         var result = await SelectAsync(filter, null, transaction, board: true);
+        var totals = await CountBoardAsync(filter, transaction);
         transaction.Commit();
         return RiskRules.BoardStatuses.Select(status =>
         {
             var items = result.Where(item => item.Status == status).Select(MapRow).ToArray();
-            return new RiskColumn(status, items.LongLength, items);
+            return new RiskColumn(status, items.LongLength, items) { TotalCount = totals.GetValueOrDefault(status) };
         }).ToArray();
     }
 
@@ -91,19 +109,7 @@ internal sealed partial class RiskRepository
         var query = $"""
             WITH filtered AS (
                 SELECT r.*, row_number() OVER ({partition} ORDER BY {order}) AS rn
-                FROM {EntityMapper.TbName<RiskDal>()} r
-                WHERE (CAST({EntityMapper.ParameterName(nameof(id))} AS uuid) IS NULL OR r.{EntityMapper.ColName<RiskDal>(x => x.Id)} = {EntityMapper.ParameterName(nameof(id))})
-                  AND strpos(lower(r.{EntityMapper.ColName<RiskDal>(x => x.Name)}), lower({EntityMapper.ParameterName(nameof(search))})) > 0
-                  AND (CAST({EntityMapper.ParameterName(nameof(filter.Status))} AS text) IS NULL OR r.{EntityMapper.ColName<RiskDal>(x => x.Status)} = {EntityMapper.ParameterName(nameof(filter.Status))})
-                  AND (CAST({EntityMapper.ParameterName(nameof(filter.AssetId))} AS uuid) IS NULL OR r.{EntityMapper.ColName<RiskDal>(x => x.AssetId)} = {EntityMapper.ParameterName(nameof(filter.AssetId))})
-                  AND (CAST({EntityMapper.ParameterName(nameof(filter.CategoryId))} AS uuid) IS NULL OR r.{EntityMapper.ColName<RiskDal>(x => x.CategoryId)} = {EntityMapper.ParameterName(nameof(filter.CategoryId))})
-                  AND EXISTS (
-                      SELECT FROM {EntityMapper.TbName<RiskProcessDal>()} l JOIN {EntityMapper.TbName<ProcessDal>()} p ON p.{EntityMapper.ColName<ProcessDal>(x => x.Id)} = l.{EntityMapper.ColName<RiskProcessDal>(x => x.ProcessId)}
-                      WHERE l.{EntityMapper.ColName<RiskProcessDal>(x => x.RiskId)} = r.{EntityMapper.ColName<RiskDal>(x => x.Id)} AND l.{EntityMapper.ColName<RiskProcessDal>(x => x.UnlinkedAt)} IS NULL
-                        AND (CAST({EntityMapper.ParameterName(nameof(filter.ProcessId))} AS uuid) IS NULL OR p.{EntityMapper.ColName<ProcessDal>(x => x.Id)} = {EntityMapper.ParameterName(nameof(filter.ProcessId))})
-                        AND (CAST({EntityMapper.ParameterName(nameof(filter.DirectorateId))} AS uuid) IS NULL OR p.{EntityMapper.ColName<ProcessDal>(x => x.DirectorateId)} = {EntityMapper.ParameterName(nameof(filter.DirectorateId))})
-                        AND (CAST({EntityMapper.ParameterName(nameof(filter.OwnerId))} AS uuid) IS NULL OR l.{EntityMapper.ColName<RiskProcessDal>(x => x.OwnerId)} = {EntityMapper.ParameterName(nameof(filter.OwnerId))})
-                  )
+                {FilteredRisks}
             ), page AS (
                 SELECT * FROM filtered WHERE {page}
             )
@@ -146,9 +152,29 @@ internal sealed partial class RiskRepository
             ORDER BY r.rn, r.{EntityMapper.ColName<RiskDal>(x => x.Status)}
             """;
         var rows = await connection.QueryAsync<RiskReadRow>(query,
-            new { id, search, filter.Status, filter.AssetId, filter.CategoryId, filter.ProcessId,
+            new { Id = id, Search = search, filter.Status, filter.AssetId, filter.CategoryId, filter.ProcessId,
                 filter.DirectorateId, filter.OwnerId, offset, limit }, transaction);
         return rows.ToArray();
+    }
+
+    /// <summary>Считает подходящие риски по статусам до пагинации</summary>
+    /// <param name="filter">Те же фильтры, что использует выборка карточек</param>
+    /// <param name="transaction">Общий снимок с карточками доски</param>
+    /// <returns>Число совпадений по статусу</returns>
+    private async Task<Dictionary<string, long>> CountBoardAsync(RiskListQuery filter, IDbTransaction transaction)
+    {
+        var search = filter.Search?.Trim() ?? string.Empty;
+        Guid? id = null;
+        var status = EntityMapper.ColName<RiskDal>(x => x.Status);
+        var query = $"""
+            SELECT r.{status}, count(*)
+            {FilteredRisks}
+            GROUP BY r.{status}
+            """;
+        var rows = await connection.QueryAsync<(string Status, long TotalCount)>(query,
+            new { Id = id, Search = search, filter.Status, filter.AssetId, filter.CategoryId, filter.ProcessId,
+                filter.DirectorateId, filter.OwnerId }, transaction);
+        return rows.ToDictionary(row => row.Status, row => row.TotalCount);
     }
 
     /// <summary>Преобразует проекцию PostgreSQL в карточку реестра</summary>

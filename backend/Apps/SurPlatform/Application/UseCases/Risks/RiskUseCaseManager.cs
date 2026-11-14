@@ -1,3 +1,4 @@
+using Application.Exceptions;
 using Application.UseCases.Risks.Dto.Request;
 using System.Text.Json;
 using Application.Constants;
@@ -28,6 +29,24 @@ public sealed class RiskUseCaseManager(IRiskRepository repository)
     public Task<RiskColumn[]> BoardAsync(RiskActor actor, RiskListQuery filter)
     {
         return repository.BoardAsync(actor, filter);
+    }
+
+    /// <summary>Читает отдельно выбранную колонку с собственным окном</summary>
+    /// <param name="actor">Участник текущего клиентского запроса</param>
+    /// <param name="columnStatus">Статус запрошенной колонки</param>
+    /// <param name="filter">Общие фильтры и окно этой колонки</param>
+    /// <returns>Карточки и итог выбранной колонки</returns>
+    /// <exception cref="IdentityCommandException">Статус колонки ошибочен либо конфликтует с фильтром</exception>
+    public async Task<RiskColumn> BoardColumnAsync(RiskActor actor, string columnStatus, RiskListQuery filter)
+    {
+        if (!RiskRules.BoardStatuses.Contains(columnStatus) ||
+            (filter.Status is not null && filter.Status != columnStatus))
+        {
+            throw new IdentityCommandException(400, RiskRules.Invalid);
+        }
+
+        var columns = await repository.BoardAsync(actor, filter with { Status = columnStatus });
+        return columns.Single(column => column.Status == columnStatus);
     }
 
     /// <summary>Карточка риска</summary>

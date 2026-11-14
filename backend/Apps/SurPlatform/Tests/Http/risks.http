@@ -97,6 +97,32 @@ Authorization: Bearer {{viewerToken}}
         client.assert(response.status === 200);
         client.assert(response.body.length === 6);
         client.assert(response.body.every(column => column.count === 0 && column.items.length === 0));
+        client.assert(response.body.find(column => column.status === "DRAFT").totalCount === 1);
+        client.assert(response.body.filter(column => column.status !== "DRAFT")
+            .every(column => column.totalCount === 0));
+    });
+%}
+
+### The matching draft still contributes to the total after the last page
+GET {{public}}/risks/board/DRAFT?search=Перегрев%20конвейера&processId={{processId}}&offset=1&limit=1
+Authorization: Bearer {{viewerToken}}
+
+> {%
+    client.test("A column returns its filtered total even when the page is empty", function () {
+        client.assert(response.status === 200);
+        client.assert(response.body.status === "DRAFT");
+        client.assert(response.body.count === 0 && response.body.items.length === 0);
+        client.assert(response.body.totalCount === 1);
+    });
+%}
+
+### Conflicting column and status do not silently change the filter
+GET {{public}}/risks/board/DRAFT?status=ACTIVE
+Authorization: Bearer {{viewerToken}}
+
+> {%
+    client.test("A conflicting status is rejected", function () {
+        client.assert(response.status === 400);
     });
 %}
 
