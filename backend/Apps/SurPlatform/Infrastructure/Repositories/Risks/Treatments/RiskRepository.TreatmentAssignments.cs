@@ -47,6 +47,7 @@ internal sealed partial class RiskRepository
             else
             {
                 RequireTreatmentState(measure.Status is TreatmentRules.Waiting or TreatmentRules.Working or TreatmentRules.Hold);
+                await RequireJiraManualControlAsync(measure, transaction);
             }
 
             var previous = await ReadAssignmentAsync(id, transaction);

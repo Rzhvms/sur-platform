@@ -8,4 +8,8 @@ namespace Application.Models;
 /// <param name="LatestApproval">Последний запрос согласования</param>
 /// <param name="RequiredApprovalLevel">Текущий маршрут для черновика, если нужен запрос</param>
 public sealed record TreatmentCard(TreatmentDal Treatment, TreatmentAssignmentDal? Assignment,
-    TreatmentApprovalDal? LatestApproval, string? RequiredApprovalLevel);
+    TreatmentApprovalDal? LatestApproval, string? RequiredApprovalLevel)
+{
+    /// <summary>Состояние обмена для меры</summary>
+    public JiraTreatmentView? Jira { get; init; }
+}

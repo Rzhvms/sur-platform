@@ -1,4 +1,8 @@
 using System.Data;
+using Infrastructure.Clients;
+using Infrastructure.Services.Jira;
+using Microsoft.AspNetCore.DataProtection;
+using Microsoft.Extensions.Configuration;
 using Application.Constants;
 using Application.Exceptions;
 using Application.Models;
@@ -14,9 +18,14 @@ namespace Infrastructure.Repositories.Risks;
 
 /// <summary>Клиентский реестр рисков и связанные команды</summary>
 /// <param name="connection">Подключение выбранной базы</param>
+/// <param name="jiraRest">HTTPS-клиент Jira</param>
+/// <param name="jiraConfiguration">Список разрешённых адресов</param>
+/// <param name="protection">Провайдер защиты реквизитов</param>
+/// <param name="databaseContext">Клиентский контекст шифрования</param>
 /// <param name="sessions">Проверки действующей сессии и эффективных прав</param>
-internal sealed partial class RiskRepository(IDbConnection connection, ITransactionalSessionRepository sessions)
-    : IRiskRepository, IRiskOrganizationRepository, IReviewRepository, ITransactionalReviewWorkerRepository
+internal sealed partial class RiskRepository(IDbConnection connection, ITransactionalSessionRepository sessions,
+    JiraRestClient jiraRest, IConfiguration jiraConfiguration, IDataProtectionProvider protection, ClientDatabaseContext databaseContext)
+    : IRiskRepository, IRiskOrganizationRepository, IReviewRepository, ITransactionalReviewWorkerRepository, IJiraRepository, IJiraWorkerRepository
 {
     /// <summary>Выполняет команду под общей блокировкой с оргструктурой и Identity</summary>
     /// <param name="actor">Инициатор из JWT</param>

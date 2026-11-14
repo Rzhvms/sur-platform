@@ -43,8 +43,9 @@ internal sealed partial class RiskRepository
         var requiredLevel = measure.Status == TreatmentRules.Draft
             ? ApprovalLevel(measure.CostPlanned, await ReadTreatmentSettingsAsync(transaction))
             : null;
+        var jira = await ReadJiraViewAsync(measure, transaction);
         transaction.Commit();
-        return new TreatmentCard(measure, assignment, approval, requiredLevel);
+        return new TreatmentCard(measure, assignment, approval, requiredLevel) { Jira = jira };
     }
 
     /// <inheritdoc/>

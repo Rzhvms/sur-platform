@@ -102,7 +102,7 @@ internal static class BusinessHistory
             actorUserId = system ? Application.Constants.IdentityAccounts.SystemUserId : actorUserId,
             initiatorUserId = automaticSource is not null ? automaticInitiatorId : system ? (Guid?)actorUserId : null,
             responsibleUserId = system ? (Guid?)actorUserId : null,
-            source = system ? SystemSource : UserSource,
+            source = automaticSource == Application.Constants.JiraRules.Source ? Application.Constants.JiraRules.Integration : system ? SystemSource : UserSource,
             automaticSource, configurationAuthorId,
             operation = before is null ? CreateOperation : after is null ? DeleteOperation : deleted ? SoftDeleteOperation : UpdateOperation,
             changes, commentTextBeforeDeletion = deletedText

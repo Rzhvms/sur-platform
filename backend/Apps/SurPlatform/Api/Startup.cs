@@ -30,6 +30,7 @@ using Infrastructure.Services;
 using Infrastructure;
 using Infrastructure.Services.Jwt.RsaKeys.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Api.Controllers.Public.Jira;
 using Api.Controllers.Public.Risks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
@@ -302,6 +303,11 @@ public sealed class Startup(IWebHostEnvironment env, IConfiguration configuratio
                 Scheme = JwtBearerDefaults.AuthenticationScheme,
                 BearerFormat = JwtFormat,
                 Description = BearerDescription
+            });
+            options.AddSecurityDefinition(JiraWebhookController.OpenApiScheme, new OpenApiSecurityScheme
+            {
+                Type = SecuritySchemeType.Http,
+                Scheme = Application.Constants.JiraRules.Basic.ToLowerInvariant()
             });
             options.AddSecurityDefinition(ReviewWebhookController.OpenApiScheme, new OpenApiSecurityScheme
             {

@@ -24,6 +24,7 @@ internal sealed partial class RiskRepository
             var measure = await ReadAsync<TreatmentDal>(id, EntityMapper.ColName<TreatmentDal>(x => x.Id), transaction);
             RequireVersion(measure.Version, request.Version);
             await RequireTreatmentOwnerAsync(actor, measure, transaction);
+            await RequireJiraManualControlAsync(measure, transaction);
             var valid = target switch
             {
                 TreatmentRules.Hold => measure.Status == TreatmentRules.Working,
@@ -46,6 +47,10 @@ internal sealed partial class RiskRepository
             }
             var operationId = Guid.NewGuid();
             var updated = await SaveTreatmentStatusAsync(measure, target, actor.UserId, operationId, transaction, request.CostActual);
+            if (target == TreatmentRules.Working)
+            {
+                await QueueJiraAsync(measure.Id, actor.UserId, transaction);
+            }
             if (target is TreatmentRules.Done or TreatmentRules.Cancelled)
             {
                 await StartReviewAfterTreatmentAsync(measure, request.Confirmed, actor.UserId, operationId, transaction);
@@ -75,9 +80,9 @@ internal sealed partial class RiskRepository
                 await SelectTreatmentLinkAsync(riskId, measure.RiskProcessId, transaction);
                 await RequireValidAssignmentAsync(measure, transaction);
                 await SaveTreatmentStatusAsync(measure, TreatmentRules.Working, actor.UserId, operationId, transaction);
+                await QueueJiraAsync(measure.Id, actor.UserId, transaction);
             }
 
-            // Stage 7 records Jira creation requests for the started batch here before committing the risk and measures.
             var updated = await SaveRiskStateAsync(transaction, risk, RiskRules.InProgress, risk.AcceptanceLevel);
             await BusinessHistory.RecordAsync(transaction, operationId, actor.UserId, riskId, risk, updated);
             return updated;
@@ -91,9 +96,10 @@ internal sealed partial class RiskRepository
     /// <param name="operationId">Общая операция журнала</param>
     /// <param name="transaction">Транзакция риск–мера</param>
     /// <param name="cost">Фактическая стоимость при завершении</param>
+    /// <param name="jira">Атрибуция внешней операции</param>
     /// <returns>Обновлённая мера</returns>
     private async Task<TreatmentDal> SaveTreatmentStatusAsync(TreatmentDal measure, string status, Guid actor, Guid operationId,
-        IDbTransaction transaction, decimal? cost = null)
+        IDbTransaction transaction, decimal? cost = null, JiraSettingsDal? jira = null)
     {
         var slots = TreatmentRules.SlotStatuses();
         if (slots.Contains(status))
@@ -126,7 +132,8 @@ internal sealed partial class RiskRepository
         {
             throw new IdentityCommandException(409, TreatmentRules.SlotTaken);
         }
-        await BusinessHistory.RecordAsync(transaction, operationId, actor, measure.Id, measure, updated);
+        await BusinessHistory.RecordAsync(transaction, operationId, jira?.ResponsibleUserId ?? actor, measure.Id, measure, updated,
+            system: jira is not null, automaticSource: jira is null ? null : JiraRules.Source, configurationAuthorId: jira?.UpdatedById);
         return updated;
     }
 
@@ -136,7 +143,9 @@ internal sealed partial class RiskRepository
     /// <param name="transaction">Транзакция перехода</param>
     /// <param name="actor">Пользователь исходной команды</param>
     /// <param name="operationId">Общее событие меры и риска</param>
-    private async Task StartReviewAfterTreatmentAsync(TreatmentDal measure, bool confirmed, Guid actor, Guid operationId, IDbTransaction transaction)
+    /// <param name="jira">Настройка внешней операции</param>
+    private async Task StartReviewAfterTreatmentAsync(TreatmentDal measure, bool confirmed, Guid actor, Guid operationId,
+        IDbTransaction transaction, JiraSettingsDal? jira = null)
     {
         if (measure.Status == TreatmentRules.Draft)
         {
@@ -162,7 +171,7 @@ internal sealed partial class RiskRepository
 
         var risk = await ReadAsync<RiskDal>(measure.RiskId, EntityMapper.ColName<RiskDal>(x => x.Id), transaction);
         RequireTreatmentState(risk.Status is RiskRules.Active or RiskRules.InProgress);
-        await StartSingleReviewAsync(risk, ReviewRules.AfterTreatment, ReviewRules.Treatment, measure.Id, actor, operationId, transaction);
+        await StartSingleReviewAsync(risk, ReviewRules.AfterTreatment, ReviewRules.Treatment, measure.Id, actor, operationId, transaction, jira: jira);
     }
 
     /// <summary>Запрещает решение по риску или удаление связи при блокирующих мерах</summary>

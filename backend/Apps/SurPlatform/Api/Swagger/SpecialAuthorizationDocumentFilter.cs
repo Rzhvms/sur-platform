@@ -1,4 +1,5 @@
 using Api.Constants;
+using Api.Controllers.Public.Jira;
 using System.Net.Mime;
 using Microsoft.AspNetCore.Mvc.Controllers;
 using Api.Controllers.Internal.Users;
@@ -20,6 +21,12 @@ internal sealed class SpecialAuthorizationDocumentFilter : IDocumentFilter
     /// <summary>Формат произвольного потока байтов в OpenAPI 3.0</summary>
     private const string BinaryFormat = "binary";
 
+    /// <summary>Корневое поле события Jira</summary>
+    private const string JiraIssueProperty = "issue";
+
+    /// <summary>Идентификатор задачи внутри события Jira</summary>
+    private const string JiraIdProperty = "id";
+
     /// <inheritdoc/>
     public void Apply(OpenApiDocument document, DocumentFilterContext context)
     {
@@ -36,7 +43,8 @@ internal sealed class SpecialAuthorizationDocumentFilter : IDocumentFilter
 
             var type = action.ControllerTypeInfo.AsType();
             var scheme = type == typeof(SessionController) ? SystemRequestHttpHandler.AuthenticationScheme
-                : type == typeof(ReviewWebhookController) ? ReviewWebhookController.OpenApiScheme : null;
+                : type == typeof(ReviewWebhookController) ? ReviewWebhookController.OpenApiScheme
+                : type == typeof(JiraWebhookController) ? JiraWebhookController.OpenApiScheme : null;
             if (scheme is null)
             {
                 continue;
@@ -50,7 +58,37 @@ internal sealed class SpecialAuthorizationDocumentFilter : IDocumentFilter
                 }
             ];
 
-            if (type == typeof(ReviewWebhookController))
+            if (type == typeof(JiraWebhookController))
+            {
+                operation.RequestBody = new OpenApiRequestBody
+                {
+                    Required = true,
+                    Content = new Dictionary<string, OpenApiMediaType>
+                    {
+                        [MediaTypeNames.Application.Json] = new()
+                        {
+                            Schema = new OpenApiSchema
+                            {
+                                Type = JsonSchemaType.Object,
+                                Required = new HashSet<string> { JiraIssueProperty },
+                                Properties = new Dictionary<string, IOpenApiSchema>
+                                {
+                                    [JiraIssueProperty] = new OpenApiSchema
+                                    {
+                                        Type = JsonSchemaType.Object,
+                                        Required = new HashSet<string> { JiraIdProperty },
+                                        Properties = new Dictionary<string, IOpenApiSchema>
+                                        {
+                                            [JiraIdProperty] = new OpenApiSchema { Type = JsonSchemaType.String }
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                };
+            }
+            else if (type == typeof(ReviewWebhookController))
             {
                 operation.RequestBody = new OpenApiRequestBody
                 {

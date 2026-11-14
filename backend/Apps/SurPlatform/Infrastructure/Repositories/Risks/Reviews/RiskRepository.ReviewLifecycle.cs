@@ -53,7 +53,10 @@ internal sealed partial class RiskRepository
 
         var updated = await SaveRiskStateAsync(transaction, risk, RiskRules.AwaitingReview, null, clearCloseReason: true);
         await InsertRiskReviewAsync(run.Id, risk.Id, ReviewRules.Waiting, transaction, previous?.Id, run.InitiatedById);
-        await BusinessHistory.RecordAsync(transaction, operationId, run.InitiatedById, risk.Id, risk, updated, relatedChanges: changes);
+        var jira = run.ExternalSystemNameSnapshot == JiraRules.Source && run.Reason == ReviewRules.AfterTreatment;
+        await BusinessHistory.RecordAsync(transaction, operationId, jira ? run.ResponsibleUserId ?? run.InitiatedById : run.InitiatedById,
+            risk.Id, risk, updated, system: jira, relatedChanges: changes, automaticSource: jira ? JiraRules.Source : null,
+            configurationAuthorId: jira ? run.ConfigurationAuthorId : null);
         return updated;
     }
 
@@ -66,16 +69,20 @@ internal sealed partial class RiskRepository
     /// <param name="operationId">Общий идентификатор журнала</param>
     /// <param name="transaction">Текущая клиентская транзакция</param>
     /// <param name="relatedChanges">Изменения процессов при передаче</param>
+    /// <param name="jira">Атрибуция пересмотра из Jira</param>
     /// <returns>Карточка в ожидании переоценки</returns>
     private async Task<RiskDal> StartSingleReviewAsync(RiskDal risk, string reason, string source, Guid sourceId, Guid actor,
-        Guid operationId, IDbTransaction transaction, List<(string Path, object? Before, object After)>? relatedChanges = null)
+        Guid operationId, IDbTransaction transaction, List<(string Path, object? Before, object After)>? relatedChanges = null,
+        JiraSettingsDal? jira = null)
     {
         var automatic = reason == ReviewRules.AfterTreatment;
         var run = new ReviewRunDal
         {
             Id = Guid.NewGuid(), Reason = reason, SourceType = source, SourceId = sourceId,
             InitiatedById = automatic ? IdentityAccounts.SystemUserId : actor,
-            ResponsibleUserId = automatic ? actor : null, OccurredAt = DateTime.UtcNow,
+            ResponsibleUserId = jira?.ResponsibleUserId ?? (automatic ? actor : null),
+            ConfigurationAuthorId = jira?.UpdatedById, ExternalSystemNameSnapshot = jira is null ? null : JiraRules.Source,
+            OccurredAt = DateTime.UtcNow,
             Status = ReviewRules.Completed, TargetRiskIds = [risk.Id]
         };
         await InsertReviewRunAsync(run, transaction);
