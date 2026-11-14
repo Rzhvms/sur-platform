@@ -109,7 +109,9 @@ internal sealed partial class OrganizationRepository
                 WHERE {Id} = {EntityMapper.ParameterName(nameof(id))} AND {Version} = {EntityMapper.ParameterName(nameof(version))}
                 RETURNING *
                 """;
-            return await SaveAsync<ProcessDal>(query, new { id, version, ownerId }, actor, transaction);
+            var updated = await SaveAsync<ProcessDal>(query, new { id, version, ownerId }, actor, transaction);
+            await riskOrganization.UpdateProcessOwnershipAsync(transaction, actor, process, updated);
+            return updated;
         });
     }
 

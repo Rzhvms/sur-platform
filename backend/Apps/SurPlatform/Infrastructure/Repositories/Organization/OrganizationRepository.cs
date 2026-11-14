@@ -7,20 +7,27 @@ using Dapper;
 using Domain.DalModels;
 using Infrastructure.Repositories.Identity;
 using Npgsql;
+using Infrastructure.Repositories.Organization.Interfaces;
+using Infrastructure.Repositories.Risks.Interfaces;
 
 namespace Infrastructure.Repositories.Organization;
 
 /// <inheritdoc/>
-internal sealed partial class OrganizationRepository : IOrganizationRepository
+internal sealed partial class OrganizationRepository : IOrganizationRepository, IOrganizationIdentityRepository
 {
     /// <summary>Открытое рабочее подключение текущего клиента</summary>
     private readonly IDbConnection connection;
 
+    /// <summary>Обновление связей рисков при смене владельца процесса</summary>
+    private readonly IRiskOrganizationRepository riskOrganization;
+
     /// <summary>Создаёт хранилище в контексте текущей клиентской базы</summary>
     /// <param name="connection">Подключение из клиентского scope</param>
-    public OrganizationRepository(IDbConnection connection)
+    /// <param name="riskOrganization">Операции со связями рисков в транзакции процесса</param>
+    public OrganizationRepository(IDbConnection connection, IRiskOrganizationRepository riskOrganization)
     {
         this.connection = connection;
+        this.riskOrganization = riskOrganization;
     }
 
     /// <summary>Пустая необязательная часть SQL-выборки</summary>

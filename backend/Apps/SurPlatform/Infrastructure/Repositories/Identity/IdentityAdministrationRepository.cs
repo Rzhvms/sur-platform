@@ -8,7 +8,7 @@ using Application.Models;
 using Application.Ports.Repositories;
 using Application.UseCases.Users.Dto.Request;
 using Dapper;
-using Infrastructure.Repositories.Organization;
+using Infrastructure.Repositories.Organization.Interfaces;
 using Application.UseCases.Organization.Dto.Request;
 
 namespace Infrastructure.Repositories.Identity;
@@ -16,7 +16,7 @@ namespace Infrastructure.Repositories.Identity;
 /// <inheritdoc/>
 /// <param name="connection">Рабочее подключение выбранной клиентской базы</param>
 /// <param name="organization">Организационные операции в той же транзакции</param>
-internal sealed class IdentityAdministrationRepository(IDbConnection connection, OrganizationRepository organization) : IIdentityAdministrationRepository
+internal sealed class IdentityAdministrationRepository(IDbConnection connection, IOrganizationIdentityRepository organization) : IIdentityAdministrationRepository
 {
     /// <summary>
     /// Срок, после которого неподтверждённая доставка считается потерянной
@@ -27,7 +27,7 @@ internal sealed class IdentityAdministrationRepository(IDbConnection connection,
     /// Выборка административной карточки без секретов
     /// </summary>
     /// <returns>Запрос без дополнительных фильтров</returns>
-    private static string BuildUserQuery()
+    private string BuildUserQuery()
     {
         var query = $"""
             SELECT u.{EntityMapper.ColName<UserProfileDal>(x => x.UserId)} AS {EntityMapper.ColName<IdentityUser>(x => x.Id)}, u.{EntityMapper.ColName<UserProfileDal>(x => x.Email)}, u.{EntityMapper.ColName<UserProfileDal>(x => x.FullName)}, u.{EntityMapper.ColName<UserProfileDal>(x => x.IsActive)}, u.{EntityMapper.ColName<UserProfileDal>(x => x.Version)},
@@ -37,7 +37,7 @@ internal sealed class IdentityAdministrationRepository(IDbConnection connection,
                     WHERE a.{EntityMapper.ColName<UserRoleDal>(x => x.UserId)} = u.{EntityMapper.ColName<UserProfileDal>(x => x.UserId)} AND a.{EntityMapper.ColName<UserRoleDal>(x => x.IsActive)} AND r.{EntityMapper.ColName<RoleDal>(x => x.Code)} IS NOT NULL ORDER BY r.{EntityMapper.ColName<RoleDal>(x => x.Name)}) AS {EntityMapper.ColName<IdentityUser>(x => x.RoleIds)},
                 ARRAY(SELECT r.{EntityMapper.ColName<RoleDal>(x => x.Name)} FROM {EntityMapper.TbName<UserRoleDal>()} a JOIN {EntityMapper.TbName<RoleDal>()} r ON r.{EntityMapper.ColName<RoleDal>(x => x.Id)} = a.{EntityMapper.ColName<UserRoleDal>(x => x.RoleId)}
                     WHERE a.{EntityMapper.ColName<UserRoleDal>(x => x.UserId)} = u.{EntityMapper.ColName<UserProfileDal>(x => x.UserId)} AND a.{EntityMapper.ColName<UserRoleDal>(x => x.IsActive)} AND r.{EntityMapper.ColName<RoleDal>(x => x.Code)} IS NOT NULL ORDER BY r.{EntityMapper.ColName<RoleDal>(x => x.Name)}) AS {EntityMapper.ColName<IdentityUser>(x => x.Roles)},
-                ARRAY({OrganizationRepository.BuildResponsibilityLabelsQuery($"u.{EntityMapper.ColName<UserProfileDal>(x => x.UserId)}")})
+                ARRAY({organization.BuildResponsibilityLabelsQuery($"u.{EntityMapper.ColName<UserProfileDal>(x => x.UserId)}")})
                     AS {EntityMapper.ColName<IdentityUser>(x => x.Responsibilities)}
             FROM {EntityMapper.TbName<UserProfileDal>()} u WHERE u.{EntityMapper.ColName<UserProfileDal>(x => x.UserId)} <> {EntityMapper.ParameterName(SqlParameterNames.SystemUserId)}
             """;

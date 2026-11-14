@@ -1,6 +1,7 @@
 using Infrastructure.Constants;
 using Core.Database.DapperExtensions.EntityMapper;
 using System.Data;
+using Infrastructure.Repositories.Sessions.Interfaces;
 using Application.Constants;
 using Application.Models;
 using Application.Ports.Repositories;
@@ -10,7 +11,7 @@ using Domain.DalModels;
 namespace Infrastructure.Repositories.Sessions;
 
 /// <inheritdoc/>
-public sealed class SessionRepository : ISessionRepository
+public sealed class SessionRepository : ISessionRepository, ITransactionalSessionRepository
 {
     private readonly IDbConnection _dbConnection;
 
@@ -63,6 +64,28 @@ public sealed class SessionRepository : ISessionRepository
     /// <inheritdoc/>
     public async Task<bool> IsActiveAsync(Guid userId, Guid sessionId, DateTime now, CancellationToken cancellationToken, long accessVersion, string? rightCode = null)
     {
+        return await IsActiveAsync(userId, sessionId, now, cancellationToken, accessVersion, rightCode, null);
+    }
+
+    /// <inheritdoc/>
+    Task<bool> ITransactionalSessionRepository.IsActiveAsync(Guid userId, Guid sessionId, DateTime now,
+        CancellationToken cancellationToken, long accessVersion, string rightCode, IDbTransaction transaction)
+    {
+        return IsActiveAsync(userId, sessionId, now, cancellationToken, accessVersion, rightCode, transaction);
+    }
+
+    /// <summary>Проверяет действующее право в снимке прикладной транзакции</summary>
+    /// <param name="userId">Пользователь из токена</param>
+    /// <param name="sessionId">Сессия из токена</param>
+    /// <param name="now">Текущее время UTC</param>
+    /// <param name="cancellationToken">Отмена проверки</param>
+    /// <param name="accessVersion">Ожидаемая версия доступа</param>
+    /// <param name="rightCode">Требуемый код права</param>
+    /// <param name="transaction">Транзакция команды или чтения</param>
+    /// <returns>Доступ разрешён</returns>
+    private async Task<bool> IsActiveAsync(Guid userId, Guid sessionId, DateTime now,
+        CancellationToken cancellationToken, long accessVersion, string? rightCode, IDbTransaction? transaction)
+    {
         var checkAccessQuery = $"""
             SELECT EXISTS(
                 SELECT 1 FROM {EntityMapper.TbName<SessionDal>()} s
@@ -85,7 +108,7 @@ public sealed class SessionRepository : ISessionRepository
                                 AND r.{EntityMapper.ColName<RoleDal>(x => x.Code)} IS NOT NULL AND (p.{EntityMapper.ColName<RightDal>(x => x.Code)} = {EntityMapper.ParameterName(SqlParameterNames.RightCode)} OR p.{EntityMapper.ColName<RightDal>(x => x.Id)} = {EntityMapper.ParameterName(SqlParameterNames.Admin)})))))
             """;
         var parameters = new { userId, sessionId, now, accessVersion, rightCode, admin = Guid.Parse(IdentityRights.Admin) };
-        var command = new CommandDefinition(checkAccessQuery, parameters, cancellationToken: cancellationToken);
+        var command = new CommandDefinition(checkAccessQuery, parameters, transaction, cancellationToken: cancellationToken);
 
         return await _dbConnection.QuerySingleAsync<bool>(command);
     }

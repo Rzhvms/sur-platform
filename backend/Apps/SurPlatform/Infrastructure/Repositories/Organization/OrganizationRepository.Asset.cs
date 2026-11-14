@@ -1,3 +1,4 @@
+using Infrastructure.Repositories.Risks.Helpers;
 using Application.Constants;
 using Application.Exceptions;
 using Application.UseCases.Organization.Dto.Request;
@@ -60,7 +61,16 @@ internal sealed partial class OrganizationRepository
                 WHERE {Id} = {EntityMapper.ParameterName(nameof(id))} AND {Version} = {EntityMapper.ParameterName(nameof(version))}
                 RETURNING *
                 """;
-            return await SaveAsync<AssetDal>(query, new { id, version, name, description, inventoryNumber, cost }, actor, transaction);
+            var updated = await SaveAsync<AssetDal>(query, new { id, version, name, description, inventoryNumber, cost }, actor, transaction);
+            if (row.HourlyDowntimeCost != updated.HourlyDowntimeCost)
+            {
+                var operationId = Guid.NewGuid();
+                await BusinessHistory.RecordAsync(transaction, operationId, actor, id,
+                    new { row.HourlyDowntimeCost }, new { updated.HourlyDowntimeCost }, EntityMapper.TbName<AssetDal>(false));
+                await riskOrganization.RecalculateAssetAsync(transaction, actor, operationId, updated);
+            }
+
+            return updated;
         });
     }
 

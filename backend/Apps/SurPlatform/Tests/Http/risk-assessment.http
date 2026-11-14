@@ -1,0 +1,172 @@
+# Disposable client. Prepare two draft risks: one with an asset at 1 ruble/hour and one without.
+# Copy IDs and versions from responses after each mutation. Use an unrelated user with assess_risk for the 403 case.
+@public = https://localhost:7224/api/v1/public
+@provider = https://localhost:7224/api/v1/provider
+@admin = REPLACE_ADMIN_TOKEN
+@outsider = REPLACE_UNRELATED_ASSESSOR_TOKEN
+@risk = REPLACE_DRAFT_RISK_WITH_ASSET
+@manualRisk = REPLACE_DRAFT_RISK_WITHOUT_ASSET
+@riskVersion = REPLACE_RISK_VERSION
+@scaleVersion = REPLACE_PUBLISHED_SCALE_ID
+@assetVersion = REPLACE_ASSET_VERSION
+@settingsVersion = REPLACE_ACCEPTANCE_SETTINGS_VERSION
+@primary = REPLACE_PRIMARY_PROCESS_ID
+@secondary = REPLACE_OTHER_PROCESS_ID
+@likelihood5 = be7d17a4-a396-4518-b240-b94822ce9105
+
+### Embedded matrix excludes the zero-weight axes and still exposes zero levels in its catalog
+GET {{public}}/risk-assessment-settings/matrix
+Authorization: Bearer {{admin}}
+
+> {%
+    client.test("5 by 5 positive matrix", function () {
+        client.assert(response.body.scores.length === 5);
+        client.assert(response.body.scores.every(row => row.length === 5 && row.every(score => score > 0)));
+        client.assert(response.body.likelihoodLevels[0].weight === 0);
+    });
+%}
+
+### Before publishing thresholds, preview fails with 409 RISK_SCALE_REQUIRED
+POST {{public}}/risks/{{manualRisk}}/assessments/preview
+Authorization: Bearer {{admin}}
+Content-Type: application/json
+
+{"likelihoodLevelId":"{{likelihood5}}","lossAmount":0}
+
+### Publish initial thresholds. Use returned version.id for later requests
+PUT {{provider}}/risk-assessment-settings/impact-scale
+Authorization: Bearer {{admin}}
+Content-Type: application/json
+
+{"minimums":[1,10,100,200.01,1000]}
+
+### Mixed downtime is 200.005 hours; HALF_UP produces 200.01 and weight 4
+POST {{public}}/risks/{{risk}}/assessments/preview
+Authorization: Bearer {{admin}}
+Content-Type: application/json
+
+{"likelihoodLevelId":"{{likelihood5}}","downtimeWeeks":1,"downtimeDays":1,"downtimeHours":8.005}
+
+> {%
+    client.test("Mixed downtime rounds before classification", function () {
+        client.assert(response.status === 200);
+        client.assert(response.body.assessment.downtimeTotalHours === 200.005);
+        client.assert(response.body.assessment.lossAmount === 200.01);
+        client.assert(response.body.assessment.riskScore === 20);
+        client.assert(response.body.acceptanceLevel === "TREATMENT_REQUIRED");
+    });
+%}
+
+### Zero stays in assessment history and has no positive matrix cell
+POST {{public}}/risks/{{manualRisk}}/assessments/preview
+Authorization: Bearer {{admin}}
+Content-Type: application/json
+
+{"likelihoodLevelId":"{{likelihood5}}","lossAmount":0}
+
+> {%
+    client.test("Valid zero loss", function () {
+        client.assert(response.status === 200);
+        client.assert(response.body.assessment.riskScore === 0);
+    });
+%}
+
+### One cent below the boundary still belongs to the previous range
+POST {{public}}/risks/{{manualRisk}}/assessments/preview
+Authorization: Bearer {{admin}}
+Content-Type: application/json
+
+{"likelihoodLevelId":"{{likelihood5}}","lossAmount":200.00}
+
+> {%
+    client.test("Inclusive previous range", function () {
+        client.assert(response.status === 200);
+        client.assert(response.body.assessment.riskScore === 15);
+    });
+%}
+
+### 400 rejects client-chosen derived values
+POST {{public}}/risks/{{manualRisk}}/assessments/preview
+Authorization: Bearer {{admin}}
+Content-Type: application/json
+
+{"likelihoodLevelId":"{{likelihood5}}","lossAmount":10,"riskScore":25}
+
+### 403 refuses an unrelated assessor
+POST {{public}}/risks/{{risk}}/assessments/preview
+Authorization: Bearer {{outsider}}
+Content-Type: application/json
+
+{"likelihoodLevelId":"{{likelihood5}}","downtimeHours":200.005}
+
+### Run two copies concurrently with the same versions. One returns 200 and one returns 409
+POST {{public}}/risks/{{risk}}/assessments
+Authorization: Bearer {{admin}}
+Content-Type: application/json
+
+{"version":"{{riskVersion}}","scaleVersionId":"{{scaleVersion}}","assetVersion":"{{assetVersion}}","inputs":{"likelihoodLevelId":"{{likelihood5}}","downtimeWeeks":1,"downtimeDays":1,"downtimeHours":8.005}}
+
+### After first assessment, the prior passport update scenario with a fresh version returns RISK_PASSPORT_LOCKED
+GET {{public}}/risks/{{risk}}
+Authorization: Bearer {{admin}}
+
+> {%
+    client.test("The assessed passport is read-only even for the administrator", function () {
+        client.assert(response.status === 200);
+        client.assert(response.body.passportEditable === false);
+    });
+%}
+
+### Send split and treat concurrently with the same risk version. Exactly one choice succeeds
+POST {{public}}/risks/{{risk}}/split
+Authorization: Bearer {{admin}}
+Content-Type: application/json
+
+{"version":"{{riskVersion}}","processIds":["{{primary}}","{{secondary}}"],"primaryProcessId":"{{secondary}}"}
+
+### Competing decision
+POST {{public}}/risks/{{risk}}/treat
+Authorization: Bearer {{admin}}
+Content-Type: application/json
+
+{"version":"{{riskVersion}}"}
+
+### Technical recalculation creates a new version and preserves the successful responseMode
+PUT {{provider}}/risk-assessment-settings/impact-scale
+Authorization: Bearer {{admin}}
+Content-Type: application/json
+
+{"version":"{{scaleVersion}}","minimums":[0,20,120,220,1000]}
+
+### A conflict forced on one assessment insert must roll back this entire operation (including scale and outbox)
+GET {{public}}/risks/{{risk}}/assessments
+Authorization: Bearer {{admin}}
+
+### Applying routing thresholds keeps the IDs and inputs of all assessment versions
+PUT {{provider}}/risk-assessment-settings/acceptance
+Authorization: Bearer {{admin}}
+Content-Type: application/json
+
+{"version":"{{settingsVersion}}","ownerMaxScore":5,"directorMaxScore":10,"ceoMaxScore":19,"applyToExisting":true}
+
+### Historical range remains readable after publication of a newer scale
+GET {{public}}/risk-assessment-settings/impact-scale/{{scaleVersion}}
+Authorization: Bearer {{admin}}
+
+### Use a new active risk without a selected mode. An administrator can accept TREATMENT_REQUIRED
+POST {{public}}/risks/{{risk}}/accept
+Authorization: Bearer {{admin}}
+Content-Type: application/json
+
+{"version":"{{riskVersion}}"}
+
+### For an active risk with an empty mode, the selector includes eligible processes across directorates
+GET {{public}}/risks/{{risk}}/split/processes
+Authorization: Bearer {{admin}}
+
+### Save against an older asset version after changing the rate. Expect 409 and no new assessment
+POST {{public}}/risks/{{risk}}/assessments
+Authorization: Bearer {{admin}}
+Content-Type: application/json
+
+{"version":"{{riskVersion}}","scaleVersionId":"{{scaleVersion}}","assetVersion":"{{assetVersion}}","inputs":{"likelihoodLevelId":"{{likelihood5}}","downtimeHours":200.005}}

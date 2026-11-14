@@ -105,7 +105,7 @@ internal static class InitialIdentityCatalog
     /// <summary>
     /// Системный код ViewRisk
     /// </summary>
-    internal const string ViewRiskCode = "view_risk";
+    internal const string ViewRiskCode = RiskRules.View;
 
     /// <summary>
     /// Отображаемое название ViewRisk
@@ -115,7 +115,7 @@ internal static class InitialIdentityCatalog
     /// <summary>
     /// Системный код CommentRisk
     /// </summary>
-    internal const string CommentRiskCode = "comment_risk";
+    internal const string CommentRiskCode = RiskRules.Comment;
 
     /// <summary>
     /// Отображаемое название CommentRisk
@@ -135,7 +135,7 @@ internal static class InitialIdentityCatalog
     /// <summary>
     /// Системный код CreateRisk
     /// </summary>
-    internal const string CreateRiskCode = "create_risk";
+    internal const string CreateRiskCode = RiskRules.Create;
 
     /// <summary>
     /// Отображаемое название CreateRisk
@@ -145,7 +145,7 @@ internal static class InitialIdentityCatalog
     /// <summary>
     /// Системный код EditRisk
     /// </summary>
-    internal const string EditRiskCode = "edit_risk";
+    internal const string EditRiskCode = RiskRules.Edit;
 
     /// <summary>
     /// Отображаемое название EditRisk
@@ -155,7 +155,7 @@ internal static class InitialIdentityCatalog
     /// <summary>
     /// Системный код CloseRisk
     /// </summary>
-    internal const string CloseRiskCode = "close_risk";
+    internal const string CloseRiskCode = RiskRules.Close;
 
     /// <summary>
     /// Отображаемое название CloseRisk
@@ -165,7 +165,7 @@ internal static class InitialIdentityCatalog
     /// <summary>
     /// Системный код AssessRisk
     /// </summary>
-    internal const string AssessRiskCode = "assess_risk";
+    internal const string AssessRiskCode = RiskRules.Assess;
 
     /// <summary>
     /// Отображаемое название AssessRisk
@@ -175,7 +175,7 @@ internal static class InitialIdentityCatalog
     /// <summary>
     /// Системный код AcceptOwnerRisk
     /// </summary>
-    internal const string AcceptOwnerRiskCode = "accept_owner_risk";
+    internal const string AcceptOwnerRiskCode = RiskRules.AcceptOwner;
 
     /// <summary>
     /// Отображаемое название AcceptOwnerRisk
@@ -185,7 +185,7 @@ internal static class InitialIdentityCatalog
     /// <summary>
     /// Системный код AcceptDirectorRisk
     /// </summary>
-    internal const string AcceptDirectorRiskCode = "accept_director_risk";
+    internal const string AcceptDirectorRiskCode = RiskRules.AcceptDirector;
 
     /// <summary>
     /// Отображаемое название AcceptDirectorRisk
@@ -195,7 +195,7 @@ internal static class InitialIdentityCatalog
     /// <summary>
     /// Системный код AcceptCeoRisk
     /// </summary>
-    internal const string AcceptCeoRiskCode = "accept_ceo_risk";
+    internal const string AcceptCeoRiskCode = RiskRules.AcceptCeo;
 
     /// <summary>
     /// Отображаемое название AcceptCeoRisk
@@ -305,7 +305,7 @@ internal static class InitialIdentityCatalog
     /// <summary>
     /// Системный код SplitRisk
     /// </summary>
-    internal const string SplitRiskCode = "split_risk";
+    internal const string SplitRiskCode = RiskRules.Split;
 
     /// <summary>
     /// Отображаемое название SplitRisk

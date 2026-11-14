@@ -193,7 +193,7 @@ internal sealed partial class OrganizationRepository
     /// <param name="userId">Отключаемая учётная запись</param>
     /// <param name="actor">Инициатор отключения</param>
     /// <param name="transaction">Транзакция отключения пользователя</param>
-    internal async Task DeactivateForUserAsync(Guid userId, Guid actor, IDbTransaction transaction)
+    public async Task DeactivateForUserAsync(Guid userId, Guid actor, IDbTransaction transaction)
     {
         var person = await FindActivePersonAsync(userId, transaction);
         if (person is not null)

@@ -1,3 +1,4 @@
+using Application.UseCases.Risks;
 using Application.UseCases.Organization;
 using Application.UseCases.Auth;
 using Application.UseCases.Auth.interfaces;
@@ -25,6 +26,7 @@ public static class ApplicationProviderBuilderExtensions
         services.AddScoped<IAuthUseCaseManager, AuthUseCaseManager>();
         services.AddScoped<IdentityAdministrationUseCaseManager>();
         services.AddScoped<OrganizationUseCaseManager>();
+        services.AddScoped<RiskUseCaseManager>();
         services.AddScoped<IUserUseCaseManager, UserUseCaseManager>();
     }
 }

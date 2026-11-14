@@ -47,7 +47,7 @@ internal sealed partial class OrganizationRepository
     /// <param name="roleCode">Деактивируемая роль при массовой проверке, иначе null</param>
     /// <param name="transaction">Транзакция после изменения ролей, но до коммита</param>
     /// <exception cref="IdentityCommandException">Активные связи требуют отозванной роли</exception>
-    internal async Task RequireValidRolesAsync(Guid? userId, string? roleCode, IDbTransaction transaction)
+    public async Task RequireValidRolesAsync(Guid? userId, string? roleCode, IDbTransaction transaction)
     {
         var ownerCode = OrganizationRoles.Owner;
         var query = $"""
@@ -82,7 +82,7 @@ internal sealed partial class OrganizationRepository
     /// <param name="userId">Получатель доступа</param>
     /// <param name="transaction">Текущая транзакция, если открыта</param>
     /// <returns>Отображаемые зоны ответственности и процессы во владении</returns>
-    internal async Task<string[]> ReadResponsibilitiesAsync(Guid userId, IDbTransaction? transaction = null)
+    public async Task<string[]> ReadResponsibilitiesAsync(Guid userId, IDbTransaction transaction)
     {
         var query = BuildResponsibilityLabelsQuery(EntityMapper.ParameterName(nameof(userId)));
         return (await connection.QueryAsync<string>(query, new { userId }, transaction)).ToArray();
@@ -91,7 +91,7 @@ internal sealed partial class OrganizationRepository
     /// <summary>Формирует выборку действующих зон по доверенному SQL-выражению пользователя</summary>
     /// <param name="userIdExpression">Параметр или колонка внешней выборки</param>
     /// <returns>SQL для карточки пользователя и приглашения</returns>
-    internal static string BuildResponsibilityLabelsQuery(string userIdExpression)
+    public string BuildResponsibilityLabelsQuery(string userIdExpression)
     {
         var query = $"""
             SELECT concat_ws('{ResponsibilitySeparator}', a.{ResponsibilityType}, d.{EntityMapper.ColName<DirectorateDal>(x => x.Name)})
@@ -113,7 +113,7 @@ internal sealed partial class OrganizationRepository
     /// <param name="userId">Изменённая учётная запись</param>
     /// <param name="actor">Администратор</param>
     /// <param name="transaction">Транзакция изменения ФИО</param>
-    internal async Task SnapshotPersonNameAsync(Guid userId, Guid actor, IDbTransaction transaction)
+    public async Task SnapshotPersonNameAsync(Guid userId, Guid actor, IDbTransaction transaction)
     {
         var person = await FindActivePersonAsync(userId, transaction);
         if (person is null)

@@ -103,7 +103,7 @@ internal sealed partial class OrganizationRepository
     /// <param name="request">Поля сотрудника и выбранные позиции</param>
     /// <param name="actor">Администратор</param>
     /// <param name="transaction">Транзакция создания пользователя</param>
-    internal async Task CreateForUserAsync(Guid userId, InitialOrganizationRequest request, Guid actor, IDbTransaction transaction)
+    public async Task CreateForUserAsync(Guid userId, InitialOrganizationRequest request, Guid actor, IDbTransaction transaction)
     {
         if (request.Responsibilities is null || request.Responsibilities.Any(slot => slot is null) ||
             (request.DirectorateId is null && !request.Responsibilities.Any(slot => slot.ResponsibilityType == OrganizationRoles.Ceo)))

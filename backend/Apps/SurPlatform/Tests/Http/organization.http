@@ -1,0 +1,180 @@
+# Use a disposable client database and an authenticated administrator
+@base = https://localhost:7224/api/v1/provider
+@adminToken = REPLACE_TEST_ADMIN_TOKEN
+@directorateId = REPLACE_DIRECTORATE_ID
+@directorateVersion = REPLACE_DIRECTORATE_VERSION
+@ownerRoleId = REPLACE_OWNER_ROLE_ID
+@ceoRoleId = REPLACE_CEO_ROLE_ID
+@employeeRoleId = REPLACE_EMPLOYEE_ROLE_ID
+@personId = REPLACE_PERSON_ID
+@personVersion = REPLACE_PERSON_VERSION
+@userId = REPLACE_USER_ID
+@userVersion = REPLACE_USER_VERSION
+@processId = REPLACE_PROCESS_ID
+@processVersion = REPLACE_PROCESS_VERSION
+@secondOwnerId = REPLACE_SECOND_OWNER_PERSON_ID
+@observedAt = REPLACE_SLOT_OBSERVATION
+@occupiedObservedAt = REPLACE_OCCUPIED_SLOT_OBSERVATION
+@assignmentId = REPLACE_ASSIGNMENT_ID
+@assignmentVersion = REPLACE_ASSIGNMENT_VERSION
+@targetDirectorateId = REPLACE_TARGET_DIRECTORATE_ID
+
+### 401 without bearer
+GET {{base}}/organization/directorates
+
+### 201 creates a directorate; identical second call returns 409 ORGANIZATION_DUPLICATE
+POST {{base}}/organization/directorates
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{"name":"REST test Manufacturing"}
+
+### 200 search and page
+GET {{base}}/organization/directorates?search=Manufacturing&active=true&limit=10
+Authorization: Bearer {{adminToken}}
+
+### 200 reads the current CEO slot; save observedAt before creation
+GET {{base}}/organization/responsibilities/slot?responsibilityType=CEO
+Authorization: Bearer {{adminToken}}
+
+### 201 creates the CEO account, employee without directorate and assignment
+POST {{base}}/users
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "email":"rest-ceo@example.test",
+  "fullName":"REST CEO",
+  "roleIds":["{{ceoRoleId}}"],
+  "organization":{"responsibilities":[{"responsibilityType":"CEO","observedAt":"{{observedAt}}"}]}
+}
+
+### 409 RESPONSIBILITY_SLOT_CHANGED with the former free observation; use a new address
+POST {{base}}/users
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "email":"rest-racing-ceo@example.test",
+  "fullName":"REST Racing CEO",
+  "roleIds":["{{ceoRoleId}}"],
+  "organization":{"responsibilities":[{"responsibilityType":"CEO","observedAt":"{{observedAt}}"}]}
+}
+
+### 409 RESPONSIBILITY_SLOT_OCCUPIED with an observation obtained while the slot is already occupied
+POST {{base}}/users
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{
+  "email":"rest-already-occupied@example.test",
+  "fullName":"REST Occupied Position",
+  "roleIds":["{{ceoRoleId}}"],
+  "organization":{"responsibilities":[{"responsibilityType":"CEO","observedAt":"{{occupiedObservedAt}}"}]}
+}
+
+### 200 shows active person and the CEO assignment for confirmation
+GET {{base}}/users/{{userId}}/organization
+Authorization: Bearer {{adminToken}}
+
+### 409 with dependencyIds while the user has an active assignment or owns an active process
+POST {{base}}/users/{{userId}}/deactivate
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{"version":"{{userVersion}}"}
+
+### 409 when removing a role required by an active organizational dependency
+PATCH {{base}}/users/{{userId}}
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{"version":"{{userVersion}}","roleIds":["{{employeeRoleId}}"]}
+
+### 200 ends the responsibility without removing its historical record
+PUT {{base}}/organization/responsibilities/{{assignmentId}}/state
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{"version":"{{assignmentVersion}}","isActive":false}
+
+### 201 creates a process with a suitable owner
+POST {{base}}/organization/processes
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{"directorateId":"{{directorateId}}","ownerId":"{{personId}}","name":"REST process Assembly"}
+
+### 409 requires confirmation before changing ownership
+PUT {{base}}/organization/processes/{{processId}}/owner
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{"version":"{{processVersion}}","ownerId":"{{secondOwnerId}}","confirmed":false}
+
+### 200 changes owner and process version
+PUT {{base}}/organization/processes/{{processId}}/owner
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{"version":"{{processVersion}}","ownerId":"{{secondOwnerId}}","confirmed":true}
+
+### 409 when the directorate has active dependencies
+PUT {{base}}/organization/directorates/{{directorateId}}/state
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{"version":"{{directorateVersion}}","isActive":false}
+
+### 200 ends the previous employment record after its dependencies have been cleared
+PUT {{base}}/organization/persons/{{personId}}/state
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{"version":"{{personVersion}}","isActive":false}
+
+### 201 creates a different employee ID for the same user in the target directorate
+POST {{base}}/organization/persons
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{"userId":"{{userId}}","directorateId":"{{targetDirectorateId}}","positionName":"Assembly lead"}
+
+### 200 retains the previous directorate and inactive state
+GET {{base}}/organization/persons/{{personId}}
+Authorization: Bearer {{adminToken}}
+
+### 400 fractional kopecks are rejected
+POST {{base}}/organization/assets
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{"name":"REST test Pump","hourlyDowntimeCost":10.005}
+
+### 201 valid asset with cost per hour
+POST {{base}}/organization/assets
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{"name":"REST test Pump","inventoryNumber":"PUMP-01","hourlyDowntimeCost":10.05}
+
+### 200 after dependencies are cleared; former JWT and refresh for this user must fail
+POST {{base}}/users/{{userId}}/deactivate
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{"version":"{{userVersion}}"}
+
+### 200 separately activates the account; /organization must still show no active employee
+POST {{base}}/users/{{userId}}/activate
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{"version":"{{userVersion}}"}
+
+### 200 reactivates the selected old employee ID when no other active employee exists
+PUT {{base}}/organization/persons/{{personId}}/state
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{"version":"{{personVersion}}","isActive":true}

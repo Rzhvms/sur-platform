@@ -25,6 +25,8 @@ Code Style Guide
 Backend conventions
 - Write methods with block bodies. Lambdas used by LINQ, DI and EntityMapper retain their normal syntax.
 - Controllers call UseCaseManagers. UseCaseManagers call services or repositories. HTTP infrastructure such as antiforgery and response cookies stays in Api.
+- Declare a repository interface for its callers and inject that interface. Keep application ports in Application/Ports/Repositories and transaction-specific infrastructure interfaces beside their repositories under Interfaces.
+- Keep repository-specific projections and other supporting models in a Models subfolder next to the repository.
 - Extract text literals into named constants. Share constants in the logical area that owns the text when it is reused.
 - Resolve SQL and migration identifiers through EntityMapper, including parameter names. Keep each SQL statement in its own local variable. Execute separate statements explicitly and preserve a shared transaction when atomicity is required.
 - Keep controllers in Controllers, controller DTOs under Dto/Request or Dto/Response, and attributes in Attributes.

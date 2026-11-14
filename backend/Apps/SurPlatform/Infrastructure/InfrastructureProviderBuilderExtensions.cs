@@ -1,3 +1,7 @@
+using Infrastructure.Repositories.Risks;
+using Infrastructure.Repositories.Risks.Interfaces;
+using Infrastructure.Repositories.Organization.Interfaces;
+using Infrastructure.Repositories.Sessions.Interfaces;
 using System.Data;
 using Application.Ports.Repositories;
 using FluentMigrator.Runner;
@@ -44,11 +48,18 @@ public static class InfrastructureProviderBuilderExtensions
         services.AddSingleton<IdentityBootstrap>();
         services.AddScoped<OrganizationRepository>();
         services.AddScoped<IOrganizationRepository>(provider => provider.GetRequiredService<OrganizationRepository>());
+        services.AddScoped<IOrganizationIdentityRepository>(provider => provider.GetRequiredService<OrganizationRepository>());
         services.AddScoped<IIdentityAdministrationRepository, IdentityAdministrationRepository>();
         services.AddScoped<IIdentityInvitationSender, SmtpIdentityInvitationSender>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IRoleRepository, RoleRepository>();
-        services.AddScoped<ISessionRepository, SessionRepository>();
+        services.AddScoped<SessionRepository>();
+        services.AddScoped<ISessionRepository>(provider => provider.GetRequiredService<SessionRepository>());
+        services.AddScoped<ITransactionalSessionRepository>(provider => provider.GetRequiredService<SessionRepository>());
+        services.AddScoped<RiskRepository>();
+        services.AddScoped<IRiskRepository>(provider => provider.GetRequiredService<RiskRepository>());
+        services.AddScoped<IRiskOrganizationRepository>(provider => provider.GetRequiredService<RiskRepository>());
+        services.AddHostedService<BusinessHistoryWorker>();
         return services;
     }
 
