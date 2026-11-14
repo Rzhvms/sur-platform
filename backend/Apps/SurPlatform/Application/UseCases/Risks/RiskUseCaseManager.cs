@@ -260,4 +260,36 @@ public sealed class RiskUseCaseManager(IRiskRepository repository)
     {
         return repository.ListSplitProcessesAsync(actor, id, offset, limit);
     }
+
+    /// <summary>Передаёт риск новому основному процессу и открывает пересмотр</summary>
+    /// <param name="actor">Текущий пользователь</param>
+    /// <param name="id">Риск</param>
+    /// <param name="request">Целевой процесс и версия</param>
+    /// <returns>Обновлённый риск</returns>
+    public Task<RiskDal> TransferRiskAsync(RiskActor actor, Guid id, TransferRiskRequest request)
+    {
+        return repository.TransferRiskAsync(actor, id, request);
+    }
+
+    /// <summary>Читает страницу истории пересмотра</summary>
+    /// <param name="actor">Текущий пользователь</param>
+    /// <param name="id">Риск</param>
+    /// <param name="offset">Смещение страницы</param>
+    /// <param name="limit">Размер страницы</param>
+    /// <returns>История с контекстом запуска</returns>
+    public Task<RiskReviewView[]> ListRiskReviewsAsync(RiskActor actor, Guid id, int offset, int limit)
+    {
+        return repository.ListRiskReviewsAsync(actor, id, offset, limit);
+    }
+
+    /// <summary>Читает доступные новые процессы для передачи</summary>
+    /// <param name="actor">Текущий пользователь</param>
+    /// <param name="id">Риск</param>
+    /// <param name="offset">Смещение страницы</param>
+    /// <param name="limit">Размер страницы</param>
+    /// <returns>Страница допустимых процессов</returns>
+    public Task<RiskProcessOption[]> ListTransferProcessesAsync(RiskActor actor, Guid id, int offset, int limit)
+    {
+        return repository.ListTransferProcessesAsync(actor, id, offset, limit);
+    }
 }

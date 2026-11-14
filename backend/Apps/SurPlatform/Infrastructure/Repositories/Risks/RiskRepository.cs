@@ -16,7 +16,7 @@ namespace Infrastructure.Repositories.Risks;
 /// <param name="connection">Подключение выбранной базы</param>
 /// <param name="sessions">Проверки действующей сессии и эффективных прав</param>
 internal sealed partial class RiskRepository(IDbConnection connection, ITransactionalSessionRepository sessions)
-    : IRiskRepository, IRiskOrganizationRepository
+    : IRiskRepository, IRiskOrganizationRepository, IReviewRepository, ITransactionalReviewWorkerRepository
 {
     /// <summary>Выполняет команду под общей блокировкой с оргструктурой и Identity</summary>
     /// <param name="actor">Инициатор из JWT</param>

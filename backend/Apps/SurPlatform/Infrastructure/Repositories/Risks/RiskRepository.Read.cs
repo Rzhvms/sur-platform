@@ -52,16 +52,16 @@ internal sealed partial class RiskRepository
         var result = await SelectAsync(new RiskListQuery(), id, transaction);
         var row = result.SingleOrDefault() ?? throw new IdentityCommandException(404, RiskRules.NotFound);
         var data = MapRow(row);
-        var assessmentQuery = $"""
-            SELECT * FROM {EntityMapper.TbName<RiskAssessmentDal>()} WHERE {EntityMapper.ColName<RiskAssessmentDal>(x => x.RiskId)} = {EntityMapper.ParameterName(nameof(id))}
-            ORDER BY {EntityMapper.ColName<RiskAssessmentDal>(x => x.CreatedAt)} DESC, {EntityMapper.ColName<RiskAssessmentDal>(x => x.Id)} DESC LIMIT 1
-            """;
-        var last = await connection.QuerySingleOrDefaultAsync<RiskAssessmentDal>(assessmentQuery, new { id }, transaction);
+        var last = await ReadLatestAssessmentAsync(id, transaction);
         var editable = last is null && await HasRightAsync(actor, RiskRules.Edit, transaction)
             && (await HasRightAsync(actor, IdentityRights.AdminCode, transaction) ||
                 data.Processes.Any(process => process.IsPrimary && process.OwnerActive && process.OwnerUserId == actor.UserId));
+        var reviews = await ReadRiskReviewsAsync(id, 0, ReviewRules.CardHistoryLimit, transaction);
         transaction.Commit();
-        return new RiskCard(data, editable, data.Risk.Status == RiskRules.AwaitingReview && last is { IsActive: false } ? last : null);
+        return new RiskCard(data, editable, data.Risk.Status == RiskRules.AwaitingReview && last is { IsActive: false } ? last : null)
+        {
+            Reviews = reviews
+        };
     }
 
     /// <summary>Выполняет фильтры до постраничной выборки</summary>
@@ -125,7 +125,8 @@ internal sealed partial class RiskRepository
                 SELECT jsonb_agg(to_jsonb(link_view) ORDER BY link_view.{EntityMapper.ColName<RiskProcessView>(x => x.IsPrimary)} DESC,
                     link_view.{EntityMapper.ColName<RiskProcessView>(x => x.ProcessId)})::text AS items
                 FROM (
-                    SELECT p.{EntityMapper.ColName<ProcessDal>(x => x.Id)} AS {EntityMapper.ColName<RiskProcessView>(x => x.ProcessId)},
+                    SELECT l.{EntityMapper.ColName<RiskProcessDal>(x => x.Id)} AS {EntityMapper.ColName<RiskProcessView>(x => x.RiskProcessId)},
+                        p.{EntityMapper.ColName<ProcessDal>(x => x.Id)} AS {EntityMapper.ColName<RiskProcessView>(x => x.ProcessId)},
                         p.{EntityMapper.ColName<ProcessDal>(x => x.DirectorateId)} AS {EntityMapper.ColName<RiskProcessView>(x => x.DirectorateId)},
                         l.{EntityMapper.ColName<RiskProcessDal>(x => x.OwnerId)} AS {EntityMapper.ColName<RiskProcessView>(x => x.OwnerId)},
                         l.{EntityMapper.ColName<RiskProcessDal>(x => x.IsPrimary)} AS {EntityMapper.ColName<RiskProcessView>(x => x.IsPrimary)},

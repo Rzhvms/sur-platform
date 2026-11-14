@@ -221,14 +221,19 @@ internal sealed partial class OrganizationRepository
     /// <param name="transaction">Текущая административная транзакция</param>
     private async Task EnsureNoPersonDependenciesAsync(Guid personId, IDbTransaction transaction)
     {
+        var protectedStatuses = new[] { TreatmentRules.Waiting, TreatmentRules.Working };
         var query = $"""
             SELECT {Id} FROM {EntityMapper.TbName<ProcessDal>()}
             WHERE {IsActive} AND {EntityMapper.ColName<ProcessDal>(x => x.OwnerId)} = {EntityMapper.ParameterName(nameof(personId))}
             UNION ALL
             SELECT {Id} FROM {EntityMapper.TbName<ResponsibilityDal>()}
             WHERE {IsActive} AND {EntityMapper.ColName<ResponsibilityDal>(x => x.PersonId)} = {EntityMapper.ParameterName(nameof(personId))}
+            UNION ALL
+            SELECT m.{EntityMapper.ColName<TreatmentDal>(x => x.Id)} FROM {EntityMapper.TbName<TreatmentAssignmentDal>()} a
+            JOIN {EntityMapper.TbName<TreatmentDal>()} m ON m.{EntityMapper.ColName<TreatmentDal>(x => x.Id)} = a.{EntityMapper.ColName<TreatmentAssignmentDal>(x => x.TreatmentId)}
+            WHERE a.{EntityMapper.ColName<TreatmentAssignmentDal>(x => x.AssigneeId)} = {EntityMapper.ParameterName(nameof(personId))} AND m.{EntityMapper.ColName<TreatmentDal>(x => x.Status)} = ANY({EntityMapper.ParameterName(nameof(protectedStatuses))})
             """;
-        var ids = (await connection.QueryAsync<Guid>(query, new { personId }, transaction)).ToArray();
+        var ids = (await connection.QueryAsync<Guid>(query, new { personId, protectedStatuses }, transaction)).ToArray();
         if (ids.Length > 0)
         {
             throw new IdentityCommandException(409, OrganizationErrors.Dependencies, ids);

@@ -72,10 +72,37 @@ internal sealed partial class OrganizationRepository
               )
             """;
         var ids = (await connection.QueryAsync<Guid>(query, new { userId, roleCode, ownerCode }, transaction)).ToArray();
+        if (roleCode is null or OrganizationRoles.Owner or TreatmentRules.Employee)
+        {
+            var executorIds = await FindIneligibleTreatmentAssignmentsAsync(userId, transaction);
+            ids = ids.Concat(executorIds).Distinct().ToArray();
+        }
         if (ids.Length > 0)
         {
             throw new IdentityCommandException(409, OrganizationErrors.Dependencies, ids);
         }
+    }
+
+    /// <summary>Находит ожидающие и работающие меры, чей исполнитель утратил обе допустимые роли</summary>
+    /// <param name="userId">Пользователь либо null при деактивации роли</param>
+    /// <param name="transaction">Транзакция изменения ролей</param>
+    /// <returns>Идентификаторы затронутых мер</returns>
+    private Task<IEnumerable<Guid>> FindIneligibleTreatmentAssignmentsAsync(Guid? userId, IDbTransaction transaction)
+    {
+        var protectedStatuses = new[] { TreatmentRules.Waiting, TreatmentRules.Working };
+        var roles = new[] { OrganizationRoles.Owner, TreatmentRules.Employee };
+        var query = $"""
+            SELECT m.{EntityMapper.ColName<TreatmentDal>(x => x.Id)} FROM {EntityMapper.TbName<TreatmentDal>()} m
+            JOIN {EntityMapper.TbName<TreatmentAssignmentDal>()} a ON a.{EntityMapper.ColName<TreatmentAssignmentDal>(x => x.TreatmentId)} = m.{EntityMapper.ColName<TreatmentDal>(x => x.Id)}
+            JOIN {EntityMapper.TbName<OrgPersonDal>()} p ON p.{EntityMapper.ColName<OrgPersonDal>(x => x.Id)} = a.{EntityMapper.ColName<TreatmentAssignmentDal>(x => x.AssigneeId)}
+            WHERE m.{EntityMapper.ColName<TreatmentDal>(x => x.Status)} = ANY({EntityMapper.ParameterName(nameof(protectedStatuses))})
+              AND (CAST({EntityMapper.ParameterName(nameof(userId))} AS uuid) IS NULL OR p.{EntityMapper.ColName<OrgPersonDal>(x => x.UserId)} = {EntityMapper.ParameterName(nameof(userId))})
+              AND NOT EXISTS (
+                  SELECT FROM {EntityMapper.TbName<UserRoleDal>()} ur JOIN {EntityMapper.TbName<RoleDal>()} r ON r.{EntityMapper.ColName<RoleDal>(x => x.Id)} = ur.{EntityMapper.ColName<UserRoleDal>(x => x.RoleId)}
+                  WHERE ur.{EntityMapper.ColName<UserRoleDal>(x => x.UserId)} = p.{EntityMapper.ColName<OrgPersonDal>(x => x.UserId)} AND ur.{EntityMapper.ColName<UserRoleDal>(x => x.IsActive)}
+                    AND r.{EntityMapper.ColName<RoleDal>(x => x.IsActive)} AND r.{EntityMapper.ColName<RoleDal>(x => x.Code)} = ANY({EntityMapper.ParameterName(nameof(roles))}))
+            """;
+        return connection.QueryAsync<Guid>(query, new { userId, protectedStatuses, roles }, transaction);
     }
 
     /// <summary>Читает действующие зоны ответственности для письма или административной карточки</summary>

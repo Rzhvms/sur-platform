@@ -1,4 +1,4 @@
-# Disposable client. Prepare two draft risks: one with an asset at 1 ruble/hour and one without.
+# Disposable client. Prepare three draft risks: one with an asset at 1 ruble/hour and two without.
 # Copy IDs and versions from responses after each mutation. Use an unrelated user with assess_risk for the 403 case.
 @public = https://localhost:7224/api/v1/public
 @provider = https://localhost:7224/api/v1/provider
@@ -6,6 +6,7 @@
 @outsider = REPLACE_UNRELATED_ASSESSOR_TOKEN
 @risk = REPLACE_DRAFT_RISK_WITH_ASSET
 @manualRisk = REPLACE_DRAFT_RISK_WITHOUT_ASSET
+@zeroLossRisk = REPLACE_SEPARATE_DRAFT_RISK_WITHOUT_ASSET
 @riskVersion = REPLACE_RISK_VERSION
 @scaleVersion = REPLACE_PUBLISHED_SCALE_ID
 @assetVersion = REPLACE_ASSET_VERSION
@@ -137,6 +138,27 @@ Authorization: Bearer {{admin}}
 Content-Type: application/json
 
 {"version":"{{scaleVersion}}","minimums":[0,20,120,220,1000]}
+
+> {%
+    client.test("An empty zero-weight range has a null maximum", function () {
+        client.assert(response.status === 200);
+        client.assert(response.body.thresholds.find(level => level.weight === 0).maxLossAmount === null);
+    });
+%}
+
+### When the zero-weight range is empty, zero loss belongs to weight 1
+POST {{public}}/risks/{{zeroLossRisk}}/assessments/preview
+Authorization: Bearer {{admin}}
+Content-Type: application/json
+
+{"likelihoodLevelId":"{{likelihood5}}","lossAmount":0}
+
+> {%
+    client.test("Zero loss uses impact weight 1 when its minimum is zero", function () {
+        client.assert(response.status === 200);
+        client.assert(response.body.assessment.riskScore === 5);
+    });
+%}
 
 ### A conflict forced on one assessment insert must roll back this entire operation (including scale and outbox)
 GET {{public}}/risks/{{risk}}/assessments

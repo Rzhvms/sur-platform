@@ -1,0 +1,268 @@
+# Prepare separate risks for transfer (without an asset), closed return and webhook delivery in a disposable tenant.
+# Use a current version for each write and poll history until the background run is complete.
+@public = https://localhost:7224/api/v1/public
+@provider = https://localhost:7224/api/v1/provider
+@admin = REPLACE_ADMIN_TOKEN
+@responsible = REPLACE_ACTIVE_USER_ID
+@accepted = REPLACE_ACCEPTED_RISK_ID
+@closed = REPLACE_CLOSED_RISK_ID
+@closedVersion = REPLACE_CLOSED_RISK_VERSION
+@transfer = REPLACE_ACTIVE_RISK_WITHOUT_RESPONSE_MODE
+@transferVersion = REPLACE_TRANSFER_RISK_VERSION
+@target = REPLACE_NEW_ACTIVE_PROCESS_ID
+@scaleVersion = REPLACE_PUBLISHED_IMPACT_SCALE_VERSION
+@likelihood = be7d17a4-a396-4518-b240-b94822ce9105
+@today = REPLACE_LOCAL_CALENDAR_DATE
+
+### 409 if a closed risk has not been confirmed
+POST {{public}}/risks/{{closed}}/reopen
+Authorization: Bearer {{admin}}
+Content-Type: application/json
+
+{"version":"{{closedVersion}}","confirmed":false}
+
+> {%
+    client.test("Explicit confirmation is required", function () {
+        client.assert(response.status === 409);
+    });
+%}
+
+### Return the closed risk and remember its new version for closing the review
+POST {{public}}/risks/{{closed}}/reopen
+Authorization: Bearer {{admin}}
+Content-Type: application/json
+
+{"version":"{{closedVersion}}","confirmed":true}
+
+> {%
+    client.test("Closed risk opens a review and clears its reason", function () {
+        client.assert(response.status === 200);
+        client.assert(response.body.status === "AWAITING_REVIEW");
+        client.assert(response.body.closeReason === null);
+        client.global.set("reviewRiskVersion", response.body.version);
+    });
+%}
+
+### Close the open review without a new assessment
+POST {{public}}/risks/{{closed}}/close
+Authorization: Bearer {{admin}}
+Content-Type: application/json
+
+{"version":"{{reviewRiskVersion}}","reason":"Процесс выведен из эксплуатации"}
+
+### Assert a completed review with the original run status
+GET {{public}}/risks/{{closed}}/reviews
+Authorization: Bearer {{admin}}
+
+> {%
+    client.test("Closing without reassessment preserves the original successful run", function () {
+        client.assert(response.status === 200);
+        const item = response.body[0];
+        client.assert(item.run.reason === "MANUAL" && item.run.status === "COMPLETED");
+        client.assert(item.review.status === "COMPLETED" && item.review.newAssessmentId === null);
+        client.assert(item.review.closeReason === "Процесс выведен из эксплуатации");
+    });
+%}
+
+### Transfer to another process and inspect the resulting card and history
+POST {{public}}/risks/{{transfer}}/transfer
+Authorization: Bearer {{admin}}
+Content-Type: application/json
+
+{"version":"{{transferVersion}}","processId":"{{target}}"}
+
+### Verify transfer records a MANUAL run and a historical assessment
+GET {{public}}/risks/{{transfer}}
+Authorization: Bearer {{admin}}
+
+> {%
+    client.test("Transfer selects one primary process and opens review for the same risk", function () {
+        client.assert(response.status === 200);
+        const card = response.body;
+        client.assert(card.data.processes.length === 1 && card.data.processes[0].isPrimary);
+        client.assert(card.data.processes[0].processId === "{{target}}");
+        client.assert(card.data.currentAssessment === null && card.previousAssessment.responseMode === "transfer");
+        client.assert(card.reviews[0].run.reason === "MANUAL" && card.reviews[0].run.sourceType === "TRANSFER");
+        client.global.set("transferReviewVersion", card.data.risk.version);
+        client.global.set("transferRunId", card.reviews[0].run.id);
+    });
+%}
+
+### Save a business reassessment for the transferred risk
+POST {{public}}/risks/{{transfer}}/assessments
+Authorization: Bearer {{admin}}
+Content-Type: application/json
+
+{"version":"{{transferReviewVersion}}","scaleVersionId":"{{scaleVersion}}","inputs":{"likelihoodLevelId":"{{likelihood}}","lossAmount":200}}
+
+> {%
+    client.test("The new current assessment has no selected response mode", function () {
+        client.assert(response.status === 200 && response.body.assessment.responseMode === null);
+        client.global.set("newAssessmentId", response.body.assessment.id);
+    });
+%}
+
+### Verify the original review now points to the reassessment
+GET {{public}}/risks/{{transfer}}/reviews
+Authorization: Bearer {{admin}}
+
+> {%
+    client.test("Business reassessment completes the initial transfer review", function () {
+        client.assert(response.status === 200);
+        const item = response.body.find(item => item.run.id === client.global.get("transferRunId"));
+        client.assert(item && item.run.status === "COMPLETED" && item.review.status === "COMPLETED");
+        client.assert(item.review.newAssessmentId === client.global.get("newAssessmentId"));
+        client.assert(item.review.closeReason === null);
+    });
+%}
+
+### Create a webhook for one accepted risk
+POST {{provider}}/review-webhooks
+Authorization: Bearer {{admin}}
+Content-Type: application/json
+
+{"name":"Контроль оборудования","externalSystemName":"Планировщик ТО","responsibleUserId":"{{responsible}}","riskIds":["{{accepted}}"]}
+
+> {%
+    client.test("The secret is issued once and the hash is private", function () {
+        client.assert(response.status === 200 && response.body.token.length === 64);
+        client.assert(!("tokenHash" in response.body.webhook.settings));
+        client.global.set("webhookId", response.body.webhook.settings.id);
+        client.global.set("webhookVersion", response.body.webhook.settings.version);
+        client.global.set("webhookToken", response.body.token);
+    });
+%}
+
+### Accept a signal
+POST {{public}}/review-webhooks/{{webhookId}}
+Authorization: Bearer {{webhookToken}}
+Content-Type: application/json
+
+{"source":"untrusted input"}
+
+> {%
+    client.test("The durable receipt has a run ID", function () {
+        client.assert(response.status === 202);
+        client.global.set("firstReviewRun", response.body.reviewRunId);
+    });
+%}
+
+### Accept a separate HTTP delivery of the same body
+POST {{public}}/review-webhooks/{{webhookId}}
+Authorization: Bearer {{webhookToken}}
+Content-Type: application/json
+
+{"source":"untrusted input"}
+
+> {%
+    client.test("Repeated delivery receives a new run ID", function () {
+        client.assert(response.status === 202);
+        client.assert(response.body.reviewRunId !== client.global.get("firstReviewRun"));
+    });
+%}
+
+### After the worker processes both receipts, expect WAITING and NO_ACTION
+GET {{public}}/risks/{{accepted}}/reviews
+Authorization: Bearer {{admin}}
+
+> {%
+    client.test("Repeated delivery cannot create a second open review", function () {
+        client.assert(response.status === 200);
+        const rows = response.body.filter(item => item.run.sourceId === client.global.get("webhookId"));
+        client.assert(rows.length === 2);
+        client.assert(rows.filter(item => item.review.status === "WAITING").length === 1);
+        client.assert(rows.filter(item => item.review.status === "NO_ACTION").length === 1);
+        client.assert(rows.every(item => item.run.externalSystemNameSnapshot === "Планировщик ТО" && !("rawPayload" in item.run)));
+    });
+%}
+
+### Rotate the secret
+POST {{provider}}/review-webhooks/{{webhookId}}/rotate-token
+Authorization: Bearer {{admin}}
+Content-Type: application/json
+
+{"version":"{{webhookVersion}}","confirmed":true}
+
+> {%
+    client.test("Rotation issues a distinct secret", function () {
+        client.assert(response.status === 200 && response.body.token !== client.global.get("webhookToken"));
+    });
+%}
+
+### The previous secret is refused
+POST {{public}}/review-webhooks/{{webhookId}}
+Authorization: Bearer {{webhookToken}}
+
+> {%
+    client.test("Old webhook secret is revoked", function () {
+        client.assert(response.status === 401);
+    });
+%}
+
+### Create a one-shot schedule with no remaining accepted risks
+POST {{provider}}/review-schedules
+Authorization: Bearer {{admin}}
+Content-Type: application/json
+
+{"name":"Однократный контроль","responsibleUserId":"{{responsible}}","startDate":"{{today}}","recurrenceType":"NONE","endType":"NEVER"}
+
+> {%
+    client.global.set("scheduleId", response.body.id);
+%}
+
+### Run after at least two worker ticks
+GET {{provider}}/review-runs
+Authorization: Bearer {{admin}}
+
+> {%
+    client.test("The empty calendar date is recorded exactly once", function () {
+        client.assert(response.status === 200);
+        const runs = response.body.filter(item => item.sourceId === client.global.get("scheduleId"));
+        client.assert(runs.length === 1 && runs[0].status === "COMPLETED" && runs[0].reason === "SCHEDULE");
+    });
+%}
+
+### Create a bounded schedule and retain the dates returned by the API
+POST {{provider}}/review-schedules
+Authorization: Bearer {{admin}}
+Content-Type: application/json
+
+{"name":"Контроль до конца месяца","responsibleUserId":"{{responsible}}","isActive":false,"startDate":"{{today}}","recurrenceType":"MONTHLY","recurrenceInterval":1,"endType":"ON_DATE","endDate":"{{today}}"}
+
+> {%
+    client.test("Schedule returns both dates without time", function () {
+        client.assert(response.status === 200);
+        const { id, startDate, endDate } = response.body;
+        client.assert(startDate === "{{today}}" && endDate === "{{today}}");
+        client.global.set("boundedScheduleId", id);
+        client.global.set("boundedSchedule", JSON.stringify(response.body));
+    });
+%}
+
+### Edit the schedule with its response dates unchanged
+PUT {{provider}}/review-schedules/{{boundedScheduleId}}
+Authorization: Bearer {{admin}}
+Content-Type: application/json
+
+{{boundedSchedule}}
+
+> {%
+    client.test("Returned schedule can be saved with unchanged dates", function () {
+        client.assert(response.status === 200);
+        client.assert(response.body.startDate === "{{today}}" && response.body.endDate === "{{today}}");
+    });
+%}
+
+### Check the raw webhook body in the published contract
+GET https://localhost:7224/swagger/v1/swagger.json
+
+> {%
+    client.test("Webhook describes its optional body and keeps its own Bearer scheme", function () {
+        client.assert(response.status === 200);
+        const operation = response.body.paths["/api/v1/public/review-webhooks/{id}"].post;
+        client.assert(operation.security.some(item => "reviewWebhookBearer" in item));
+        client.assert(operation.requestBody && operation.requestBody.required !== true);
+        client.assert(operation.requestBody.content["application/json"].schema);
+        client.assert(operation.requestBody.content["application/octet-stream"].schema.format === "binary");
+    });
+%}

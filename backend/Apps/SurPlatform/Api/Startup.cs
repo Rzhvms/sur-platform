@@ -30,6 +30,7 @@ using Infrastructure.Services;
 using Infrastructure;
 using Infrastructure.Services.Jwt.RsaKeys.Interfaces;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Api.Controllers.Public.Risks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.IdentityModel.Tokens;
 using Microsoft.OpenApi;
@@ -292,7 +293,7 @@ public sealed class Startup(IWebHostEnvironment env, IConfiguration configuratio
         services.AddSwaggerGen(options =>
         {
             options.OperationFilter<IdentityOperationFilter>();
-            options.DocumentFilter<InternalSessionDocumentFilter>();
+            options.DocumentFilter<SpecialAuthorizationDocumentFilter>();
             options.AddSecurityDefinition(BearerSchemeId, new OpenApiSecurityScheme
             {
                 Name = BearerDisplayName,
@@ -301,6 +302,11 @@ public sealed class Startup(IWebHostEnvironment env, IConfiguration configuratio
                 Scheme = JwtBearerDefaults.AuthenticationScheme,
                 BearerFormat = JwtFormat,
                 Description = BearerDescription
+            });
+            options.AddSecurityDefinition(ReviewWebhookController.OpenApiScheme, new OpenApiSecurityScheme
+            {
+                Type = SecuritySchemeType.Http,
+                Scheme = JwtBearerDefaults.AuthenticationScheme
             });
             options.AddSecurityDefinition(SystemRequestHttpHandler.AuthenticationScheme, new OpenApiSecurityScheme
             {

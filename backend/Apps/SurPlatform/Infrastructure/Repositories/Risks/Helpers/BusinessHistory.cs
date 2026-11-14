@@ -31,7 +31,10 @@ internal static class BusinessHistory
     private const string UpdateOperation = "UPDATE";
 
     /// <summary>Операция логического удаления</summary>
-    private const string DeleteOperation = "SOFT_DELETE";
+    private const string SoftDeleteOperation = "SOFT_DELETE";
+
+    /// <summary>Операция физического снятия текущего назначения</summary>
+    private const string DeleteOperation = "DELETE";
 
     /// <summary>Добавляет событие только при изменении бизнес-полей</summary>
     /// <typeparam name="T">Тип записи без чувствительных данных</typeparam>
@@ -47,13 +50,19 @@ internal static class BusinessHistory
     /// <param name="relatedAfter">Новое состояние дочерней записи</param>
     /// <param name="system">Автоматическое последствие действия пользователя</param>
     /// <param name="relatedChanges">Другие изменившиеся записи того же риска</param>
+    /// <param name="automaticSource">Конкретный источник автоматического события</param>
+    /// <param name="configurationAuthorId">Администратор, изменивший настройку автоматического источника</param>
+    /// <param name="automaticInitiatorId">Пользователь автоматического последствия, если он есть</param>
     internal static async Task RecordAsync<T>(IDbTransaction transaction, Guid operationId, Guid actorUserId,
-        Guid entityId, T? before, T after, string? entityTypeOverride = null,
-        string? relatedPath = null, object? relatedBefore = null, object? relatedAfter = null, bool system = false, IReadOnlyList<(string Path, object? Before, object After)>? relatedChanges = null) where T : class
+        Guid entityId, T? before, T? after, string? entityTypeOverride = null,
+        string? relatedPath = null, object? relatedBefore = null, object? relatedAfter = null, bool system = false, IReadOnlyList<(string Path, object? Before, object After)>? relatedChanges = null,
+        string? automaticSource = null, Guid? configurationAuthorId = null, Guid? automaticInitiatorId = null) where T : class
     {
         var previous = JsonSerializer.SerializeToNode(before, JsonSerializerOptions.Web) as JsonObject;
         var next = JsonSerializer.SerializeToNode(after, JsonSerializerOptions.Web) as JsonObject ?? new JsonObject();
-        var changes = Compare(previous, next).ToList();
+        var changes = after is null && previous is not null
+            ? Compare(null, previous).Select(field => new BusinessFieldChange(field.Path, field.NewValue, null)).ToList()
+            : Compare(previous, next).ToList();
         if (relatedPath is not null && relatedAfter is not null)
         {
             await AddRelatedAsync(transaction, actorUserId, changes, relatedPath, relatedBefore, relatedAfter);
@@ -76,7 +85,14 @@ internal static class BusinessHistory
             await RecordSourceVersionAsync(transaction, actorUserId, entityId,
                 entityTypeOverride ?? EntityMapper.TbName<T>(false), after);
         }
-        var deleted = after is RiskCommentDal { IsDeleted: true } && before is RiskCommentDal { IsDeleted: false };
+        var deleted = after is RiskCommentDal { IsDeleted: true } && before is RiskCommentDal { IsDeleted: false }
+            || after is TreatmentCommentDal { IsDeleted: true } && before is TreatmentCommentDal { IsDeleted: false };
+        var deletedText = deleted ? before switch
+        {
+            RiskCommentDal riskComment => riskComment.Text,
+            TreatmentCommentDal treatmentComment => treatmentComment.Text,
+            _ => null
+        } : null;
         var eventId = Guid.NewGuid();
         var occurredAt = DateTime.UtcNow;
         var entityType = entityTypeOverride ?? EntityMapper.TbName<T>(false);
@@ -84,10 +100,12 @@ internal static class BusinessHistory
         {
             eventId, operationId, entityType, entityId, occurredAt,
             actorUserId = system ? Application.Constants.IdentityAccounts.SystemUserId : actorUserId,
-            initiatorUserId = system ? (Guid?)actorUserId : null,
+            initiatorUserId = automaticSource is not null ? automaticInitiatorId : system ? (Guid?)actorUserId : null,
             responsibleUserId = system ? (Guid?)actorUserId : null,
-            source = system ? SystemSource : UserSource, operation = before is null ? CreateOperation : deleted ? DeleteOperation : UpdateOperation,
-            changes, commentTextBeforeDeletion = deleted && before is RiskCommentDal comment ? comment.Text : null
+            source = system ? SystemSource : UserSource,
+            automaticSource, configurationAuthorId,
+            operation = before is null ? CreateOperation : after is null ? DeleteOperation : deleted ? SoftDeleteOperation : UpdateOperation,
+            changes, commentTextBeforeDeletion = deletedText
         }, JsonSerializerOptions.Web);
         var query = $"""
             INSERT INTO {EntityMapper.TbName<BusinessChangeJobDal>()}

@@ -315,7 +315,7 @@ internal static class InitialIdentityCatalog
     /// <summary>
     /// Системный код TransferRisk
     /// </summary>
-    internal const string TransferRiskCode = "transfer_risk";
+    internal const string TransferRiskCode = Application.Constants.ReviewRules.TransferRight;
 
     /// <summary>
     /// Отображаемое название TransferRisk

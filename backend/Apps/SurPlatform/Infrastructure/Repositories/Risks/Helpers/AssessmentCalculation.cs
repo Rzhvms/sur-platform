@@ -82,7 +82,8 @@ internal static class AssessmentCalculation
     internal static int FindImpact(decimal loss, ImpactScale scale)
     {
         var matches = scale.Thresholds.Where(level => loss >= level.MinLossAmount &&
-            (level.MaxLossAmount is null || loss <= level.MaxLossAmount)).Take(2).ToArray();
+            (level.MaxLossAmount is { } maximum ? loss <= maximum : level.Weight == AssessmentMethod.MaxWeight))
+            .Take(2).ToArray();
         if (matches.Length != 1)
         {
             throw new IdentityCommandException(409, RiskRules.ScaleRequired);
@@ -113,10 +114,11 @@ internal static class AssessmentCalculation
 
         for (var weight = 0; weight < levels.Length; weight++)
         {
+            var isEmpty = weight == 0 && minimums[0] == 0;
             levels[weight] = new ImpactThresholdDal
             {
                 ScaleId = scaleId, Weight = weight, MinLossAmount = weight == 0 ? 0 : minimums[weight - 1],
-                MaxLossAmount = weight == AssessmentMethod.MaxWeight ? null : minimums[weight] - Cent
+                MaxLossAmount = isEmpty || weight == AssessmentMethod.MaxWeight ? null : minimums[weight] - Cent
             };
         }
 

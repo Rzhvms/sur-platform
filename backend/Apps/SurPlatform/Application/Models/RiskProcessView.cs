@@ -12,4 +12,8 @@ namespace Application.Models;
 /// <param name="OwnerName">Поле OwnerName представления</param>
 /// <param name="OwnerActive">Поле OwnerActive представления</param>
 /// <param name="OwnerUserId">Учётная запись владельца</param>
-public sealed record RiskProcessView(Guid ProcessId, Guid DirectorateId, Guid OwnerId, bool IsPrimary, string ProcessName, string DirectorateName, string? OwnerName, bool OwnerActive, Guid OwnerUserId);
+public sealed record RiskProcessView(Guid ProcessId, Guid DirectorateId, Guid OwnerId, bool IsPrimary, string ProcessName, string DirectorateName, string? OwnerName, bool OwnerActive, Guid OwnerUserId)
+{
+    /// <summary>Идентификатор текущей связи риска с процессом для команд по мерам</summary>
+    public Guid RiskProcessId { get; init; }
+}

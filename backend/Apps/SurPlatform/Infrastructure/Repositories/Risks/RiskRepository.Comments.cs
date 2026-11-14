@@ -148,34 +148,34 @@ internal sealed partial class RiskRepository
                 throw new IdentityCommandException(409, RiskRules.InvalidTransition);
             }
 
-            var reason = close ? RequiredText(request.Reason) : null;
-            var status = close ? RiskRules.Closed : RiskRules.AwaitingReview;
             var operationId = Guid.NewGuid();
-            RiskAssessmentDal? current = null;
-            RiskAssessmentDal? historical = null;
             if (!close)
             {
-                current = await ReadCurrentAssessmentAsync(id, transaction);
-                if (current is not null)
+                var reopened = await StartSingleReviewAsync(previous, ReviewRules.Manual, ReviewRules.RiskCard, id,
+                    actor.UserId, operationId, transaction);
+                if (previous.Status == RiskRules.Closed)
                 {
-                    historical = await SetAssessmentStateAsync(transaction, current, false, current.ResponseMode);
+                    await InsertCommentAsync(transaction, operationId, id, actor.UserId, ReopenedComment, true);
                 }
+                return reopened;
+            }
+
+            await RequireNoBlockingTreatmentsAsync(transaction, id);
+            var reason = RequiredText(request.Reason);
+            var status = RiskRules.Closed;
+            if (previous.Status == RiskRules.AwaitingReview)
+            {
+                await CompleteReviewAsync(id, actor.UserId, transaction, null, reason);
             }
 
             var query = $"""
                 UPDATE {EntityMapper.TbName<RiskDal>()} SET {EntityMapper.ColName<RiskDal>(x => x.Status)} = {EntityMapper.ParameterName(nameof(status))}, {EntityMapper.ColName<RiskDal>(x => x.CloseReason)} = {EntityMapper.ParameterName(nameof(reason))},
-                    {EntityMapper.ColName<RiskDal>(x => x.AcceptanceLevel)} = CASE WHEN {EntityMapper.ParameterName(nameof(close))} THEN {EntityMapper.ColName<RiskDal>(x => x.AcceptanceLevel)} ELSE NULL END,
                     {EntityMapper.ColName<RiskDal>(x => x.Version)} = gen_random_uuid(), {EntityMapper.ColName<RiskDal>(x => x.UpdatedAt)} = clock_timestamp()
                 WHERE {EntityMapper.ColName<RiskDal>(x => x.Id)} = {EntityMapper.ParameterName(nameof(id))} AND {EntityMapper.ColName<RiskDal>(x => x.Version)} = {EntityMapper.ParameterName(nameof(version))} RETURNING *
                 """;
-            var updated = await connection.QuerySingleAsync<RiskDal>(query, new { id, version, status, reason, close }, transaction);
-            await BusinessHistory.RecordAsync(transaction, operationId, actor.UserId, id, previous, updated,
-                relatedPath: current is null ? null : BusinessHistory.AssessmentsPath, relatedBefore: current, relatedAfter: historical);
-            if (close || previous.Status == RiskRules.Closed)
-            {
-                await InsertCommentAsync(transaction, operationId, id, actor.UserId, close ? ClosedComment + reason : ReopenedComment, true);
-            }
-
+            var updated = await connection.QuerySingleAsync<RiskDal>(query, new { id, version, status, reason }, transaction);
+            await BusinessHistory.RecordAsync(transaction, operationId, actor.UserId, id, previous, updated);
+            await InsertCommentAsync(transaction, operationId, id, actor.UserId, ClosedComment + reason, true);
             return updated;
         });
     }

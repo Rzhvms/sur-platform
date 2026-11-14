@@ -37,6 +37,10 @@ internal sealed partial class RiskRepository
                 throw new IdentityCommandException(409, IdentityErrorCodes.StaleVersion);
             }
             var assessment = await InsertAssessmentAsync(transaction, preview.Assessment, actor.UserId);
+            if (risk.Status == RiskRules.AwaitingReview)
+            {
+                await CompleteReviewAsync(id, actor.UserId, transaction, assessment.Id, null);
+            }
             var updated = await SaveRiskStateAsync(transaction, risk, RiskRules.Active, preview.AcceptanceLevel);
             await BusinessHistory.RecordAsync(transaction, Guid.NewGuid(), actor.UserId, risk.Id, risk, updated,
                 relatedPath: BusinessHistory.AssessmentsPath, relatedAfter: assessment);
@@ -88,7 +92,8 @@ internal sealed partial class RiskRepository
                 throw new IdentityCommandException(409, RiskRules.InvalidTransition);
             }
         }
-        else if (risk.Status != RiskRules.AwaitingReview || await ReadCurrentAssessmentAsync(id, transaction) is not null)
+        else if (risk.Status != RiskRules.AwaitingReview || await ReadCurrentAssessmentAsync(id, transaction) is not null
+            || await ReadWaitingReviewAsync(id, transaction) is null)
         {
             throw new IdentityCommandException(409, RiskRules.InvalidTransition);
         }
@@ -171,16 +176,18 @@ internal sealed partial class RiskRepository
     /// <param name="risk">Прежняя карточка</param>
     /// <param name="status">Новый статус</param>
     /// <param name="level">Актуальный маршрут принятия</param>
+    /// <param name="clearCloseReason">Признак очистки причины прежнего закрытия</param>
     /// <returns>Карточка после записи</returns>
-    private async Task<RiskDal> SaveRiskStateAsync(IDbTransaction transaction, RiskDal risk, string status, string? level)
+    private async Task<RiskDal> SaveRiskStateAsync(IDbTransaction transaction, RiskDal risk, string status, string? level, bool clearCloseReason = false)
     {
         var query = $"""
             UPDATE {EntityMapper.TbName<RiskDal>()} SET {EntityMapper.ColName<RiskDal>(x => x.Status)} = {EntityMapper.ParameterName(nameof(status))}, {EntityMapper.ColName<RiskDal>(x => x.AcceptanceLevel)} = {EntityMapper.ParameterName(nameof(level))},
+                {EntityMapper.ColName<RiskDal>(x => x.CloseReason)} = CASE WHEN {EntityMapper.ParameterName(nameof(clearCloseReason))} THEN NULL ELSE {EntityMapper.ColName<RiskDal>(x => x.CloseReason)} END,
                 {EntityMapper.ColName<RiskDal>(x => x.Version)} = gen_random_uuid(), {EntityMapper.ColName<RiskDal>(x => x.UpdatedAt)} = clock_timestamp()
             WHERE {EntityMapper.ColName<RiskDal>(x => x.Id)} = {EntityMapper.ParameterName(nameof(risk.Id))} AND {EntityMapper.ColName<RiskDal>(x => x.Version)} = {EntityMapper.ParameterName(nameof(risk.Version))} RETURNING *
             """;
         return await connection.QuerySingleOrDefaultAsync<RiskDal>(query,
-            new { risk.Id, risk.Version, status, level }, transaction)
+            new { risk.Id, risk.Version, status, level, clearCloseReason }, transaction)
             ?? throw new IdentityCommandException(409, IdentityErrorCodes.StaleVersion);
     }
 }

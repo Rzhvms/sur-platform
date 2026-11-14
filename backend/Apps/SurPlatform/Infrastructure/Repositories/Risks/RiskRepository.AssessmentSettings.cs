@@ -55,14 +55,14 @@ internal sealed partial class RiskRepository
             var row = new ImpactScaleDal { Id = id, CreatedById = actor.UserId };
             var query = $"""
                 INSERT INTO {EntityMapper.TbName<ImpactScaleDal>()}
-                ({EntityMapper.ColName<ImpactScaleDal>(x => x.Id)}, {EntityMapper.ColName<ImpactScaleDal>(x => x.CreatedById)})
-            VALUES ({EntityMapper.ParameterName(nameof(row.Id))}, {EntityMapper.ParameterName(nameof(row.CreatedById))}) RETURNING *
+                    ({EntityMapper.ColName<ImpactScaleDal>(x => x.Id)}, {EntityMapper.ColName<ImpactScaleDal>(x => x.CreatedById)})
+                VALUES ({EntityMapper.ParameterName(nameof(row.Id))}, {EntityMapper.ParameterName(nameof(row.CreatedById))}) RETURNING *
                 """;
             var scale = new ImpactScale(await connection.QuerySingleAsync<ImpactScaleDal>(query, row, transaction), thresholds);
             var thresholdQuery = $"""
                 INSERT INTO {EntityMapper.TbName<ImpactThresholdDal>()}
-                ({EntityMapper.ColName<ImpactThresholdDal>(x => x.ScaleId)}, {EntityMapper.ColName<ImpactThresholdDal>(x => x.Weight)}, {EntityMapper.ColName<ImpactThresholdDal>(x => x.MinLossAmount)}, {EntityMapper.ColName<ImpactThresholdDal>(x => x.MaxLossAmount)})
-            VALUES ({EntityMapper.ParameterName(nameof(ImpactThresholdDal.ScaleId))}, {EntityMapper.ParameterName(nameof(ImpactThresholdDal.Weight))}, {EntityMapper.ParameterName(nameof(ImpactThresholdDal.MinLossAmount))}, {EntityMapper.ParameterName(nameof(ImpactThresholdDal.MaxLossAmount))})
+                    ({EntityMapper.ColName<ImpactThresholdDal>(x => x.ScaleId)}, {EntityMapper.ColName<ImpactThresholdDal>(x => x.Weight)}, {EntityMapper.ColName<ImpactThresholdDal>(x => x.MinLossAmount)}, {EntityMapper.ColName<ImpactThresholdDal>(x => x.MaxLossAmount)})
+                VALUES ({EntityMapper.ParameterName(nameof(ImpactThresholdDal.ScaleId))}, {EntityMapper.ParameterName(nameof(ImpactThresholdDal.Weight))}, {EntityMapper.ParameterName(nameof(ImpactThresholdDal.MinLossAmount))}, {EntityMapper.ParameterName(nameof(ImpactThresholdDal.MaxLossAmount))})
                 """;
             await connection.ExecuteAsync(thresholdQuery, thresholds, transaction);
             var operationId = Guid.NewGuid();

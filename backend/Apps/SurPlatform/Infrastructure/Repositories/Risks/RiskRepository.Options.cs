@@ -39,15 +39,34 @@ internal sealed partial class RiskRepository
         return result;
     }
 
+    /// <inheritdoc/>
+    public async Task<RiskProcessOption[]> ListTransferProcessesAsync(RiskActor actor, Guid id, int offset, int limit)
+    {
+        using var transaction = connection.BeginTransaction(IsolationLevel.RepeatableRead);
+        await RequireRightAsync(actor, ReviewRules.TransferRight, transaction);
+        var risk = await ReadAsync<RiskDal>(id, EntityMapper.ColName<RiskDal>(x => x.Id), transaction);
+        await RequirePrimaryOwnerAsync(actor, id, transaction);
+        if (risk.Status != RiskRules.Active || await ReadCurrentAssessmentAsync(id, transaction) is not { ResponseMode: null })
+        {
+            throw new IdentityCommandException(409, RiskRules.InvalidTransition);
+        }
+        await RequireNoBlockingTreatmentsAsync(transaction, id, includeDrafts: true);
+        var currentProcesses = (await ReadActiveRiskLinksAsync(id, transaction)).Select(link => link.ProcessId).ToArray();
+        var result = await ListProcessOptionsAsync(transaction, actor.UserId, true, offset, limit, currentProcesses);
+        transaction.Commit();
+        return result;
+    }
+
     /// <summary>Читает действующие процессы для выбора в форме</summary>
     /// <param name="transaction">Согласованный снимок</param>
     /// <param name="userId">Пользователь формы</param>
     /// <param name="allDirectorates">Доступны процессы всех дирекций</param>
     /// <param name="offset">Смещение страницы</param>
     /// <param name="limit">Размер страницы</param>
+    /// <param name="excluded">Процессы, уже связанные с передаваемым риском</param>
     /// <returns>Допустимые процессы и их владельцы</returns>
     private async Task<RiskProcessOption[]> ListProcessOptionsAsync(IDbTransaction transaction, Guid userId,
-        bool allDirectorates, int offset, int limit)
+        bool allDirectorates, int offset, int limit, Guid[]? excluded = null)
     {
         var query = $"""
             SELECT p.{EntityMapper.ColName<ProcessDal>(x => x.Id)}, p.{EntityMapper.ColName<ProcessDal>(x => x.Name)}, p.{EntityMapper.ColName<ProcessDal>(x => x.DirectorateId)}, p.{EntityMapper.ColName<ProcessDal>(x => x.OwnerId)},
@@ -58,12 +77,14 @@ internal sealed partial class RiskRepository
             JOIN {EntityMapper.TbName<UserProfileDal>()} u ON u.{EntityMapper.ColName<UserProfileDal>(x => x.UserId)} = o.{EntityMapper.ColName<OrgPersonDal>(x => x.UserId)}
             WHERE p.{EntityMapper.ColName<ProcessDal>(x => x.IsActive)} AND d.{EntityMapper.ColName<DirectorateDal>(x => x.IsActive)}
               AND o.{EntityMapper.ColName<OrgPersonDal>(x => x.IsActive)} AND u.{EntityMapper.ColName<UserProfileDal>(x => x.IsActive)}
+              AND (CAST({EntityMapper.ParameterName(nameof(excluded))} AS uuid[]) IS NULL
+                  OR NOT (p.{EntityMapper.ColName<ProcessDal>(x => x.Id)} = ANY({EntityMapper.ParameterName(nameof(excluded))})))
               AND ({EntityMapper.ParameterName(nameof(allDirectorates))} OR EXISTS (SELECT FROM {EntityMapper.TbName<OrgPersonDal>()} member
                   WHERE member.{EntityMapper.ColName<OrgPersonDal>(x => x.UserId)} = {EntityMapper.ParameterName(nameof(userId))} AND member.{EntityMapper.ColName<OrgPersonDal>(x => x.IsActive)}
                     AND member.{EntityMapper.ColName<OrgPersonDal>(x => x.DirectorateId)} = p.{EntityMapper.ColName<ProcessDal>(x => x.DirectorateId)}))
             ORDER BY p.{EntityMapper.ColName<ProcessDal>(x => x.Name)}, p.{EntityMapper.ColName<ProcessDal>(x => x.Id)} OFFSET {EntityMapper.ParameterName(nameof(offset))} LIMIT {EntityMapper.ParameterName(nameof(limit))}
             """;
-        var result = await connection.QueryAsync<RiskProcessOption>(query, new { allDirectorates, userId, offset, limit }, transaction);
+        var result = await connection.QueryAsync<RiskProcessOption>(query, new { allDirectorates, userId, offset, limit, excluded }, transaction);
         return result.ToArray();
     }
 

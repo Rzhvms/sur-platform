@@ -10,6 +10,7 @@ using Application.Ports.Notifications;
 using Infrastructure.Repositories.Identity;
 using Infrastructure.Repositories.Organization;
 using Infrastructure.Services.Identity;
+using Infrastructure.Services.Risks;
 using Infrastructure.Clients;
 using Infrastructure.Repositories.RoleSystem;
 using Infrastructure.Repositories.Sessions;
@@ -59,7 +60,10 @@ public static class InfrastructureProviderBuilderExtensions
         services.AddScoped<RiskRepository>();
         services.AddScoped<IRiskRepository>(provider => provider.GetRequiredService<RiskRepository>());
         services.AddScoped<IRiskOrganizationRepository>(provider => provider.GetRequiredService<RiskRepository>());
+        services.AddScoped<IReviewRepository>(provider => provider.GetRequiredService<RiskRepository>());
+        services.AddScoped<ITransactionalReviewWorkerRepository>(provider => provider.GetRequiredService<RiskRepository>());
         services.AddHostedService<BusinessHistoryWorker>();
+        services.AddHostedService<RiskReviewWorker>();
         return services;
     }
 

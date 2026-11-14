@@ -29,6 +29,7 @@ internal sealed partial class RiskRepository
             if (mode == RiskRules.AcceptMode)
             {
                 await RequireAcceptanceContextAsync(actor, risk, transaction);
+                await RequireNoBlockingTreatmentsAsync(transaction, id);
             }
             else
             {
@@ -135,25 +136,14 @@ internal sealed partial class RiskRepository
             throw new IdentityCommandException(400, RiskRules.Invalid);
         }
 
-        var readProcessesQuery = $"""
-            SELECT process.* FROM {EntityMapper.TbName<ProcessDal>()} process
-            JOIN {EntityMapper.TbName<DirectorateDal>()} directorate ON directorate.{EntityMapper.ColName<DirectorateDal>(x => x.Id)} = process.{EntityMapper.ColName<ProcessDal>(x => x.DirectorateId)} AND directorate.{EntityMapper.ColName<DirectorateDal>(x => x.IsActive)}
-            JOIN {EntityMapper.TbName<OrgPersonDal>()} person ON person.{EntityMapper.ColName<OrgPersonDal>(x => x.Id)} = process.{EntityMapper.ColName<ProcessDal>(x => x.OwnerId)} AND person.{EntityMapper.ColName<OrgPersonDal>(x => x.IsActive)}
-            JOIN {EntityMapper.TbName<UserProfileDal>()} profile ON profile.{EntityMapper.ColName<UserProfileDal>(x => x.UserId)} = person.{EntityMapper.ColName<OrgPersonDal>(x => x.UserId)} AND profile.{EntityMapper.ColName<UserProfileDal>(x => x.IsActive)}
-            WHERE process.{EntityMapper.ColName<ProcessDal>(x => x.Id)} = ANY({EntityMapper.ParameterName(nameof(processIds))}) AND process.{EntityMapper.ColName<ProcessDal>(x => x.IsActive)}
-            """;
-        var processes = (await connection.QueryAsync<ProcessDal>(readProcessesQuery, new { processIds }, transaction)).ToArray();
-        if (processes.Length != processIds.Length)
-        {
-            throw new IdentityCommandException(409, RiskRules.InactiveReference);
-        }
-
-        var readLinksQuery = $"""
-            SELECT * FROM {EntityMapper.TbName<RiskProcessDal>()} WHERE {EntityMapper.ColName<RiskProcessDal>(x => x.RiskId)} = {EntityMapper.ParameterName(nameof(id))} AND {EntityMapper.ColName<RiskProcessDal>(x => x.UnlinkedAt)} IS NULL
-            ORDER BY {EntityMapper.ColName<RiskProcessDal>(x => x.IsPrimary)} DESC, {EntityMapper.ColName<RiskProcessDal>(x => x.Id)}
-            """;
-        var links = (await connection.QueryAsync<RiskProcessDal>(readLinksQuery, new { id }, transaction)).ToArray();
+        var processes = await ReadActiveProcessesAsync(processIds, transaction);
+        var links = await ReadActiveRiskLinksAsync(id, transaction);
         var selected = processIds.ToHashSet();
+        var excluded = links.Where(link => !selected.Contains(link.ProcessId)).Select(link => link.ProcessId).ToArray();
+        if (excluded.Length > 0)
+        {
+            await RequireNoBlockingTreatmentsAsync(transaction, id, excluded);
+        }
         foreach (var link in links)
         {
             var keep = selected.Contains(link.ProcessId);
@@ -170,17 +160,63 @@ internal sealed partial class RiskRepository
         {
             if (!existing.Contains(process.Id))
             {
-                var row = new RiskProcessDal { Id = Guid.NewGuid(), RiskId = id, ProcessId = process.Id,
-                    OwnerId = process.OwnerId, IsPrimary = process.Id == primary };
-                var insertQuery = $"""
-                    INSERT INTO {EntityMapper.TbName<RiskProcessDal>()}
-                ({EntityMapper.ColName<RiskProcessDal>(x => x.Id)}, {EntityMapper.ColName<RiskProcessDal>(x => x.RiskId)}, {EntityMapper.ColName<RiskProcessDal>(x => x.ProcessId)}, {EntityMapper.ColName<RiskProcessDal>(x => x.OwnerId)}, {EntityMapper.ColName<RiskProcessDal>(x => x.IsPrimary)})
-            VALUES ({EntityMapper.ParameterName(nameof(row.Id))}, {EntityMapper.ParameterName(nameof(row.RiskId))}, {EntityMapper.ParameterName(nameof(row.ProcessId))}, {EntityMapper.ParameterName(nameof(row.OwnerId))}, {EntityMapper.ParameterName(nameof(row.IsPrimary))}) RETURNING *
-                    """;
-                var link = await connection.QuerySingleAsync<RiskProcessDal>(insertQuery, row, transaction);
+                var link = await InsertProcessLinkAsync(transaction, id, process, process.Id == primary);
                 changes.Add((BusinessHistory.ProcessesPath, null, link));
             }
         }
+    }
+
+    /// <summary>Проверяет, что процессы и их владельцы действуют</summary>
+    /// <param name="processIds">Выбранные процессы</param>
+    /// <param name="transaction">Текущая клиентская транзакция</param>
+    /// <returns>Действующие процессы</returns>
+    private async Task<ProcessDal[]> ReadActiveProcessesAsync(Guid[] processIds, IDbTransaction transaction)
+    {
+        var readProcessesQuery = $"""
+            SELECT process.* FROM {EntityMapper.TbName<ProcessDal>()} process
+            JOIN {EntityMapper.TbName<DirectorateDal>()} directorate ON directorate.{EntityMapper.ColName<DirectorateDal>(x => x.Id)} = process.{EntityMapper.ColName<ProcessDal>(x => x.DirectorateId)} AND directorate.{EntityMapper.ColName<DirectorateDal>(x => x.IsActive)}
+            JOIN {EntityMapper.TbName<OrgPersonDal>()} person ON person.{EntityMapper.ColName<OrgPersonDal>(x => x.Id)} = process.{EntityMapper.ColName<ProcessDal>(x => x.OwnerId)} AND person.{EntityMapper.ColName<OrgPersonDal>(x => x.IsActive)}
+            JOIN {EntityMapper.TbName<UserProfileDal>()} profile ON profile.{EntityMapper.ColName<UserProfileDal>(x => x.UserId)} = person.{EntityMapper.ColName<OrgPersonDal>(x => x.UserId)} AND profile.{EntityMapper.ColName<UserProfileDal>(x => x.IsActive)}
+            WHERE process.{EntityMapper.ColName<ProcessDal>(x => x.Id)} = ANY({EntityMapper.ParameterName(nameof(processIds))}) AND process.{EntityMapper.ColName<ProcessDal>(x => x.IsActive)}
+            """;
+        var processes = (await connection.QueryAsync<ProcessDal>(readProcessesQuery, new { processIds }, transaction)).ToArray();
+        if (processes.Length != processIds.Length)
+        {
+            throw new IdentityCommandException(409, RiskRules.InactiveReference);
+        }
+
+        return processes;
+    }
+
+    /// <summary>Читает действующие связи риска</summary>
+    /// <param name="id">Риск</param>
+    /// <param name="transaction">Текущая клиентская транзакция</param>
+    /// <returns>Действующие связи</returns>
+    private async Task<RiskProcessDal[]> ReadActiveRiskLinksAsync(Guid id, IDbTransaction transaction)
+    {
+        var readLinksQuery = $"""
+            SELECT * FROM {EntityMapper.TbName<RiskProcessDal>()} WHERE {EntityMapper.ColName<RiskProcessDal>(x => x.RiskId)} = {EntityMapper.ParameterName(nameof(id))} AND {EntityMapper.ColName<RiskProcessDal>(x => x.UnlinkedAt)} IS NULL
+            ORDER BY {EntityMapper.ColName<RiskProcessDal>(x => x.IsPrimary)} DESC, {EntityMapper.ColName<RiskProcessDal>(x => x.Id)}
+            """;
+        return (await connection.QueryAsync<RiskProcessDal>(readLinksQuery, new { id }, transaction)).ToArray();
+    }
+
+    /// <summary>Создаёт действующую связь с текущим владельцем процесса</summary>
+    /// <param name="transaction">Текущая клиентская транзакция</param>
+    /// <param name="id">Риск</param>
+    /// <param name="process">Действующий процесс</param>
+    /// <param name="isPrimary">Признак основной связи</param>
+    /// <returns>Созданная связь</returns>
+    private async Task<RiskProcessDal> InsertProcessLinkAsync(IDbTransaction transaction, Guid id, ProcessDal process, bool isPrimary)
+    {
+        var row = new RiskProcessDal { Id = Guid.NewGuid(), RiskId = id, ProcessId = process.Id,
+            OwnerId = process.OwnerId, IsPrimary = isPrimary };
+        var insertQuery = $"""
+            INSERT INTO {EntityMapper.TbName<RiskProcessDal>()}
+                ({EntityMapper.ColName<RiskProcessDal>(x => x.Id)}, {EntityMapper.ColName<RiskProcessDal>(x => x.RiskId)}, {EntityMapper.ColName<RiskProcessDal>(x => x.ProcessId)}, {EntityMapper.ColName<RiskProcessDal>(x => x.OwnerId)}, {EntityMapper.ColName<RiskProcessDal>(x => x.IsPrimary)})
+            VALUES ({EntityMapper.ParameterName(nameof(row.Id))}, {EntityMapper.ParameterName(nameof(row.RiskId))}, {EntityMapper.ParameterName(nameof(row.ProcessId))}, {EntityMapper.ParameterName(nameof(row.OwnerId))}, {EntityMapper.ParameterName(nameof(row.IsPrimary))}) RETURNING *
+            """;
+        return await connection.QuerySingleAsync<RiskProcessDal>(insertQuery, row, transaction);
     }
 
     /// <summary>Меняет основную связь или закрывает исключённую связь</summary>

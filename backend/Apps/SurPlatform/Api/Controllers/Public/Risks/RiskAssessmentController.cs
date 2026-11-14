@@ -57,6 +57,7 @@ public sealed class RiskAssessmentController(RiskUseCaseManager useCases) : Base
     /// <param name="request">Поля команды</param>
     /// <returns>Результат операции</returns>
     [HttpPost(SaveAsyncRoute)]
+    [ProducesResponseType<AssessmentPreview>(StatusCodes.Status200OK)]
     public Task<AssessmentPreview> SaveAsync(Guid id, SaveAssessmentRequest request)
     {
         return useCases.SaveAssessmentAsync(User.GetRiskActor(), id, request);
