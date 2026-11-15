@@ -1,0 +1,88 @@
+<a class="back-link" [routerLink]="back()" [queryParams]="backQuery()"><span aria-hidden="true">←</span> {{ t.back }}</a>
+@let result = state();
+@if (result.kind === 'loading') {
+  <sur-data-state kind="loading" />
+} @else if (result.kind === 'error') {
+  @if (notFound()) { <section class="panel" role="status"><h1>{{ t.missing }}</h1></section> }
+  @else { <sur-data-state kind="error" [message]="result.message" (retry)="retry()" /> }
+} @else {
+  @let risk = result.value;
+  <header class="detail-heading">
+    <div class="detail-meta">@if (showId) { <span class="risk-id">{{ risk.id }}</span> } <sur-status [value]="risk.status" /></div>
+    <h1>{{ risk.name }}</h1>
+    <p class="muted">{{ t.updated }} {{ timestamp(risk.updatedAt) }}</p>
+    @if (!showId) {
+      <nav class="detail-jump" [attr.aria-label]="t.risks">
+        <a [routerLink]="[]" queryParamsHandling="preserve" fragment="assessment">{{ t.rating }}</a>
+        <a [routerLink]="[]" queryParamsHandling="preserve" fragment="discussion">{{ t.comments }}</a>
+        <a [routerLink]="[]" queryParamsHandling="preserve" fragment="treatments">{{ t.treatments }}</a>
+        <a [routerLink]="[]" queryParamsHandling="preserve" fragment="reviews">{{ t.reviews }}</a>
+      </nav>
+    }
+  </header>
+  <div class="detail-grid">
+    <div class="detail-content">
+      <section class="panel">
+        <div class="panel-heading">
+          <h2>{{ t.passport }}</h2>
+          @if (canEdit() && risk.passportEditable) {
+            <a class="action-link" [routerLink]="['/risks', risk.id, 'edit']" [queryParams]="editQuery()">{{ t.editRisk }}</a>
+          }
+        </div>
+        @if (!showId && (!canEdit() || !risk.passportEditable)) {
+          <p class="muted passport-lock">{{ lockReason(risk) }}</p>
+        }
+        <h3>{{ t.description }}</h3><p class="user-content">{{ risk.description }}</p>
+        <dl class="fields">
+          <div><dt>{{ t.category }}</dt><dd>{{ risk.category }}</dd></div>
+          <div><dt>{{ t.hazard }}</dt><dd>{{ risk.hazard }}</dd></div>
+          <div><dt>{{ t.asset }}</dt><dd>{{ risk.asset ?? t.unknown }}</dd></div>
+          <div><dt>{{ t.author }}</dt><dd>{{ risk.author ?? t.unknown }}</dd></div>
+          <div><dt>{{ t.created }}</dt><dd>{{ date(risk.createdAt.slice(0, 10)) }}</dd></div>
+        </dl>
+        <h3 class="processes-heading">{{ t.process }}</h3>
+        <ul class="related-list">
+          @for (process of risk.processes; track process.processId) {
+            <li><strong>{{ process.processName }}</strong>
+              @if (process.isPrimary) { <span class="primary-process">{{ t.primaryProcess }}</span> }
+              <p class="muted">{{ t.owner }} · {{ process.ownerName ?? t.unknown }}</p>
+            </li>
+          } @empty { <li class="muted">{{ t.unknown }}</li> }
+        </ul>
+      </section>
+      @if (showId) {
+        <section class="panel">
+          <label class="draft"><strong>{{ t.note }}</strong>
+            <textarea [formControl]="note" (input)="saveDraft()" rows="3" [placeholder]="t.notePlaceholder" aria-describedby="draft-hint"></textarea>
+          </label>
+          <p class="muted" id="draft-hint">{{ t.noteHint }}</p>
+        </section>
+      }
+      @if (!showId) {
+        @for (id of [risk.id]; track id) {
+          <sur-risk-assessment [risk]="risk" (changed)="retry()" />
+          <sur-risk-decisions [risk]="risk" (changed)="retry()" />
+          <sur-risk-comments [riskId]="id" />
+          <sur-risk-treatments [risk]="risk" (changed)="retry()" />
+          <sur-risk-related [riskId]="id" />
+        }
+      }
+    </div>
+    <aside class="detail-content assessments">
+      @for (entry of [{ label: t.currentRating, value: risk.currentAssessment }, { label: t.previousRating, value: risk.previousAssessment }]; track entry.label; let historical = $last) {
+        @if (!historical || entry.value) {
+          <section class="panel assessment">
+            <h2>{{ entry.label }}</h2>
+            <sur-rating [score]="entry.value?.riskScore ?? null" />
+            @if (entry.value; as assessment) {
+              <dl class="fields">
+                <div><dt>{{ t.lost }}</dt><dd>{{ assessment.lossAmount === null ? t.unknown : money(assessment.lossAmount) }}</dd></div>
+                <div><dt>{{ t.updated }}</dt><dd>{{ timestamp(assessment.createdAt) }}</dd></div>
+              </dl>
+            }
+          </section>
+        }
+      }
+    </aside>
+  </div>
+}

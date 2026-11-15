@@ -1,0 +1,89 @@
+<a class="back-link" [routerLink]="back()" [queryParams]="returnQuery()"><span aria-hidden="true">←</span> {{ t.back }}</a>
+<h1 class="detail-heading">{{ editing() ? t.editRisk : t.newRisk }}</h1>
+
+@let result = data();
+@if (result.kind === 'loading') {
+  <sur-data-state kind="loading" />
+} @else if (result.kind === 'error') {
+  <sur-data-state kind="error" [message]="result.message" (retry)="retry()" />
+} @else {
+  @let options = result.value;
+  @if (!canWrite() && !needsComparison()) {
+    <p class="panel" role="status">{{ editing() ? t.passportLocked : t.forbidden }}</p>
+  } @else {
+    <form class="panel passport-form" [formGroup]="form" (ngSubmit)="save()">
+      <fieldset class="form-fields" [disabled]="pending()">
+        <label class="full-field">{{ t.title }}<input formControlName="name" maxlength="250" required></label>
+        <label class="full-field">{{ t.description }}<textarea formControlName="description" rows="5" maxlength="16000" required></textarea></label>
+        @if (!editing()) {
+          <label class="full-field">{{ t.primaryProcess }}
+            <select formControlName="processId" required>
+              <option value="">{{ t.selectValue }}</option>
+              @for (option of options.processes; track option.id) { <option [value]="option.id">{{ option.name }}</option> }
+            </select>
+          </label>
+          @if (!options.processes.length) { <p class="muted">{{ t.noProcesses }}</p> }
+        }
+        <label>{{ t.hazardGroup }}
+          <select formControlName="groupId" (change)="groupChanged()">
+            <option value="">{{ t.selectValue }}</option>
+            @for (option of options.groups; track option.id) { <option [value]="option.id">{{ option.name }}</option> }
+          </select>
+        </label>
+        <label>{{ t.hazard }}
+          <select formControlName="hazardId" required>
+            <option value="">{{ t.selectValue }}</option>
+            @if (options.risk; as risk) {
+              @if (formValue().hazardId === risk.hazardId && !hasOption(availableHazards(options), risk.hazardId)) {
+                <option [value]="risk.hazardId">{{ risk.hazard }}</option>
+              }
+            }
+            @for (option of availableHazards(options); track option.id) { <option [value]="option.id">{{ option.name }}</option> }
+          </select>
+        </label>
+        <label>{{ t.category }}
+          <select formControlName="categoryId" required>
+            <option value="">{{ t.selectValue }}</option>
+            @if (options.risk; as risk) {
+              @if (!hasOption(options.categories, risk.categoryId)) { <option [value]="risk.categoryId">{{ risk.category }}</option> }
+            }
+            @for (option of options.categories; track option.id) { <option [value]="option.id">{{ option.name }}</option> }
+          </select>
+        </label>
+        <label>{{ t.asset }}
+          <select formControlName="assetId">
+            <option value="">{{ t.noChoice }}</option>
+            @if (options.risk?.assetId; as assetId) {
+              @if (!hasOption(options.assets, assetId)) { <option [value]="assetId">{{ options.risk.asset }}</option> }
+            }
+            @for (option of options.assets; track option.id) { <option [value]="option.id">{{ option.name }}</option> }
+          </select>
+        </label>
+      </fieldset>
+      @if (error()) { <p class="form-error" role="alert">{{ error() }}</p> }
+      @if (needsComparison() && !conflict()) {
+        <button type="button" [disabled]="pending()" (click)="retryComparison()">{{ t.retry }}</button>
+      }
+      @if (conflict(); as fresh) {
+        <section class="conflict-panel" aria-labelledby="conflict-heading">
+          <h2 id="conflict-heading">{{ t.compareRisk }}</h2>
+          <div class="comparison">
+            <div><h3>{{ t.currentServer }}</h3><strong>{{ fresh.name }}</strong><p class="user-content">{{ fresh.description }}</p>
+              <p>{{ fresh.hazard }} · {{ fresh.category }} · {{ fresh.asset ?? t.unknown }}</p></div>
+            <div><h3>{{ t.yourDraft }}</h3><strong>{{ formValue().name }}</strong><p class="user-content">{{ formValue().description }}</p>
+              <p>{{ previewName(options.hazards, formValue().hazardId) }} · {{ previewName(options.categories, formValue().categoryId) }} · {{ previewName(options.assets, formValue().assetId) }}</p></div>
+          </div>
+          @if (fresh.passportEditable && canWrite()) {
+            <button type="button" (click)="acceptVersion()">{{ t.confirmCompared }}</button>
+          } @else { <p class="muted">{{ t.passportLocked }} {{ t.keepDraft }}</p> }
+        </section>
+      }
+      <div class="form-actions">
+        <a class="action-link" [routerLink]="back()" [queryParams]="returnQuery()">{{ t.cancel }}</a>
+        <button class="primary" type="submit" [disabled]="pending() || form.invalid || needsComparison() || !canWrite()">
+          {{ pending() ? t.loading : t.save }}
+        </button>
+      </div>
+    </form>
+  }
+}

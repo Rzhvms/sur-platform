@@ -1,0 +1,132 @@
+<section class="panel risk-workflow" id="assessment">
+  <h2>{{ w.assessment }}</h2>
+  @if (card().needsHumanAssessment) {
+    <p class="workflow-notice" role="status">{{ w.reviewRequired }}</p>
+  }
+  @let method = matrix();
+  @if (allowed() && method.kind === 'ready') {
+    <form [formGroup]="form" (ngSubmit)="calculate()">
+      <fieldset class="form-fields" [disabled]="pending() === 'save' || pending() === 'refresh'">
+        <label class="full-field">{{ w.likelihood }}
+          <select formControlName="likelihoodLevelId" required>
+            <option value="">{{ t.selectValue }}</option>
+            @for (level of method.value.likelihoodLevels; track level.id) {
+              <option [value]="level.id">{{ level.weight }} · {{ level.name }}</option>
+            }
+          </select>
+        </label>
+        @if (hasAsset()) {
+          <label>{{ w.weeks }} <input type="number" min="0" step="1" formControlName="downtimeWeeks"></label>
+          <label>{{ w.days }} <input type="number" min="0" step="1" formControlName="downtimeDays"></label>
+          <label>{{ w.hours }} <input type="number" min="0" step="any" formControlName="downtimeHours"></label>
+        } @else {
+          <label>{{ w.amount }} <input type="number" min="0" step="0.01" formControlName="lossAmount" required></label>
+        }
+      </fieldset>
+      <div class="form-actions">
+        <button type="submit" [disabled]="!inputs() || !!pending() || needsRefresh()">{{ w.preview }}</button>
+      </div>
+    </form>
+    @if (preview(); as result) {
+      <div class="workflow-notice">
+        <h3>{{ w.previewHeading }}</h3>
+        <dl class="fields">
+          <div><dt>{{ t.rating }}</dt><dd><sur-rating [score]="result.response.assessment.riskScore" /></dd></div>
+          <div><dt>{{ w.impact }}</dt><dd>{{ levelName(method.value, result.response.assessment.impactLevelId, 'impact') }}</dd></div>
+          <div><dt>{{ w.amount }}</dt><dd>{{ result.response.assessment.lossAmount === null ? t.unknown : money(result.response.assessment.lossAmount) }}</dd></div>
+          <div><dt>{{ w.acceptance }}</dt><dd>{{ acceptanceLabels[result.response.acceptanceLevel] ?? t.unknown }}</dd></div>
+          @if (result.response.assessment.downtimeTotalHours != null) {
+            <div><dt>{{ w.totalHours }}</dt><dd>{{ result.response.assessment.downtimeTotalHours }}</dd></div>
+          }
+          @if (result.response.assessment.hourlyDowntimeCostSnapshot != null) {
+            <div><dt>{{ w.rate }}</dt><dd>{{ money(result.response.assessment.hourlyDowntimeCostSnapshot) }}</dd></div>
+          }
+        </dl>
+        <div class="form-actions"><button type="button" class="primary" [disabled]="!!pending()" (click)="save()">{{ w.saveAssessment }}</button></div>
+      </div>
+    }
+  }
+  @if (pending()) { <p role="status">{{ t.loading }}</p> }
+  @if (error()) { <p role="alert" class="form-error">{{ error() }}</p> }
+  @if (needsRefresh()) {
+    <button type="button" [disabled]="!!pending()" (click)="refreshForPreview()">{{ w.refreshRisk }}</button>
+  }
+
+  <details class="workflow-details">
+    <summary>{{ w.matrix }}</summary>
+    @if (method.kind === 'loading') { <sur-data-state kind="loading" /> }
+    @else if (method.kind === 'error') { <sur-data-state kind="error" [message]="method.message" (retry)="reload('matrix')" /> }
+    @else {
+      <p class="muted">{{ w.likelihoodScale }}</p>
+      <div class="workflow-scroll" tabindex="0" role="region" [attr.aria-label]="w.matrix">
+        <table class="workflow-table risk-matrix">
+          <thead><tr><th scope="col">{{ w.likelihood }} / {{ w.impact }}</th>
+            @for (level of positiveImpacts(); track level.id) { <th scope="col">{{ level.weight }} · {{ level.name }}</th> }
+          </tr></thead>
+          <tbody>
+            @for (row of method.value.scores; track $index; let rowIndex = $index) {
+              <tr><th scope="row">{{ positiveLikelihoods()[rowIndex]?.weight }} · {{ positiveLikelihoods()[rowIndex]?.name }}</th>
+                @for (score of row; track $index; let colIndex = $index) {
+                  <td><span class="rating" [attr.data-band]="band(score)"
+                    [class.selected-matrix-cell]="selected()?.likelihoodLevelId === positiveLikelihoods()[rowIndex]?.id && selected()?.impactLevelId === positiveImpacts()[colIndex]?.id">{{ score }}</span></td>
+                }
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </details>
+
+  <h3 class="workflow-subtitle">{{ w.history }}</h3>
+  @let entries = history();
+  @if (entries.kind === 'loading') { <sur-data-state kind="loading" /> }
+  @else if (entries.kind === 'error') { <sur-data-state kind="error" [message]="entries.message" (retry)="reload('history')" /> }
+  @else {
+    <ul class="related-list">
+      @for (entry of entries.value; track entry.id) {
+        <li class="assessment-entry">
+          <div><sur-rating [score]="entry.riskScore" />
+            <time class="muted" [attr.datetime]="entry.createdAt">{{ utc(entry.createdAt) }}</time>
+            @if (entry.isActive) { <span class="primary-process">{{ t.currentRating }}</span> }
+            @if (method.kind === 'ready') {
+              <p>{{ w.likelihood }} · {{ levelName(method.value, entry.likelihoodLevelId, 'likelihood') }}</p>
+              <p>{{ w.impact }} · {{ levelName(method.value, entry.impactLevelId, 'impact') }}</p>
+            }
+            @if (entry.lossAmount !== null) { <p>{{ w.amount }} · {{ money(entry.lossAmount) }}</p> }
+          </div>
+          <button type="button" [attr.aria-pressed]="selected()?.id === entry.id" (click)="selectScale(entry)">{{ w.assessmentScale }}</button>
+        </li>
+      } @empty { <li class="muted">{{ w.emptyHistory }}</li> }
+    </ul>
+    @if (page() || entries.value.length === pageSize) {
+      <div class="pagination">
+        <button type="button" [disabled]="page() === 0" (click)="page.set(page() - 1)">{{ t.previous }}</button>
+        <button type="button" [disabled]="entries.value.length < pageSize" (click)="page.set(page() + 1)">{{ t.next }}</button>
+      </div>
+    }
+  }
+  @if (selected(); as assessment) {
+    <section class="workflow-details">
+      <h3>{{ w.assessmentScale }}</h3>
+      <p class="muted">{{ utc(assessment.createdAt) }}</p>
+      @let snapshot = scale();
+      @if (snapshot.kind === 'loading') { <sur-data-state kind="loading" /> }
+      @else if (snapshot.kind === 'error') { <sur-data-state kind="error" [message]="snapshot.message" (retry)="reload('scale')" /> }
+      @else if (snapshot.kind === 'ready') {
+        @if (snapshot.value; as value) {
+        <p>{{ w.scaleVersion }} {{ value.version.sequence }} · {{ utc(value.version.createdAt) }}</p>
+        <dl class="fields">
+          @for (level of value.thresholds; track level.weight) {
+            <div><dt>{{ w.impact }} {{ level.weight }}</dt><dd>
+              @if (level.maxLossAmount === null) { {{ money(level.minLossAmount) }} {{ w.noLimit }} }
+              @else if (level.maxLossAmount < level.minLossAmount) { {{ w.emptyRange }} }
+              @else { {{ money(level.minLossAmount) }} – {{ money(level.maxLossAmount) }} }
+            </dd></div>
+          }
+        </dl>
+        } @else { <p class="muted">{{ w.noScale }}</p> }
+      }
+    </section>
+  }
+</section>

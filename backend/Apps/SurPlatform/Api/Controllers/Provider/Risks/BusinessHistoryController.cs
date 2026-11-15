@@ -32,6 +32,7 @@ public sealed class BusinessHistoryController(RiskUseCaseManager useCases) : Bas
     [HttpGet]
     public Task<JsonElement[]> ListAsync([FromQuery] BusinessPeriod period, [Range(0, int.MaxValue)] int offset = 0, [Range(1, RiskRoutes.MaxPage)] int limit = RiskRoutes.DefaultPage)
     {
+        Response.Headers.CacheControl = IdentityHttp.NoStore;
         return useCases.HistoryAsync(User.GetRiskActor(), period, offset, limit);
     }
 

@@ -1,0 +1,67 @@
+<section class="panel">
+  <h2>{{ w.status }}</h2>
+  @let result = state();
+  @if (result.kind === 'loading') { <sur-data-state kind="loading" /> }
+  @else if (result.kind === 'error') { <sur-data-state kind="error" [message]="result.message" (retry)="reload()" /> }
+  @else {
+    @let job = result.value;
+    <p role="status"><strong>{{ labels[job.state] }}</strong></p>
+    <dl class="fields">
+      <div><dt>{{ w.requested }}</dt><dd>{{ time(job.createdAt) }}</dd></div>
+      @if (job.kind !== 'IMPORT') { <div><dt>{{ w.author }}</dt><dd>{{ job.authorId }}</dd></div> }
+      @if (job.kind === 'REPORT') {
+        <div><dt>{{ w.asOf }}</dt><dd>{{ job.asOf ? time(job.asOf) : t.unknown }}</dd></div>
+      }
+      @if (job.kind !== 'IMPORT') {
+        <div><dt>{{ w.captured }}</dt><dd>{{ job.capturedAt ? time(job.capturedAt) : t.unknown }}</dd></div>
+        @if (job.generatedAt) { <div><dt>{{ w.generated }}</dt><dd>{{ time(job.generatedAt) }}</dd></div> }
+      } @else {
+        <div><dt>{{ w.totalProcessed }}</dt><dd>{{ job.processed }}</dd></div>
+        <div><dt>{{ w.imported }}</dt><dd>{{ job.processed - job.errors }}</dd></div>
+        <div><dt>{{ w.totalErrors }}</dt><dd>{{ job.errors }}</dd></div>
+      }
+      @if (job.completedAt) { <div><dt>{{ w.completed }}</dt><dd>{{ time(job.completedAt) }}</dd></div> }
+    </dl>
+    @if (job.error) { <p class="notice" role="status">{{ code(job.error) }}</p> }
+    @if (commandError()) { <p role="alert">{{ commandError() }}</p> }
+    <div class="action-row">
+      @if (job.fileId && job.kind !== 'IMPORT') {
+        <button type="button" [disabled]="sending()" (click)="download(job)">{{ sending() ? w.downloadProgress : w.file }}</button>
+      }
+      @if (job.canRetry) { <button type="button" [disabled]="sending()" (click)="retry(job)">{{ w.retryJob }}</button> }
+    </div>
+    @if (rows(); as page) {
+      @if (page.kind === 'loading') { <sur-data-state kind="loading" /> }
+      @else if (page.kind === 'error') { <sur-data-state kind="error" [message]="page.message" (retry)="reload()" /> }
+      @else {
+        <h3>{{ job.kind === 'IMPORT' ? w.results : w.reports }}</h3>
+        <ul class="related-list">
+          @for (row of page.value; track row.number) {
+            <li>
+              @if (job.kind === 'IMPORT') {
+                <strong>{{ w.row }} {{ row.number }}</strong> ·
+                @if (row.hasError) { {{ code(row.data['code']) }} }
+                @else { <a [routerLink]="['/risks', row.data['riskId']]">{{ t.riskName }}</a> }
+              } @else {
+                <strong>{{ reportName(row.data) }}</strong><p class="muted">{{ reportStatus(row.data) }}</p>
+                <dl class="fields">
+                  <div><dt>{{ t.category }}</dt><dd>{{ nameValue(row.data['RiskCategoryDal']) }}</dd></div>
+                  <div><dt>{{ t.hazard }}</dt><dd>{{ nameValue(row.data['HazardDal']) }}</dd></div>
+                  <div><dt>{{ t.process }}</dt><dd>{{ reportProcesses(row.data) }}</dd></div>
+                  <div><dt>{{ t.lost }}</dt><dd>{{ reportLoss(row.data) }}</dd></div>
+                </dl>
+                <details><summary>{{ w.details }}</summary><pre class="document-json">{{ row.data | json }}</pre></details>
+              }
+            </li>
+          } @empty { <li class="muted">{{ w.noRows }}</li> }
+        </ul>
+        @if (cursors().length > 1 || page.value.length === pageSize) {
+          <div class="pagination">
+            <button type="button" [disabled]="cursors().length < 2" (click)="previous()">{{ t.previous }}</button>
+            <button type="button" [disabled]="page.value.length < pageSize" (click)="next(page.value)">{{ t.next }}</button>
+          </div>
+        }
+      }
+    }
+  }
+</section>

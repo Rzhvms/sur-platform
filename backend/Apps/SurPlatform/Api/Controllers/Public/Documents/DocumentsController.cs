@@ -81,6 +81,7 @@ public sealed class DocumentsController(DocumentUseCaseManager useCases) : BaseP
     [ProducesResponseType<DocumentStatus>(StatusCodes.Status200OK)]
     public Task<DocumentStatus> StatusAsync(Guid id)
     {
+        Response.Headers.CacheControl = NoStore;
         return useCases.StatusAsync(User.GetRiskActor(), id);
     }
 
@@ -94,6 +95,7 @@ public sealed class DocumentsController(DocumentUseCaseManager useCases) : BaseP
     public Task<DocumentRow[]> RowsAsync(Guid id, [Range(0, DocumentRules.RowLimit)] long after = 0,
         [Range(1, DocumentRules.BatchSize)] int limit = DocumentRules.BatchSize)
     {
+        Response.Headers.CacheControl = NoStore;
         return useCases.RowsAsync(User.GetRiskActor(), id, after, limit);
     }
 

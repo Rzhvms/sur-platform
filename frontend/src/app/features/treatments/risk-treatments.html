@@ -1,0 +1,42 @@
+<section class="panel" id="treatments">
+  <div class="panel-heading">
+    <h2>{{ t.treatments }}</h2>
+    <div class="action-row">
+      @if (processes().length && !editing()) {
+        <button type="button" (click)="editing.set(true)">{{ w.create }}</button>
+      }
+      @if (canStart()) {
+        <button type="button" class="primary" #startButton [disabled]="busy() || !startReady()" (click)="askStart(startButton)">{{ w.start }}</button>
+      }
+    </div>
+  </div>
+  @if (canStart() && !startReady() && result().kind === 'ready') { <p class="muted">{{ w.startHint }}</p> }
+  @if (jiraPending()) { <p class="notice" role="status">{{ w.riskRetry }}</p> }
+  @if (notice()) { <p role="status">{{ notice() }}</p> }
+  @if (editing() && processes().length) {
+    <h3>{{ w.draft }}</h3>
+    <sur-treatment-draft [processes]="processes()" [blocked]="busy()" (save)="create($event.riskProcessId, $event.draft)" />
+    <button type="button" [disabled]="busy()" (click)="editing.set(false)">{{ t.cancel }}</button>
+  }
+  @let state = result();
+  @if (state.kind === 'loading') { <sur-data-state kind="loading" /> }
+  @else if (state.kind === 'error') { <sur-data-state kind="error" [message]="state.message" (retry)="retry()" /> }
+  @else {
+    <ul class="related-list">
+      @for (item of state.value; track item.id) {
+        <li>
+          <a [routerLink]="['/treatments', item.id]" [queryParams]="origin()">{{ item.title }}</a>
+          <p class="muted">{{ processName(item.processId) }} · {{ statuses[item.status] ?? item.status }} · {{ t.due }} {{ date(item.dueDate.slice(0, 10)) }} · {{ w.plan }}: {{ money(item.costPlanned) }}
+            @if (item.costActual !== null) { · {{ w.actual }}: {{ money(item.costActual) }} }</p>
+        </li>
+      } @empty { <li class="muted">{{ t.noTreatments }}</li> }
+    </ul>
+    @if (offset() || state.value.length === pageSize) {
+      <div class="pagination">
+        <button type="button" [disabled]="offset() === 0" (click)="page(-1)">{{ t.previous }}</button>
+        <button type="button" [disabled]="state.value.length < pageSize" (click)="page(1)">{{ t.next }}</button>
+      </div>
+    }
+  }
+  <sur-confirm [heading]="w.start" [question]="w.startConfirm + ' ' + w.startHint" [action]="w.start" (confirm)="start()" />
+</section>

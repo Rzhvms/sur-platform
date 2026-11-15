@@ -1,0 +1,140 @@
+@if (fromApprovals()) { <a class="back-link" routerLink="/approvals">← {{ w.approvals }}</a> }
+@let state = result();
+@if (state.kind === 'loading') { <sur-data-state kind="loading" /> }
+@else if (state.kind === 'error') { <sur-data-state kind="error" [message]="state.message" (retry)="retry()" /> }
+@else {
+  @let value = state.value;
+  @let card = value.card;
+  @let measure = card.treatment;
+  <a class="back-link" [routerLink]="['/risks', measure.riskId]" [queryParams]="riskQuery()" fragment="treatments">← {{ w.toRisk }}</a>
+  <header class="detail-heading">
+    <h1>{{ measure.title }}</h1>
+    <p class="muted">{{ statuses[measure.status] ?? measure.status }}</p>
+  </header>
+  @if (notice()) { <p class="notice" role="status">{{ notice() }}</p> }
+  @if (pollError()) { <p role="status">{{ pollError() }}</p> }
+  <div class="detail-grid">
+    <div class="detail-content">
+      <section class="panel">
+        <div class="panel-heading">
+          <h2>{{ w.treatment }}</h2>
+          @if (mayEdit(value) && !edit()) {
+            <button type="button" [disabled]="busy()" (click)="beginEdit(measure)">{{ t.edit }}</button>
+          }
+        </div>
+        @if (measure.description) { <p class="user-content">{{ measure.description }}</p> }
+        <dl class="fields">
+          <div><dt>{{ t.process }}</dt><dd>{{ processName(value) }}</dd></div>
+          <div><dt>{{ t.due }}</dt><dd>{{ date(measure.dueDate.slice(0, 10)) }}</dd></div>
+          <div><dt>{{ w.plan }}</dt><dd>{{ money(measure.costPlanned) }}</dd></div>
+          <div><dt>{{ w.actual }}</dt><dd>{{ measure.costActual === null ? t.unknown : money(measure.costActual) }}</dd></div>
+          <div><dt>{{ w.executor }}</dt><dd>{{ card.assigneeName || card.assignment?.assigneeId || w.noExecutor }}</dd></div>
+          <div><dt>{{ w.currentRisk }}</dt><dd>{{ riskStatuses[value.risk.status] }}</dd></div>
+          @if (card.requiredApprovalLevel; as required) { <div><dt>{{ w.level }}</dt><dd>{{ level(required) }}</dd></div> }
+        </dl>
+        @if (edit(); as draft) {
+          @if (mayEdit(value)) {
+            @if (editConflict() || draft.version !== measure.version) {
+              <section class="notice" role="status">
+                <p>{{ t.stale }}</p>
+                <p><strong>{{ t.currentServer }}:</strong> {{ measure.title }} · {{ date(measure.dueDate.slice(0, 10)) }} · {{ money(measure.costPlanned) }}</p>
+                @if (measure.description) { <p class="user-content">{{ measure.description }}</p> }
+                <button type="button" (click)="acceptVersion(measure)">{{ w.compareDraft }}</button>
+              </section>
+            }
+            <sur-treatment-draft [initial]="draft" [initialProcessId]="draft.riskProcessId" [processes]="processes(value.risk)"
+              [blocked]="busy() || editConflict() || draft.version !== measure.version" (save)="saveDraft($event.draft, $event.riskProcessId)" />
+          } @else {
+            <p role="status">{{ t.forbidden }}</p>
+          }
+          <button type="button" [disabled]="busy()" (click)="edit.set(null)">{{ t.cancel }}</button>
+        } @else if (!command()) {
+          <div class="action-row">
+            @if (measure.status === 'DRAFT' && card.requiredApprovalLevel && mayExecute(value) && value.risk.status === 'ACTIVE') {
+              <button type="button" class="primary" [disabled]="busy()" (click)="submit(measure)">{{ w.submit }}</button>
+            }
+            @if (mayDispatch(value)) {
+              <button type="button" class="primary" [disabled]="busy()" (click)="choose('dispatch', measure)">{{ w.dispatch }}</button>
+            }
+            @if (mayAssign(value)) {
+              <button type="button" [disabled]="busy()" (click)="choose('assign', measure)">{{ w.assignment }}</button>
+            }
+            @for (action of transitions(value); track action) {
+              <button type="button" [disabled]="busy()" (click)="choose(action, measure)">{{ w[action] }}</button>
+            }
+          </div>
+        }
+        @if (command(); as choice) {
+          @let assignment = choice.action === 'dispatch' || choice.action === 'assign';
+          @if (choice.measure.version !== measure.version) {
+            <p role="status">{{ t.stale }}</p>
+          } @else {
+            <form class="form-stack" (ngSubmit)="runCommand()">
+              @if (assignment) {
+                @let options = assignees();
+                @if (options.kind === 'loading') { <sur-data-state kind="loading" /> }
+                @else if (options.kind === 'error') {
+                  <sur-data-state kind="error" [message]="options.message" (retry)="loadExecutors(measure.id)" />
+                } @else {
+                  <label>{{ w.executor }}
+                    <select [formControl]="person" required>
+                      <option value="">{{ w.chooseExecutor }}</option>
+                      @for (option of options.value; track option.personId) { <option [value]="option.personId">{{ option.fullName }}</option> }
+                    </select>
+                  </label>
+                }
+              } @else if (choice.action === 'complete') {
+                <label>{{ w.actual }} <input type="number" min="0" step="0.01" [formControl]="actual" /></label>
+              }
+              @if (confirmation()) {
+                <p role="status">{{ w.discardDrafts }}</p>
+                <label><input type="checkbox" [formControl]="confirmed" /> {{ w.confirmTransition }}</label>
+              }
+              <div class="action-row">
+                <button class="primary" type="submit" [disabled]="busy() || (assignment && assignees().kind !== 'ready')">{{ choice.action === 'assign' ? w.assignment : w[choice.action] }}</button>
+                @if (choice.action === 'assign' && measure.status === 'HOLD' && card.assignment) {
+                  <button type="button" [disabled]="busy()" (click)="runCommand(true)">{{ w.unassign }}</button>
+                }
+              </div>
+            </form>
+          }
+          <button type="button" [disabled]="busy()" (click)="command.set(null)">{{ t.cancel }}</button>
+        }
+      </section>
+
+      <section class="panel">
+        <h2>{{ w.approvalHistory }}</h2>
+        @if (card.latestApproval; as latest) {
+          @if (isAdmin && ['PENDING', 'APPROVED'].includes(measure.status) && ['PENDING', 'APPROVED'].includes(latest.status)) {
+            <sur-approval-actions [approval]="latest" (changed)="retry($event)" />
+          }
+        }
+        @let approvals = history();
+        @if (approvals.kind === 'loading') { <sur-data-state kind="loading" /> }
+        @else if (approvals.kind === 'error') { <sur-data-state kind="error" [message]="approvals.message" (retry)="retry()" /> }
+        @else {
+          <ul class="related-list">
+            @for (entry of approvals.value; track entry.id) {
+              <li>
+                <strong>{{ statuses[entry.status] ?? entry.status }}</strong>
+                <p class="muted">{{ level(entry.requiredLevel) }} · {{ money(entry.costPlanned) }} · {{ time(entry.requestedAt) }}</p>
+                @if (entry.decisionReason) { <p class="user-content">{{ entry.decisionReason }}</p> }
+                @if (entry.revokeReason) { <p class="user-content">{{ entry.revokeReason }}</p> }
+              </li>
+            } @empty { <li class="muted">{{ w.noApprovals }}</li> }
+          </ul>
+          @if (historyOffset() || approvals.value.length === pageSize) {
+            <div class="pagination">
+              <button type="button" [disabled]="historyOffset() === 0" (click)="pageHistory(-1)">{{ t.previous }}</button>
+              <button type="button" [disabled]="approvals.value.length < pageSize" (click)="pageHistory(1)">{{ t.next }}</button>
+            </div>
+          }
+        }
+      </section>
+      <sur-risk-comments [riskId]="measure.id" subject="treatments" />
+    </div>
+    <aside class="detail-content">
+      <sur-jira-delivery [treatmentId]="measure.id" [jira]="card.jira" (changed)="retry()" />
+    </aside>
+  </div>
+}

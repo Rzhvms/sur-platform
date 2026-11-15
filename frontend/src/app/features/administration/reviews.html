@@ -1,0 +1,120 @@
+<h1>{{ w.reviews }}</h1>
+<nav class="action-row" [attr.aria-label]="w.reviews">
+  @for (entry of sections; track entry) {
+    <button type="button" [disabled]="write.busy()" [attr.aria-pressed]="entry === section()" (click)="select(entry)">{{ labels[entry] }}</button>
+  }
+</nav>
+@if (write.notice()) { <p class="notice" role="status">{{ write.notice() }}</p> }
+@if (secret(); as result) {
+  <section class="panel">
+    <h2>{{ labels.secret }}</h2><p>{{ labels.secretHint }}</p>
+    <p>{{ labels.endpoint }} · <code>{{ result.path }}</code></p>
+    <p class="user-content"><code>{{ result.token }}</code></p>
+    <button type="button" (click)="secret.set(null)">{{ labels.dismiss }}</button>
+  </section>
+}
+<section class="panel">
+  <div class="panel-heading"><h2>{{ labels[section()] }}</h2>
+    @if (section() !== 'review-runs') { <button type="button" [disabled]="write.busy()" (click)="open()">{{ w.create }}</button> }
+    @else { <button type="button" (click)="reload()">{{ t.refresh }}</button> }
+  </div>
+  @if (selected(); as selectedSource) {
+    <form class="form-stack" [formGroup]="form" (ngSubmit)="save()">
+      <fieldset class="form-fields" [disabled]="write.busy()">
+        <legend>{{ selectedSource === 'new' ? w.create : t.edit }}</legend>
+        <label>{{ t.title }} <input formControlName="name" required /></label>
+        <label>{{ labels.responsible }} <select formControlName="responsibleUserId" required>
+          <option value="">{{ t.selectValue }}</option>
+          @for (user of users(); track user.userId) { <option [value]="user.userId">{{ user.fullName || user.email || user.userId }}</option> }
+        </select></label>
+        <label class="inline-check"><input type="checkbox" formControlName="isActive" /> {{ w.active }}</label>
+        @if (section() === 'review-schedules') {
+          @if (selectedSource !== 'new' && selectedSource.timeZone) { <p>{{ labels.zone }} · {{ selectedSource.timeZone }}</p> }
+          <label>{{ labels.start }} <input type="date" formControlName="startDate" required /></label>
+          <label>{{ labels.recurrence }} <select formControlName="recurrenceType">
+            @for (key of recurrenceKeys; track key) { <option [value]="key">{{ recurrence[key] }}</option> }
+          </select></label>
+          @if (form.controls.recurrenceType.value !== 'NONE') {
+            <label>{{ labels.interval }} <input type="number" min="1" step="1" formControlName="recurrenceInterval" /></label>
+          }
+          @if (form.controls.recurrenceType.value === 'WEEKLY') {
+            <fieldset class="full-field"><legend>{{ labels.weekdays }}</legend>
+              @for (weekDay of weekdays; track weekDay; let index = $index) {
+                <label class="inline-check"><input type="checkbox" [checked]="selectedDays().includes(index + 1)" (change)="toggleDay(index + 1)" /> {{ weekDay }}</label>
+              }
+            </fieldset>
+          }
+          @if (form.controls.recurrenceType.value !== 'NONE') {
+          <label>{{ labels.until }} <select formControlName="endType">
+            @for (key of endingKeys; track key) { <option [value]="key">{{ endings[key] }}</option> }
+          </select></label>
+          @if (form.controls.endType.value === 'AFTER_OCCURRENCES') { <label>{{ labels.occurrences }} <input type="number" min="1" step="1" formControlName="occurrenceCount" /></label> }
+          @if (form.controls.endType.value === 'ON_DATE') { <label>{{ labels.endDate }} <input type="date" formControlName="endDate" /></label> }
+          }
+        } @else {
+          <label>{{ labels.external }} <input formControlName="externalSystemName" required /></label>
+          <div class="full-field">
+            <h3>{{ labels.scope }}</h3>
+            <label>{{ labels.target }} <input type="search" [formControl]="riskSearch" maxlength="250" /></label>
+            <button type="button" (click)="search()">{{ t.filterSearch }}</button>
+            <div class="form-stack">
+              @for (risk of riskResults(); track risk.id) {
+                <label class="inline-check"><input type="checkbox" [checked]="riskIds().includes(risk.id)" (change)="toggleRisk(risk.id)" /> {{ risk.name }}</label>
+              }
+            </div>
+            <ul class="related-list">
+              @for (id of riskIds(); track id) {
+                <li class="admin-row"><a [routerLink]="['/risks', id]">{{ riskLabel(id) }}</a><button type="button" (click)="toggleRisk(id)">{{ t.remove }}</button></li>
+              }
+            </ul>
+          </div>
+        }
+      </fieldset>
+      <div class="action-row">
+        <button type="submit" class="primary" [disabled]="write.busy()">{{ t.save }}</button>
+        <button type="button" [disabled]="write.busy()" (click)="close()">{{ t.cancel }}</button>
+      </div>
+    </form>
+  }
+  @if (confirmation(); as change) {
+    <div class="notice">
+      <p>{{ change.row.name }} · {{ change.action === 'rotate' ? labels.confirmRotate : labels.confirmRemove }}</p>
+      <div class="action-row">
+        <button type="button" [disabled]="write.busy()" (click)="confirm()">{{ change.action === 'rotate' ? labels.rotate : t.remove }}</button>
+        <button type="button" [disabled]="write.busy()" (click)="close()">{{ t.cancel }}</button>
+      </div>
+    </div>
+  }
+  @let result = data();
+  @if (result.kind === 'loading') { <sur-data-state kind="loading" /> }
+  @else if (result.kind === 'error') { <sur-data-state kind="error" [message]="result.message" (retry)="reload()" /> }
+  @else {
+    <ul class="related-list">
+      @for (item of result.value; track item.id) {
+        <li class="admin-row">
+          @if (isRun(item)) {
+            <div><strong>{{ item.sourceNameSnapshot || sourceTypes[item.sourceType] || item.sourceType }}</strong>
+              <p class="muted">{{ statuses[item.status] || item.status }} · {{ time(item.occurredAt) }}
+                @if (item.scheduledDate) { · {{ day(item.scheduledDate.slice(0, 10)) }} }
+                @if (item.externalSystemNameSnapshot) { · {{ item.externalSystemNameSnapshot }} }
+              </p></div>
+          } @else {
+            <div><strong>{{ item.name }}</strong><p class="muted">{{ item.isActive ? w.active : w.inactive }}
+              @if (item.startDate) { · {{ day(item.startDate) }} }
+              @if (item.externalSystemName) { · {{ item.externalSystemName }} }
+            </p></div>
+            <div class="action-row">
+              <button type="button" [disabled]="write.busy()" (click)="open(item)">{{ t.edit }}</button>
+              @if (section() === 'review-webhooks') { <button type="button" [disabled]="write.busy()" (click)="ask('rotate', item)">{{ labels.rotate }}</button> }
+              <button type="button" [disabled]="write.busy()" (click)="ask('remove', item)">{{ t.remove }}</button>
+            </div>
+          }
+        </li>
+      } @empty { <li>{{ t.empty }}</li> }
+    </ul>
+    <div class="pagination">
+      <button type="button" [disabled]="offset() === 0" (click)="page(-1)">{{ t.previous }}</button>
+      <button type="button" [disabled]="result.value.length < size" (click)="page(1)">{{ t.next }}</button>
+    </div>
+  }
+</section>

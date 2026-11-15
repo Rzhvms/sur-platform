@@ -1,0 +1,47 @@
+<h1>{{ w.reports }}</h1>
+@if (request.id(); as id) {
+  <div class="action-row"><button type="button" (click)="request.reset()">{{ w.createNew }}</button></div>
+  @for (jobId of [id]; track jobId) { <sur-document-job [id]="jobId" kind="REPORT" /> }
+} @else {
+  <section class="panel">
+    <form class="form-stack" [formGroup]="form" (ngSubmit)="submit(null)">
+      <fieldset class="form-fields" [disabled]="request.busy() || !!request.attempt()">
+        <legend>{{ t.filters }}</legend>
+        <label>{{ t.filterStatus }} <select formControlName="status">
+          <option value="">{{ t.allStatuses }}</option>
+          @for (entry of statuses; track entry[0]) { <option [value]="entry[0]">{{ entry[1] }}</option> }
+        </select></label>
+        <label>{{ t.process }} · ID <input formControlName="processId" list="report-processes" /></label>
+        <datalist id="report-processes">
+          @for (item of processes(); track item.id) { <option [value]="item.id">{{ item.name }}</option> }
+        </datalist>
+        <label>{{ t.directorate }} · ID <input formControlName="directorateId" /></label>
+        <label>{{ t.category }} · ID <input formControlName="categoryId" list="report-categories" /></label>
+        <datalist id="report-categories">
+          @for (item of categories(); track item.id) { <option [value]="item.id">{{ item.name }}</option> }
+        </datalist>
+        <label class="inline-check full-field"><input formControlName="historical" type="checkbox" /> {{ w.historical }}</label>
+        @if (form.controls.historical.value) {
+          <label>{{ w.localTime }} <input type="datetime-local" formControlName="local" /></label>
+          <label>{{ w.offset }} <input formControlName="offset" placeholder="+05:00" maxlength="6" /></label>
+        }
+      </fieldset>
+      <div class="action-row">
+        @if (request.attempt(); as attempt) {
+          @if (!attempt.format || mayExport()) {
+            <button type="submit" class="primary" [disabled]="request.busy()">{{ t.retry }}</button>
+          }
+          <button type="button" [disabled]="request.busy()" (click)="request.reset()">{{ t.cancel }}</button>
+        } @else {
+          <button type="submit" class="primary" [disabled]="request.busy()">{{ w.view }}</button>
+          @if (mayExport()) {
+            <button type="button" [disabled]="request.busy()" (click)="submit('CSV')">{{ w.csv }}</button>
+            <button type="button" [disabled]="request.busy()" (click)="submit('XLSX')">{{ w.xlsx }}</button>
+          }
+        }
+      </div>
+      @if (request.busy()) { <p role="status">{{ t.loading }}</p> }
+      @if (request.error()) { <p class="notice" role="alert">{{ request.error() }}</p> }
+    </form>
+  </section>
+}
