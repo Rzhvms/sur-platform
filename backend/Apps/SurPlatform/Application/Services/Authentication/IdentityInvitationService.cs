@@ -62,13 +62,13 @@ public sealed class IdentityInvitationService(IIdentityAdministrationRepository 
     /// </summary>
     /// <param name="email">Настроенный адрес первого администратора</param>
     /// <param name="fullName">Настроенное ФИО первого администратора</param>
+    /// <param name="password">Заданный для локального окружения пароль</param>
     /// <param name="reissue">Запрошена повторная выдача</param>
-    /// <returns>Состояние доставки или null, если запись уже существует</returns>
-    public async Task<string?> BootstrapAsync(string email, string fullName, bool reissue)
+    /// <returns>Состояние локальной выдачи или null, если запись уже существует</returns>
+    public async Task<string?> BootstrapAsync(string email, string fullName, string password, bool reissue)
     {
-        var password = NewPassword();
-        var invitation = await repository.BootstrapAsync(email, fullName, Hash(password), reissue);
-        return invitation is null ? null : await DeliverAsync(invitation, password);
+        var configured = await repository.BootstrapAsync(email, fullName, Hash(password), reissue);
+        return configured ? IdentityAccounts.DevelopmentAccessConfigured : null;
     }
 
     /// <summary>

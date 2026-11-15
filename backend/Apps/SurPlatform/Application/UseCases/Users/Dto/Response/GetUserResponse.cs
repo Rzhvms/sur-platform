@@ -31,6 +31,12 @@ public sealed record GetUserResponse
     [JsonPropertyName(RoleIdJsonProperty)]
     public Guid RoleId { get; init; }
 
+    /// <summary>Отображаемое полное имя учётной записи</summary>
+    public string? FullName { get; init; }
+
+    /// <summary>Доступен ли вход по учётной записи</summary>
+    public bool IsActive { get; init; }
+
     /// <summary>
     /// Имя пользователя
     /// </summary>

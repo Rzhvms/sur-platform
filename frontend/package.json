@@ -1,0 +1,31 @@
+{
+  "name": "sur-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "engines": { "node": "26.10.0", "npm": "11.19.1" },
+  "packageManager": "npm@11.19.1",
+  "scripts": {
+    "start": "node scripts/serve.mjs",
+    "preview": "ng serve --host 127.0.0.1",
+    "build": "ng build",
+    "check": "ngc --noEmit -p tsconfig.app.json",
+    "test": "node --test scripts/*.test.mjs"
+  },
+  "dependencies": {
+    "@angular/common": "22.2.6",
+    "@angular/compiler": "22.2.6",
+    "@angular/core": "22.2.6",
+    "@angular/forms": "22.2.6",
+    "@angular/platform-browser": "22.2.6",
+    "@angular/router": "22.2.6",
+    "rxjs": "7.8.2",
+    "tslib": "2.8.1"
+  },
+  "devDependencies": {
+    "@angular/build": "22.2.7",
+    "@angular/cli": "22.2.7",
+    "@angular/compiler-cli": "22.2.6",
+    "typescript": "6.0.3"
+  }
+}

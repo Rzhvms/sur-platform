@@ -89,10 +89,10 @@ public interface IIdentityAdministrationRepository
     /// </summary>
     /// <param name="email">Настроенная почта первого администратора</param>
     /// <param name="fullName">Настроенное ФИО первого администратора</param>
-    /// <param name="passwordHash">Защищённое представление временного пароля</param>
+    /// <param name="passwordHash">Хеш настроенного пароля</param>
     /// <param name="reissue">Признак явной служебной повторной выдачи</param>
-    /// <returns>Данные письма при новой выдаче</returns>
-    Task<IdentityInvitation?> BootstrapAsync(string email, string fullName, string passwordHash, bool reissue);
+    /// <returns>Признак создания администратора или смены его пароля</returns>
+    Task<bool> BootstrapAsync(string email, string fullName, string passwordHash, bool reissue);
 
     /// <summary>
     /// Проверяет актуальность поручения перед доставкой

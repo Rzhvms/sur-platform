@@ -41,8 +41,9 @@ public sealed class JiraSettingsController(JiraUseCaseManager useCases) : BasePr
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<JiraSettingsResponse?> GetAsync()
     {
-        var settings = await useCases.GetJiraAsync(User.GetRiskActor());
-        return settings is null ? null : JiraSettingsResponse.FromSettings(settings);
+        Response.Headers.CacheControl = IdentityHttp.NoStore;
+        var view = await useCases.GetJiraAdministrationAsync(User.GetRiskActor());
+        return view is null ? null : JiraSettingsResponse.FromSettings(view.Settings, view);
     }
 
     /// <summary>Сохраняет или включает проверенную настройку</summary>
@@ -53,6 +54,7 @@ public sealed class JiraSettingsController(JiraUseCaseManager useCases) : BasePr
     [ProducesResponseType<JiraSettingsResponse>(StatusCodes.Status200OK)]
     public async Task<JiraSettingsResponse> SaveAsync(JiraSettingsRequest request, CancellationToken cancellation)
     {
+        Response.Headers.CacheControl = IdentityHttp.NoStore;
         var settings = await useCases.SaveJiraAsync(User.GetRiskActor(), request, cancellation);
         return JiraSettingsResponse.FromSettings(settings);
     }
@@ -65,6 +67,7 @@ public sealed class JiraSettingsController(JiraUseCaseManager useCases) : BasePr
     [ProducesResponseType<JsonElement>(StatusCodes.Status200OK)]
     public Task<JsonElement> DiscoverAsync(JiraDiscoveryRequest request, CancellationToken cancellation)
     {
+        Response.Headers.CacheControl = IdentityHttp.NoStore;
         return useCases.DiscoverJiraAsync(User.GetRiskActor(), request, cancellation);
     }
 
@@ -77,6 +80,7 @@ public sealed class JiraSettingsController(JiraUseCaseManager useCases) : BasePr
     public Task<JiraErrorDal[]> ErrorsAsync([Range(0, int.MaxValue)] int offset = 0,
         [Range(1, RiskRoutes.MaxPage)] int limit = RiskRoutes.DefaultPage)
     {
+        Response.Headers.CacheControl = IdentityHttp.NoStore;
         return useCases.ListJiraErrorsAsync(User.GetRiskActor(), offset, limit);
     }
 

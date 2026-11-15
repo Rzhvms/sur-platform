@@ -1,0 +1,110 @@
+# Use an isolated client with Jira enabled and two users entitled to read both cards.
+# Prepare three deliveries: before the first preflight, retry after unavailable preflight, and uncertain after POST.
+# The risk start and the separate manual HOLD resume must belong to the initiator below.
+@host = https://localhost:7224
+@initiator = REPLACE_INITIATOR_TOKEN
+@observer = REPLACE_OBSERVER_TOKEN
+@startedRisk = REPLACE_STARTED_RISK_ID
+@startedMeasure = REPLACE_STARTED_MEASURE_ID
+@resumedRisk = REPLACE_RESUMED_RISK_ID
+@resumedMeasure = REPLACE_RESUMED_MEASURE_ID
+@pendingMeasure = REPLACE_PENDING_WITHOUT_ERROR_MEASURE_ID
+@unknownMeasure = REPLACE_UNKNOWN_MEASURE_ID
+
+### A preflight outage persists in the risk card for the user who launched the cycle
+GET {{host}}/api/v1/public/risks/{{startedRisk}}
+Authorization: Bearer {{initiator}}
+
+> {%
+    client.test("The launch initiator sees the persisted retry", function () {
+        client.assert(response.status === 200 && response.body.jiraRetryPending === true);
+        client.assert(response.body.data.risk.status === "IN_PROGRESS");
+    });
+%}
+
+### Launch notification is not duplicated in the measure card
+GET {{host}}/api/v1/public/treatments/{{startedMeasure}}
+Authorization: Bearer {{initiator}}
+
+> {%
+    client.test("A launch retry is scoped to the risk card", function () {
+        client.assert(response.status === 200 && response.body.jira.state === "PENDING");
+        client.assert(response.body.jira.jiraRetryPending === false);
+    });
+%}
+
+### Second entitled user sees no personal launch notice
+GET {{host}}/api/v1/public/risks/{{startedRisk}}
+Authorization: Bearer {{observer}}
+
+> {%
+    client.test("Another user cannot see the initiator's notice", function () {
+        client.assert(response.status === 200 && response.body.jiraRetryPending === false);
+    });
+%}
+
+### Resume notification is visible in the resumed measure after reopening
+GET {{host}}/api/v1/public/treatments/{{resumedMeasure}}
+Authorization: Bearer {{initiator}}
+
+> {%
+    client.test("The resume initiator sees the persisted retry", function () {
+        client.assert(response.status === 200 && response.body.jira.state === "PENDING");
+        client.assert(response.body.jira.jiraRetryPending === true);
+        client.assert(response.body.treatment.status === "IN_PROGRESS");
+    });
+%}
+
+### Resume notification is absent on the parent risk
+GET {{host}}/api/v1/public/risks/{{resumedRisk}}
+Authorization: Bearer {{initiator}}
+
+> {%
+    client.test("A resume retry is scoped to the measure card", function () {
+        client.assert(response.status === 200 && response.body.jiraRetryPending === false);
+    });
+%}
+
+### Second entitled user sees the pending state without the personal resume notice
+GET {{host}}/api/v1/public/treatments/{{resumedMeasure}}
+Authorization: Bearer {{observer}}
+
+> {%
+    client.test("Another user only sees the pending state", function () {
+        client.assert(response.status === 200 && response.body.jira.state === "PENDING");
+        client.assert(response.body.jira.jiraRetryPending === false);
+    });
+%}
+
+### A queued delivery before its first failed preflight shows no outage notice
+GET {{host}}/api/v1/public/treatments/{{pendingMeasure}}
+Authorization: Bearer {{initiator}}
+
+> {%
+    client.test("Ordinary pending work is distinguished from a retry", function () {
+        client.assert(response.status === 200 && response.body.jira.state === "PENDING");
+        client.assert(response.body.jira.jiraRetryPending === false);
+    });
+%}
+
+### Uncertain creation is visible without a promise of automatic retry
+GET {{host}}/api/v1/public/treatments/{{unknownMeasure}}
+Authorization: Bearer {{initiator}}
+
+> {%
+    client.test("UNKNOWN is separate from retry", function () {
+        client.assert(response.status === 200 && response.body.jira.state === "UNKNOWN");
+        client.assert(response.body.jira.jiraRetryPending === false && response.body.jira.attemptStartedAt);
+    });
+%}
+
+### Run after restoring Jira and confirming the resumed measure's task
+GET {{host}}/api/v1/public/treatments/{{resumedMeasure}}
+Authorization: Bearer {{initiator}}
+
+> {%
+    client.test("A confirmed link clears the notice", function () {
+        client.assert(response.status === 200 && response.body.jira.state === "LINKED");
+        client.assert(response.body.jira.jiraRetryPending === false && response.body.jira.issueUrl.startsWith("https://"));
+    });
+%}

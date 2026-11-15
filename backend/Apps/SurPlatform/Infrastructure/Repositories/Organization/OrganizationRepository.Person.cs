@@ -51,6 +51,24 @@ internal sealed partial class OrganizationRepository
     }
 
     /// <inheritdoc/>
+    public Task<OrgPersonDal> TransferPersonAsync(Guid actor, Guid sessionId, Guid id, PersonTransferRequest request)
+    {
+        return WriteAsync(actor, sessionId, async transaction =>
+        {
+            var person = await ReadPersonAsync(id, transaction);
+            RequireVersion(person, request.Version);
+            if (!person.IsActive || person.DirectorateId == request.DirectorateId)
+            {
+                throw new IdentityCommandException(409, OrganizationErrors.Ineligible);
+            }
+
+            await EnsureNoPersonDependenciesAsync(person.Id, transaction);
+            await SetStateAsync(person, false, actor, transaction);
+            return await InsertPersonAsync(person.UserId, request.DirectorateId, request.PositionName, actor, transaction);
+        });
+    }
+
+    /// <inheritdoc/>
     public Task<OrgPersonDal> UpdatePersonAsync(Guid actor, Guid sessionId, Guid id, PersonEditRequest request)
     {
         return WriteAsync(actor, sessionId, async transaction =>

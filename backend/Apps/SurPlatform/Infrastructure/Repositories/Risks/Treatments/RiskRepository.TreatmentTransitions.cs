@@ -49,7 +49,7 @@ internal sealed partial class RiskRepository
             var updated = await SaveTreatmentStatusAsync(measure, target, actor.UserId, operationId, transaction, request.CostActual);
             if (target == TreatmentRules.Working)
             {
-                await QueueJiraAsync(measure.Id, actor.UserId, transaction);
+                await QueueJiraAsync(measure.Id, actor.UserId, transaction, triggeredFromRisk: false);
             }
             if (target is TreatmentRules.Done or TreatmentRules.Cancelled)
             {
@@ -80,7 +80,7 @@ internal sealed partial class RiskRepository
                 await SelectTreatmentLinkAsync(riskId, measure.RiskProcessId, transaction);
                 await RequireValidAssignmentAsync(measure, transaction);
                 await SaveTreatmentStatusAsync(measure, TreatmentRules.Working, actor.UserId, operationId, transaction);
-                await QueueJiraAsync(measure.Id, actor.UserId, transaction);
+                await QueueJiraAsync(measure.Id, actor.UserId, transaction, triggeredFromRisk: true);
             }
 
             var updated = await SaveRiskStateAsync(transaction, risk, RiskRules.InProgress, risk.AcceptanceLevel);

@@ -109,6 +109,17 @@ public sealed class OrganizationUseCaseManager(IOrganizationRepository repositor
         return repository.CreatePersonAsync(actor, sessionId, request);
     }
 
+    /// <summary>Закрывает действующую запись и создаёт новую в целевой дирекции в одной транзакции</summary>
+    /// <param name="actor">Администратор клиента</param>
+    /// <param name="sessionId">Сессия администратора</param>
+    /// <param name="id">Действующая запись сотрудника</param>
+    /// <param name="request">Целевая дирекция, должность и ожидаемая версия</param>
+    /// <returns>Новая запись сотрудника</returns>
+    public Task<OrgPersonDal> TransferPersonAsync(Guid actor, Guid sessionId, Guid id, PersonTransferRequest request)
+    {
+        return repository.TransferPersonAsync(actor, sessionId, id, request);
+    }
+
     /// <summary>
     /// Изменяет отображаемые поля записи
     /// </summary>

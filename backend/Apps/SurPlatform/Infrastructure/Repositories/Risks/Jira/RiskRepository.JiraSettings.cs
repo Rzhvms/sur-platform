@@ -36,6 +36,49 @@ internal sealed partial class RiskRepository
     }
 
     /// <inheritdoc/>
+    public async Task<JiraAdministrationView?> GetJiraAdministrationAsync(RiskActor actor)
+    {
+        using var transaction = connection.BeginTransaction(IsolationLevel.RepeatableRead);
+        await RequireRightAsync(actor, IdentityRights.AdminCode, transaction);
+        var settings = await ReadJiraAsync(transaction);
+        if (settings is null)
+        {
+            transaction.Commit();
+            return null;
+        }
+
+        var pending = JiraRules.Pending;
+        var sending = JiraRules.Sending;
+        var unknown = JiraRules.Unknown;
+        var unavailable = JiraRules.Unavailable;
+        var working = TreatmentRules.Working;
+        var userId = actor.UserId;
+        var showRestoration = settings.Enabled && settings.RestoredById == userId;
+        var state = EntityMapper.ColName<JiraDeliveryDal>(x => x.State);
+        var query = $"""
+            SELECT count(*) FILTER (
+                    WHERE delivery.{state} IN ({EntityMapper.ParameterName(nameof(pending))}, {EntityMapper.ParameterName(nameof(sending))})
+                    AND measure.{EntityMapper.ColName<TreatmentDal>(x => x.Status)} = {EntityMapper.ParameterName(nameof(working))}
+                ),
+                count(*) FILTER (WHERE delivery.{state} = {EntityMapper.ParameterName(nameof(unknown))}),
+                {EntityMapper.ParameterName(nameof(showRestoration))} AND count(*) FILTER (
+                    WHERE delivery.{state} = {EntityMapper.ParameterName(nameof(pending))}
+                    AND measure.{EntityMapper.ColName<TreatmentDal>(x => x.Status)} = {EntityMapper.ParameterName(nameof(working))}
+                    AND delivery.{EntityMapper.ColName<JiraDeliveryDal>(x => x.RetryCode)} = {EntityMapper.ParameterName(nameof(unavailable))}
+                    AND delivery.{EntityMapper.ColName<JiraDeliveryDal>(x => x.TriggeredFromRisk)} IS NULL
+                    AND delivery.{EntityMapper.ColName<JiraDeliveryDal>(x => x.TriggeredBy)} = {EntityMapper.ParameterName(nameof(userId))}
+                ) > 0
+            FROM {EntityMapper.TbName<JiraDeliveryDal>()} delivery
+            JOIN {EntityMapper.TbName<TreatmentDal>()} measure
+                ON measure.{EntityMapper.ColName<TreatmentDal>(x => x.Id)} = delivery.{EntityMapper.ColName<JiraDeliveryDal>(x => x.Id)}
+            """;
+        var summary = await connection.QuerySingleAsync<(long Pending, long Unknown, bool RestorationRetry)>(
+            query, new { pending, sending, unknown, unavailable, working, userId, showRestoration }, transaction);
+        transaction.Commit();
+        return new JiraAdministrationView(settings, summary.Pending, summary.Unknown, summary.RestorationRetry);
+    }
+
+    /// <inheritdoc/>
     public async Task<JiraSettingsDal> SaveJiraAsync(RiskActor actor, JiraSettingsRequest request, CancellationToken cancellation)
     {
         var previous = await GetJiraAsync(actor);
@@ -66,11 +109,14 @@ internal sealed partial class RiskRepository
         }
         var zone = previous?.TimeZone ?? jiraConfiguration["Application:TimeZone"] ?? TimeZoneInfo.Utc.Id;
         _ = TimeZoneInfo.FindSystemTimeZoneById(zone);
+        var restore = request.Enabled && previous?.Enabled != true;
         var row = new JiraSettingsDal
         {
             Id = Guid.Empty, Version = Guid.NewGuid(), BaseUrl = address.AbsoluteUri, Project = project,
             IssueType = issueType, DoneStatus = request.DoneStatus, HoldStatus = request.HoldStatus,
             CancelStatus = request.CancelStatus, Enabled = request.Enabled, ResponsibleUserId = request.ResponsibleUserId,
+            CreatedById = previous is null ? actor.UserId : previous.CreatedById,
+            RestoredById = restore ? actor.UserId : previous?.RestoredById,
             UpdatedById = actor.UserId, RestSecret = JiraProtector().Protect(token), WebhookHash = hash, TimeZone = zone,
             Executors = JsonSerializer.Serialize(request.Executors)
         };
@@ -101,14 +147,15 @@ internal sealed partial class RiskRepository
             }
             await RequireReviewResponsibleAsync(row.ResponsibleUserId, transaction);
             var query = $"""
-                INSERT INTO {EntityMapper.TbName<JiraSettingsDal>()} ({EntityMapper.ColName<JiraSettingsDal>(x => x.Id)}, {EntityMapper.ColName<JiraSettingsDal>(x => x.Version)}, {EntityMapper.ColName<JiraSettingsDal>(x => x.BaseUrl)}, {EntityMapper.ColName<JiraSettingsDal>(x => x.Project)}, {EntityMapper.ColName<JiraSettingsDal>(x => x.IssueType)}, {EntityMapper.ColName<JiraSettingsDal>(x => x.DoneStatus)}, {EntityMapper.ColName<JiraSettingsDal>(x => x.HoldStatus)}, {EntityMapper.ColName<JiraSettingsDal>(x => x.CancelStatus)}, {EntityMapper.ColName<JiraSettingsDal>(x => x.Enabled)}, {EntityMapper.ColName<JiraSettingsDal>(x => x.ResponsibleUserId)}, {EntityMapper.ColName<JiraSettingsDal>(x => x.UpdatedById)}, {EntityMapper.ColName<JiraSettingsDal>(x => x.RestSecret)}, {EntityMapper.ColName<JiraSettingsDal>(x => x.WebhookHash)}, {EntityMapper.ColName<JiraSettingsDal>(x => x.TimeZone)}, {EntityMapper.ColName<JiraSettingsDal>(x => x.Executors)})
-                VALUES ({EntityMapper.ParameterName(nameof(row.Id))}, {EntityMapper.ParameterName(nameof(row.Version))}, {EntityMapper.ParameterName(nameof(row.BaseUrl))}, {EntityMapper.ParameterName(nameof(row.Project))}, {EntityMapper.ParameterName(nameof(row.IssueType))}, {EntityMapper.ParameterName(nameof(row.DoneStatus))}, {EntityMapper.ParameterName(nameof(row.HoldStatus))}, {EntityMapper.ParameterName(nameof(row.CancelStatus))}, {EntityMapper.ParameterName(nameof(row.Enabled))}, {EntityMapper.ParameterName(nameof(row.ResponsibleUserId))}, {EntityMapper.ParameterName(nameof(row.UpdatedById))}, {EntityMapper.ParameterName(nameof(row.RestSecret))}, {EntityMapper.ParameterName(nameof(row.WebhookHash))}, {EntityMapper.ParameterName(nameof(row.TimeZone))}, {EntityMapper.ParameterName(nameof(row.Executors))})
-                ON CONFLICT ({EntityMapper.ColName<JiraSettingsDal>(x => x.Id)}) DO UPDATE SET {EntityMapper.ColName<JiraSettingsDal>(x => x.Version)} = EXCLUDED.{EntityMapper.ColName<JiraSettingsDal>(x => x.Version)}, {EntityMapper.ColName<JiraSettingsDal>(x => x.BaseUrl)} = EXCLUDED.{EntityMapper.ColName<JiraSettingsDal>(x => x.BaseUrl)}, {EntityMapper.ColName<JiraSettingsDal>(x => x.Project)} = EXCLUDED.{EntityMapper.ColName<JiraSettingsDal>(x => x.Project)}, {EntityMapper.ColName<JiraSettingsDal>(x => x.IssueType)} = EXCLUDED.{EntityMapper.ColName<JiraSettingsDal>(x => x.IssueType)}, {EntityMapper.ColName<JiraSettingsDal>(x => x.DoneStatus)} = EXCLUDED.{EntityMapper.ColName<JiraSettingsDal>(x => x.DoneStatus)}, {EntityMapper.ColName<JiraSettingsDal>(x => x.HoldStatus)} = EXCLUDED.{EntityMapper.ColName<JiraSettingsDal>(x => x.HoldStatus)}, {EntityMapper.ColName<JiraSettingsDal>(x => x.CancelStatus)} = EXCLUDED.{EntityMapper.ColName<JiraSettingsDal>(x => x.CancelStatus)}, {EntityMapper.ColName<JiraSettingsDal>(x => x.Enabled)} = EXCLUDED.{EntityMapper.ColName<JiraSettingsDal>(x => x.Enabled)}, {EntityMapper.ColName<JiraSettingsDal>(x => x.ResponsibleUserId)} = EXCLUDED.{EntityMapper.ColName<JiraSettingsDal>(x => x.ResponsibleUserId)}, {EntityMapper.ColName<JiraSettingsDal>(x => x.UpdatedById)} = EXCLUDED.{EntityMapper.ColName<JiraSettingsDal>(x => x.UpdatedById)}, {EntityMapper.ColName<JiraSettingsDal>(x => x.RestSecret)} = EXCLUDED.{EntityMapper.ColName<JiraSettingsDal>(x => x.RestSecret)}, {EntityMapper.ColName<JiraSettingsDal>(x => x.WebhookHash)} = EXCLUDED.{EntityMapper.ColName<JiraSettingsDal>(x => x.WebhookHash)}, {EntityMapper.ColName<JiraSettingsDal>(x => x.TimeZone)} = EXCLUDED.{EntityMapper.ColName<JiraSettingsDal>(x => x.TimeZone)}, {EntityMapper.ColName<JiraSettingsDal>(x => x.Executors)} = EXCLUDED.{EntityMapper.ColName<JiraSettingsDal>(x => x.Executors)}
+                INSERT INTO {EntityMapper.TbName<JiraSettingsDal>()} ({EntityMapper.ColName<JiraSettingsDal>(x => x.Id)}, {EntityMapper.ColName<JiraSettingsDal>(x => x.Version)}, {EntityMapper.ColName<JiraSettingsDal>(x => x.BaseUrl)}, {EntityMapper.ColName<JiraSettingsDal>(x => x.Project)}, {EntityMapper.ColName<JiraSettingsDal>(x => x.IssueType)}, {EntityMapper.ColName<JiraSettingsDal>(x => x.DoneStatus)}, {EntityMapper.ColName<JiraSettingsDal>(x => x.HoldStatus)}, {EntityMapper.ColName<JiraSettingsDal>(x => x.CancelStatus)}, {EntityMapper.ColName<JiraSettingsDal>(x => x.Enabled)}, {EntityMapper.ColName<JiraSettingsDal>(x => x.ResponsibleUserId)}, {EntityMapper.ColName<JiraSettingsDal>(x => x.UpdatedById)}, {EntityMapper.ColName<JiraSettingsDal>(x => x.RestSecret)}, {EntityMapper.ColName<JiraSettingsDal>(x => x.WebhookHash)}, {EntityMapper.ColName<JiraSettingsDal>(x => x.TimeZone)}, {EntityMapper.ColName<JiraSettingsDal>(x => x.Executors)}, {EntityMapper.ColName<JiraSettingsDal>(x => x.CreatedById)}, {EntityMapper.ColName<JiraSettingsDal>(x => x.RestoredById)})
+                VALUES ({EntityMapper.ParameterName(nameof(row.Id))}, {EntityMapper.ParameterName(nameof(row.Version))}, {EntityMapper.ParameterName(nameof(row.BaseUrl))}, {EntityMapper.ParameterName(nameof(row.Project))}, {EntityMapper.ParameterName(nameof(row.IssueType))}, {EntityMapper.ParameterName(nameof(row.DoneStatus))}, {EntityMapper.ParameterName(nameof(row.HoldStatus))}, {EntityMapper.ParameterName(nameof(row.CancelStatus))}, {EntityMapper.ParameterName(nameof(row.Enabled))}, {EntityMapper.ParameterName(nameof(row.ResponsibleUserId))}, {EntityMapper.ParameterName(nameof(row.UpdatedById))}, {EntityMapper.ParameterName(nameof(row.RestSecret))}, {EntityMapper.ParameterName(nameof(row.WebhookHash))}, {EntityMapper.ParameterName(nameof(row.TimeZone))}, {EntityMapper.ParameterName(nameof(row.Executors))}, {EntityMapper.ParameterName(nameof(row.CreatedById))}, {EntityMapper.ParameterName(nameof(row.RestoredById))})
+                ON CONFLICT ({EntityMapper.ColName<JiraSettingsDal>(x => x.Id)}) DO UPDATE SET {EntityMapper.ColName<JiraSettingsDal>(x => x.Version)} = EXCLUDED.{EntityMapper.ColName<JiraSettingsDal>(x => x.Version)}, {EntityMapper.ColName<JiraSettingsDal>(x => x.BaseUrl)} = EXCLUDED.{EntityMapper.ColName<JiraSettingsDal>(x => x.BaseUrl)}, {EntityMapper.ColName<JiraSettingsDal>(x => x.Project)} = EXCLUDED.{EntityMapper.ColName<JiraSettingsDal>(x => x.Project)}, {EntityMapper.ColName<JiraSettingsDal>(x => x.IssueType)} = EXCLUDED.{EntityMapper.ColName<JiraSettingsDal>(x => x.IssueType)}, {EntityMapper.ColName<JiraSettingsDal>(x => x.DoneStatus)} = EXCLUDED.{EntityMapper.ColName<JiraSettingsDal>(x => x.DoneStatus)}, {EntityMapper.ColName<JiraSettingsDal>(x => x.HoldStatus)} = EXCLUDED.{EntityMapper.ColName<JiraSettingsDal>(x => x.HoldStatus)}, {EntityMapper.ColName<JiraSettingsDal>(x => x.CancelStatus)} = EXCLUDED.{EntityMapper.ColName<JiraSettingsDal>(x => x.CancelStatus)}, {EntityMapper.ColName<JiraSettingsDal>(x => x.Enabled)} = EXCLUDED.{EntityMapper.ColName<JiraSettingsDal>(x => x.Enabled)}, {EntityMapper.ColName<JiraSettingsDal>(x => x.ResponsibleUserId)} = EXCLUDED.{EntityMapper.ColName<JiraSettingsDal>(x => x.ResponsibleUserId)}, {EntityMapper.ColName<JiraSettingsDal>(x => x.UpdatedById)} = EXCLUDED.{EntityMapper.ColName<JiraSettingsDal>(x => x.UpdatedById)}, {EntityMapper.ColName<JiraSettingsDal>(x => x.RestSecret)} = EXCLUDED.{EntityMapper.ColName<JiraSettingsDal>(x => x.RestSecret)}, {EntityMapper.ColName<JiraSettingsDal>(x => x.WebhookHash)} = EXCLUDED.{EntityMapper.ColName<JiraSettingsDal>(x => x.WebhookHash)}, {EntityMapper.ColName<JiraSettingsDal>(x => x.TimeZone)} = EXCLUDED.{EntityMapper.ColName<JiraSettingsDal>(x => x.TimeZone)}, {EntityMapper.ColName<JiraSettingsDal>(x => x.Executors)} = EXCLUDED.{EntityMapper.ColName<JiraSettingsDal>(x => x.Executors)},
+                    {EntityMapper.ColName<JiraSettingsDal>(x => x.RestoredById)} = EXCLUDED.{EntityMapper.ColName<JiraSettingsDal>(x => x.RestoredById)}
                 """;
             await connection.ExecuteAsync(query, row, transaction);
             if (row.Enabled)
             {
-                await RestoreJiraAsync(actor.UserId, transaction);
+                await RestoreJiraAsync(actor.UserId, restore, transaction);
             }
             return row;
         });

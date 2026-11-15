@@ -56,7 +56,8 @@ public static class InfrastructureProviderBuilderExtensions
         services.AddScoped<IOrganizationRepository>(provider => provider.GetRequiredService<OrganizationRepository>());
         services.AddScoped<IOrganizationIdentityRepository>(provider => provider.GetRequiredService<OrganizationRepository>());
         services.AddScoped<IIdentityAdministrationRepository, IdentityAdministrationRepository>();
-        services.AddScoped<IIdentityInvitationSender, SmtpIdentityInvitationSender>();
+        // services.AddScoped<IIdentityInvitationSender, SmtpIdentityInvitationSender>();
+        services.AddScoped<IIdentityInvitationSender, DisabledIdentityInvitationSender>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IRoleRepository, RoleRepository>();
         services.AddScoped<SessionRepository>();

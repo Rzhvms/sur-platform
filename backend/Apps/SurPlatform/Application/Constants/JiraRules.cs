@@ -56,4 +56,13 @@ public static class JiraRules
 
     /// <summary>Чтение и применение задачи</summary>
     public const string Sync = "SYNC";
+
+    /// <summary>Очередь приостановлена на время отключения Jira</summary>
+    public const string RetryPaused = "PAUSED";
+
+    /// <summary>Мера вышла из состояния, допускающего повтор создания задачи</summary>
+    public const string RetryStopped = "STOPPED";
+
+    /// <summary>Связанная задача ожидает очередной проверки Jira</summary>
+    public const string SyncScheduled = "SYNC_SCHEDULED";
 }

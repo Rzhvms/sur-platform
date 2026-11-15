@@ -64,7 +64,7 @@ internal static class Program
             await ClientDatabaseInitializer.PrepareAsync(client, CancellationToken.None);
             var status = await host.Services.GetRequiredService<IdentityBootstrap>().RunAsync(client, true);
             Console.WriteLine(status);
-            return status == IdentityAccounts.InvitationSent ? 0 : 1;
+            return status == IdentityAccounts.DevelopmentAccessConfigured ? 0 : 1;
         }
         catch (Exception ex)
         {

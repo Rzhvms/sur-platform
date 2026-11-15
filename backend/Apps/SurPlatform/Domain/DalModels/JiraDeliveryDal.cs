@@ -29,4 +29,10 @@ public sealed record JiraDeliveryDal
 
     /// <summary>Инициатор создания задачи</summary>
     public Guid TriggeredBy { get; init; }
+
+    /// <summary>Запуск риска или ручное возобновление меры, если команда известна</summary>
+    public bool? TriggeredFromRisk { get; init; }
+
+    /// <summary>Код последнего сбоя до начала создания задачи</summary>
+    public string? RetryCode { get; init; }
 }

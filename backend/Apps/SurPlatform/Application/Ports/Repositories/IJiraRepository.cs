@@ -20,6 +20,11 @@ public interface IJiraRepository
     /// <returns>Подтверждённый результат операции</returns>
     Task<JiraSettingsDal?> GetJiraAsync(RiskActor actor);
 
+    /// <summary>Читает панель Jira в одном клиентском снимке</summary>
+    /// <param name="actor">Текущий администратор</param>
+    /// <returns>Настройка и очередь либо null до первого сохранения</returns>
+    Task<JiraAdministrationView?> GetJiraAdministrationAsync(RiskActor actor);
+
     /// <summary>Сохраняет проверенную настройку</summary>
     /// <param name="actor">Текущий администратор</param>
     /// <param name="request">Административная команда</param>

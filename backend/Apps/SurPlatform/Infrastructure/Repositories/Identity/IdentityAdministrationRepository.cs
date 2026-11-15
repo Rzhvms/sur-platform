@@ -278,9 +278,9 @@ internal sealed class IdentityAdministrationRepository(IDbConnection connection,
     }
 
     /// <inheritdoc/>
-    public Task<IdentityInvitation?> BootstrapAsync(string email, string fullName, string passwordHash, bool reissue)
+    public Task<bool> BootstrapAsync(string email, string fullName, string passwordHash, bool reissue)
     {
-        return AdministrationTransaction.WriteAsync<IdentityInvitation?>(connection, IdentityAccounts.SystemUserId, null, async transaction =>
+        return AdministrationTransaction.WriteAsync(connection, IdentityAccounts.SystemUserId, null, async transaction =>
             {
                 var selectUserProfileQuery = $"""
                     SELECT {EntityMapper.ColName<UserProfileDal>(x => x.UserId)} FROM {EntityMapper.TbName<UserProfileDal>()} WHERE {EntityMapper.ColName<UserProfileDal>(x => x.IsFirstAdministrator)}
@@ -290,11 +290,17 @@ internal sealed class IdentityAdministrationRepository(IDbConnection connection,
                 {
                     if (!reissue)
                     {
-                        return null;
+                        return false;
                     }
 
                     var user = await FindAsync(id, transaction) ?? throw new IdentityCommandException(404, IdentityErrorCodes.UserNotFound);
-                    return await StartInvitationAsync(user, IdentityAccounts.SystemUserId, passwordHash, false, transaction);
+                    if (!string.Equals(user.Email, email, StringComparison.OrdinalIgnoreCase))
+                    {
+                        throw new IdentityCommandException(404, IdentityErrorCodes.FirstAdminNotFound);
+                    }
+
+                    await StartInvitationAsync(user, IdentityAccounts.SystemUserId, passwordHash, false, transaction, useDevelopmentPassword: true);
+                    return true;
                 }
 
                 if (reissue)
@@ -306,7 +312,8 @@ internal sealed class IdentityAdministrationRepository(IDbConnection connection,
                     SELECT {EntityMapper.ColName<RoleDal>(x => x.Id)} FROM {EntityMapper.TbName<RoleDal>()} WHERE {EntityMapper.ColName<RoleDal>(x => x.Code)} = {EntityMapper.ParameterName(SqlParameterNames.Role)}
                     """;
                 var roleId = await connection.QuerySingleAsync<Guid>(selectRoleQuery, new { role = IdentityAccounts.AdminRole }, transaction);
-                return await InsertAsync(email, fullName, [roleId], IdentityAccounts.SystemUserId, passwordHash, true, transaction);
+                await InsertAsync(email, fullName, [roleId], IdentityAccounts.SystemUserId, passwordHash, true, transaction);
+                return true;
             });
     }
 
@@ -444,7 +451,7 @@ internal sealed class IdentityAdministrationRepository(IDbConnection connection,
     /// <param name="fullName">ФИО пользователя</param>
     /// <param name="roleIds">Назначенные роли</param>
     /// <param name="actor">Инициатор создания</param>
-    /// <param name="passwordHash">Хеш временного пароля</param>
+    /// <param name="passwordHash">Хеш пароля учётной записи</param>
     /// <param name="first">Признак первого администратора</param>
     /// <param name="transaction">Транзакция команды</param>
     /// <param name="initialOrganization">Необязательные оргданные, сохраняемые в той же транзакции</param>
@@ -466,7 +473,7 @@ internal sealed class IdentityAdministrationRepository(IDbConnection connection,
         }
 
         var user = await FindAsync(userId, transaction) ?? throw new IdentityCommandException(404, IdentityErrorCodes.UserNotFound);
-        return await StartInvitationAsync(user, actor, passwordHash, false, transaction);
+        return await StartInvitationAsync(user, actor, passwordHash, false, transaction, useDevelopmentPassword: first);
     }
 
     /// <summary>
@@ -474,12 +481,13 @@ internal sealed class IdentityAdministrationRepository(IDbConnection connection,
     /// </summary>
     /// <param name="user">Получатель доступа</param>
     /// <param name="actor">Инициатор выдачи</param>
-    /// <param name="passwordHash">Хеш временного пароля</param>
+    /// <param name="passwordHash">Хеш нового пароля</param>
     /// <param name="activate">Признак активации в этой операции</param>
     /// <param name="transaction">Транзакция команды</param>
+    /// <param name="useDevelopmentPassword">Начальная выдача с настроенным паролем и без доставки</param>
     /// <returns>Версия и данные письма</returns>
     private async Task<IdentityInvitation> StartInvitationAsync(IdentityUser user, Guid actor, string passwordHash,
-        bool activate, IDbTransaction transaction)
+        bool activate, IDbTransaction transaction, bool useDevelopmentPassword = false)
     {
         if (string.IsNullOrWhiteSpace(user.Email) || !new System.ComponentModel.DataAnnotations.EmailAddressAttribute().IsValid(user.Email))
         {
@@ -489,14 +497,24 @@ internal sealed class IdentityAdministrationRepository(IDbConnection connection,
         var version = Guid.NewGuid();
         var userId = user.Id;
         var updateUserProfileQuery = $"""
-            UPDATE {EntityMapper.TbName<UserProfileDal>()} SET {EntityMapper.ColName<UserProfileDal>(x => x.IsActive)} = {EntityMapper.ColName<UserProfileDal>(x => x.IsActive)} OR {EntityMapper.ParameterName(SqlParameterNames.Activate)}, {EntityMapper.ColName<UserProfileDal>(x => x.MustChangePassword)} = true,
-                            {EntityMapper.ColName<UserProfileDal>(x => x.TemporaryPasswordExpiresAt)} = now() + make_interval(days => {EntityMapper.ParameterName(SqlParameterNames.Days)}), {EntityMapper.ColName<UserProfileDal>(x => x.InvitationStatus)} = '{IdentityAccounts.InvitationPending}',
-                            {EntityMapper.ColName<UserProfileDal>(x => x.InvitationVersion)} = {EntityMapper.ParameterName(SqlParameterNames.Version)}, {EntityMapper.ColName<UserProfileDal>(x => x.InvitationStartedAt)} = now(), {EntityMapper.ColName<UserProfileDal>(x => x.UpdatedAt)} = now(),
-                            {EntityMapper.ColName<UserProfileDal>(x => x.UpdatedBy)} = {EntityMapper.ParameterName(SqlParameterNames.Actor)}, {EntityMapper.ColName<UserProfileDal>(x => x.Version)} = gen_random_uuid(), {EntityMapper.ColName<UserProfileDal>(x => x.AccessVersion)} = {EntityMapper.ColName<UserProfileDal>(x => x.AccessVersion)} + 1
-                            WHERE {EntityMapper.ColName<UserProfileDal>(x => x.UserId)} = {EntityMapper.ParameterName(SqlParameterNames.UserId)}
+            UPDATE {EntityMapper.TbName<UserProfileDal>()}
+            SET {EntityMapper.ColName<UserProfileDal>(x => x.IsActive)} = {EntityMapper.ColName<UserProfileDal>(x => x.IsActive)} OR {EntityMapper.ParameterName(SqlParameterNames.Activate)},
+                {EntityMapper.ColName<UserProfileDal>(x => x.MustChangePassword)} = NOT {EntityMapper.ParameterName(nameof(useDevelopmentPassword))},
+                {EntityMapper.ColName<UserProfileDal>(x => x.TemporaryPasswordExpiresAt)} = CASE WHEN NOT {EntityMapper.ParameterName(nameof(useDevelopmentPassword))}
+                    THEN now() + make_interval(days => {EntityMapper.ParameterName(SqlParameterNames.Days)}) END,
+                {EntityMapper.ColName<UserProfileDal>(x => x.InvitationStatus)} = CASE WHEN NOT {EntityMapper.ParameterName(nameof(useDevelopmentPassword))}
+                    THEN '{IdentityAccounts.InvitationPending}' END,
+                {EntityMapper.ColName<UserProfileDal>(x => x.InvitationVersion)} = CASE WHEN NOT {EntityMapper.ParameterName(nameof(useDevelopmentPassword))}
+                    THEN {EntityMapper.ParameterName(SqlParameterNames.Version)} END,
+                {EntityMapper.ColName<UserProfileDal>(x => x.InvitationStartedAt)} = CASE WHEN NOT {EntityMapper.ParameterName(nameof(useDevelopmentPassword))} THEN now() END,
+                {EntityMapper.ColName<UserProfileDal>(x => x.UpdatedAt)} = now(),
+                {EntityMapper.ColName<UserProfileDal>(x => x.UpdatedBy)} = {EntityMapper.ParameterName(SqlParameterNames.Actor)},
+                {EntityMapper.ColName<UserProfileDal>(x => x.Version)} = gen_random_uuid(),
+                {EntityMapper.ColName<UserProfileDal>(x => x.AccessVersion)} = {EntityMapper.ColName<UserProfileDal>(x => x.AccessVersion)} + 1
+            WHERE {EntityMapper.ColName<UserProfileDal>(x => x.UserId)} = {EntityMapper.ParameterName(SqlParameterNames.UserId)}
             """;
         await connection.ExecuteAsync(updateUserProfileQuery,
-            new { userId, version, actor, activate, days = IdentityAccounts.TemporaryPasswordDays }, transaction);
+            new { userId, version, actor, activate, useDevelopmentPassword, days = IdentityAccounts.TemporaryPasswordDays }, transaction);
         var insertUserCredentialQuery2 = $"""
             INSERT INTO {EntityMapper.TbName<UserCredentialDal>()} ({EntityMapper.ColName<UserCredentialDal>(x => x.Id)}, {EntityMapper.ColName<UserCredentialDal>(x => x.UserId)}, {EntityMapper.ColName<UserCredentialDal>(x => x.Password)}, {EntityMapper.ColName<UserCredentialDal>(x => x.PasswordChangedAt)})
                             VALUES (gen_random_uuid(), {EntityMapper.ParameterName(SqlParameterNames.UserId)}, {EntityMapper.ParameterName(SqlParameterNames.PasswordHash)}, now())

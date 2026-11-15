@@ -35,6 +35,19 @@ internal sealed partial class RiskRepository
         await RequireRightAsync(actor, RiskRules.View, transaction);
         var measure = await ReadAsync<TreatmentDal>(id, EntityMapper.ColName<TreatmentDal>(x => x.Id), transaction);
         var assignment = await ReadAssignmentAsync(id, transaction);
+        string? assigneeName = null;
+        if (assignment is not null)
+        {
+            var assigneeQuery = $"""
+                SELECT profile.{EntityMapper.ColName<UserProfileDal>(x => x.FullName)}
+                FROM {EntityMapper.TbName<OrgPersonDal>()} person
+                JOIN {EntityMapper.TbName<UserProfileDal>()} profile
+                    ON profile.{EntityMapper.ColName<UserProfileDal>(x => x.UserId)} = person.{EntityMapper.ColName<OrgPersonDal>(x => x.UserId)}
+                WHERE person.{EntityMapper.ColName<OrgPersonDal>(x => x.Id)} = {EntityMapper.ParameterName(nameof(assignment.AssigneeId))}
+                """;
+            assigneeName = await connection.QuerySingleOrDefaultAsync<string>(assigneeQuery, new { assignment.AssigneeId }, transaction);
+        }
+
         var query = $"""
             SELECT * FROM {EntityMapper.TbName<TreatmentApprovalDal>()} WHERE {EntityMapper.ColName<TreatmentApprovalDal>(x => x.TreatmentId)} = {EntityMapper.ParameterName(nameof(id))}
             ORDER BY {EntityMapper.ColName<TreatmentApprovalDal>(x => x.RequestedAt)} DESC, {EntityMapper.ColName<TreatmentApprovalDal>(x => x.Id)} DESC LIMIT 1
@@ -43,9 +56,9 @@ internal sealed partial class RiskRepository
         var requiredLevel = measure.Status == TreatmentRules.Draft
             ? ApprovalLevel(measure.CostPlanned, await ReadTreatmentSettingsAsync(transaction))
             : null;
-        var jira = await ReadJiraViewAsync(measure, transaction);
+        var jira = await ReadJiraViewAsync(measure, transaction, actor.UserId);
         transaction.Commit();
-        return new TreatmentCard(measure, assignment, approval, requiredLevel) { Jira = jira };
+        return new TreatmentCard(measure, assignment, approval, requiredLevel) { Jira = jira, AssigneeName = assigneeName };
     }
 
     /// <inheritdoc/>

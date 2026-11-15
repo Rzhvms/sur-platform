@@ -110,6 +110,7 @@ internal sealed partial class RiskRepository
     {
 
         JiraCreateCandidate? candidate;
+        Guid? checkedMeasureVersion = null;
         try
         {
             candidate = await WriteAsync<JiraCreateCandidate?>(JiraSystemActor(), null, async transaction =>
@@ -127,6 +128,7 @@ internal sealed partial class RiskRepository
                 {
                     return null;
                 }
+                checkedMeasureVersion = measure.Version;
                 await RequireValidAssignmentAsync(measure, transaction);
                 var assignment = await ReadAssignmentAsync(id, transaction)
                     ?? throw new IdentityCommandException(409, TreatmentRules.InvalidExecutor);
@@ -149,7 +151,10 @@ internal sealed partial class RiskRepository
         }
         catch (Exception error) when (!cancellation.IsCancellationRequested && IsJiraFailure(error))
         {
-            await RetryCreateAsync(settings, id, error is IdentityCommandException command ? command.Code : JiraRules.Unavailable);
+            if (checkedMeasureVersion is Guid measureVersion)
+            {
+                await RetryCreateAsync(settings, id, measureVersion, error is IdentityCommandException command ? command.Code : JiraRules.Unavailable);
+            }
             return;
         }
         var fields = JiraRestClient.CreateFields(settings, candidate.Measure, candidate.Login);
@@ -205,19 +210,37 @@ internal sealed partial class RiskRepository
         }
     }
 
-    /// <summary>Откладывает повтор только до сохранённого начала отправки</summary>
+    /// <summary>Откладывает повтор, если заказ и настройка остались теми же после предварительной проверки</summary>
     /// <param name="settings">Снимок настройки</param>
     /// <param name="id">Мера</param>
+    /// <param name="measureVersion">Проверенная версия меры</param>
     /// <param name="code">Код причины</param>
-    private async Task RetryCreateAsync(JiraSettingsDal settings, Guid id, string code)
+    private async Task RetryCreateAsync(JiraSettingsDal settings, Guid id, Guid measureVersion, string code)
     {
-
         var pending = JiraRules.Pending;
         var retry = DateTime.UtcNow.AddSeconds(15);
-        var query = $"""
-            UPDATE {EntityMapper.TbName<JiraDeliveryDal>()} SET {EntityMapper.ColName<JiraDeliveryDal>(x => x.RetryAt)} = {EntityMapper.ParameterName(nameof(retry))} WHERE {EntityMapper.ColName<JiraDeliveryDal>(x => x.Id)} = {EntityMapper.ParameterName(nameof(id))} AND {EntityMapper.ColName<JiraDeliveryDal>(x => x.State)} = {EntityMapper.ParameterName(nameof(pending))}
-            """;
-        if (await connection.ExecuteAsync(query, new { id, pending, retry }) > 0)
+        var logged = await WriteAsync(JiraSystemActor(), null, async transaction =>
+        {
+            if ((await ReadJiraAsync(transaction))?.Version != settings.Version)
+            {
+                return false;
+            }
+
+            var query = $"""
+                UPDATE {EntityMapper.TbName<JiraDeliveryDal>()}
+                SET {EntityMapper.ColName<JiraDeliveryDal>(x => x.RetryAt)} = {EntityMapper.ParameterName(nameof(retry))},
+                    {EntityMapper.ColName<JiraDeliveryDal>(x => x.RetryCode)} = {EntityMapper.ParameterName(nameof(code))}
+                WHERE {EntityMapper.ColName<JiraDeliveryDal>(x => x.Id)} = {EntityMapper.ParameterName(nameof(id))}
+                    AND {EntityMapper.ColName<JiraDeliveryDal>(x => x.State)} = {EntityMapper.ParameterName(nameof(pending))}
+                    AND EXISTS (
+                        SELECT FROM {EntityMapper.TbName<TreatmentDal>()}
+                        WHERE {EntityMapper.ColName<TreatmentDal>(x => x.Id)} = {EntityMapper.ParameterName(nameof(id))}
+                            AND {EntityMapper.ColName<TreatmentDal>(x => x.Version)} = {EntityMapper.ParameterName(nameof(measureVersion))}
+                    )
+                """;
+            return await connection.ExecuteAsync(query, new { id, pending, retry, code, measureVersion }, transaction) > 0;
+        });
+        if (logged)
         {
             await LogJiraAsync(settings, id, null, JiraRules.Create, code);
         }

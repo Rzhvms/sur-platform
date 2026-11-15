@@ -75,10 +75,12 @@ internal sealed partial class RiskRepository
             && (await HasRightAsync(actor, IdentityRights.AdminCode, transaction) ||
                 data.Processes.Any(process => process.IsPrimary && process.OwnerActive && process.OwnerUserId == actor.UserId));
         var reviews = await ReadRiskReviewsAsync(id, 0, ReviewRules.CardHistoryLimit, transaction);
+        var jiraRetryPending = await HasRiskJiraRetryAsync(id, actor.UserId, transaction);
         transaction.Commit();
         return new RiskCard(data, editable, data.Risk.Status == RiskRules.AwaitingReview && last is { IsActive: false } ? last : null)
         {
-            Reviews = reviews
+            Reviews = reviews,
+            JiraRetryPending = jiraRetryPending
         };
     }
 

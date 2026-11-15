@@ -170,15 +170,21 @@ internal sealed partial class RiskRepository
             """;
         var countQuery = $"SELECT count(*) {source}";
         var pageQuery = $"""
-            SELECT a.* {source}
+            SELECT a.*, m.{EntityMapper.ColName<TreatmentDal>(x => x.Title)} AS {EntityMapper.ColName<TreatmentDal>(x => x.Title)} {source}
             ORDER BY a.{EntityMapper.ColName<TreatmentApprovalDal>(x => x.RequestedAt)}, a.{EntityMapper.ColName<TreatmentApprovalDal>(x => x.Id)} OFFSET {EntityMapper.ParameterName(nameof(offset))} LIMIT {EntityMapper.ParameterName(nameof(limit))}
             """;
         var parameters = new { admin, userId, pending, offset, limit, rights.owner, rights.director, rights.ceo,
             rights.ownerRight, rights.directorRight, rights.ceoRight, rights.specialist };
         var count = await connection.ExecuteScalarAsync<long>(countQuery, parameters, transaction);
-        var rows = (await connection.QueryAsync<TreatmentApprovalDal>(pageQuery, parameters, transaction)).ToArray();
+        var titles = new Dictionary<Guid, string>();
+        var rows = (await connection.QueryAsync<TreatmentApprovalDal, string, TreatmentApprovalDal>(pageQuery,
+            (approval, title) =>
+            {
+                titles.Add(approval.TreatmentId, title);
+                return approval;
+            }, parameters, transaction, splitOn: EntityMapper.ColName<TreatmentDal>(x => x.Title, false))).ToArray();
         transaction.Commit();
-        return new TreatmentApprovalQueue(rows, count);
+        return new TreatmentApprovalQueue(rows, count) { TreatmentTitles = titles };
     }
 
     /// <inheritdoc/>

@@ -414,7 +414,10 @@ public sealed class Startup(IWebHostEnvironment env, IConfiguration configuratio
                 endpoint.Metadata.GetMetadata<AllowPasswordChangeSessionAttribute>() is null)
             {
                 await Results.Problem(statusCode: StatusCodes.Status403Forbidden,
-                    title: PasswordChangeRequired).ExecuteAsync(context);
+                    title: PasswordChangeRequired, extensions: new Dictionary<string, object?>
+                    {
+                        [ProblemCode] = AccessTokenClaimTypes.PasswordChangeRequired
+                    }).ExecuteAsync(context);
                 return;
             }
 

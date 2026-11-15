@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Application.Models;
 using Domain.DalModels;
 
 namespace Api.Controllers.Provider.Jira.Dto.Response;
@@ -39,6 +40,18 @@ public sealed record JiraSettingsResponse
     /// <summary>Автор последнего изменения</summary>
     public Guid UpdatedById { get; init; }
 
+    /// <summary>Создатель настройки, если записан</summary>
+    public Guid? CreatedById { get; init; }
+
+    /// <summary>Текущие ожидающие и выполняемые отправки</summary>
+    public long? PendingCount { get; init; }
+
+    /// <summary>Неопределённые отправки для сверки</summary>
+    public long? UnknownCount { get; init; }
+
+    /// <summary>Адресное уведомление о задержке восстановительной отправки</summary>
+    public bool RestorationRetryPending { get; init; }
+
     /// <summary>Календарная зона настройки</summary>
     public string TimeZone { get; init; } = string.Empty;
 
@@ -47,8 +60,9 @@ public sealed record JiraSettingsResponse
 
     /// <summary>Формирует контракт для чтения и повторной отправки настроек</summary>
     /// <param name="row">Сохранённое подключение</param>
+    /// <param name="administration">Согласованный снимок очереди при чтении панели</param>
     /// <returns>Настройка в формате HTTP</returns>
-    internal static JiraSettingsResponse FromSettings(JiraSettingsDal row)
+    internal static JiraSettingsResponse FromSettings(JiraSettingsDal row, JiraAdministrationView? administration = null)
     {
         return new JiraSettingsResponse
         {
@@ -63,6 +77,10 @@ public sealed record JiraSettingsResponse
             Enabled = row.Enabled,
             ResponsibleUserId = row.ResponsibleUserId,
             UpdatedById = row.UpdatedById,
+            CreatedById = row.CreatedById,
+            PendingCount = administration?.PendingCount,
+            UnknownCount = administration?.UnknownCount,
+            RestorationRetryPending = administration?.RestorationRetryPending == true,
             TimeZone = row.TimeZone,
             Executors = JsonSerializer.Deserialize<Dictionary<Guid, string>>(row.Executors) ?? []
         };

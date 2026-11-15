@@ -83,6 +83,14 @@ public interface IOrganizationRepository
     /// <returns>Результат операции в текущей клиентской базе</returns>
     Task<OrgPersonDal> CreatePersonAsync(Guid actor, Guid sessionId, PersonRequest request);
 
+    /// <summary>Закрывает действующую запись и создаёт новую в целевой дирекции в одной транзакции</summary>
+    /// <param name="actor">Администратор клиента</param>
+    /// <param name="sessionId">Сессия администратора</param>
+    /// <param name="id">Действующая запись сотрудника</param>
+    /// <param name="request">Целевая дирекция, должность и ожидаемая версия</param>
+    /// <returns>Новая запись сотрудника</returns>
+    Task<OrgPersonDal> TransferPersonAsync(Guid actor, Guid sessionId, Guid id, PersonTransferRequest request);
+
     /// <summary>
     /// Изменяет отображаемые поля записи
     /// </summary>

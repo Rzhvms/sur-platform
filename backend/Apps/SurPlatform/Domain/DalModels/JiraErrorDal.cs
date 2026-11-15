@@ -26,4 +26,10 @@ public sealed record JiraErrorDal
 
     /// <summary>Автор настройки, использованной при обмене</summary>
     public Guid ConfigurationAuthorId { get; init; }
+
+    /// <summary>Ключ подтверждённой Jira-задачи при совпадении с задачей события</summary>
+    public string? IssueKey { get; init; }
+
+    /// <summary>Текущее состояние повтора для меры в журнале</summary>
+    public string? RetryState { get; init; }
 }

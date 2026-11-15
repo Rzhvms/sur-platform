@@ -10,4 +10,7 @@ public sealed record RiskCard(RiskRow Data, bool PassportEditable, RiskAssessmen
 {
     /// <summary>Первая страница истории с открытым пересмотром в начале</summary>
     public RiskReviewView[] Reviews { get; init; } = [];
+
+    /// <summary>Инициатор запуска видит ожидающую отправку после недоступности Jira</summary>
+    public bool JiraRetryPending { get; init; }
 }

@@ -29,6 +29,14 @@ public sealed class JiraUseCaseManager(IJiraRepository repository)
         return repository.GetJiraAsync(actor);
     }
 
+    /// <summary>Читает сведения для панели Jira</summary>
+    /// <param name="actor">Текущий администратор</param>
+    /// <returns>Настройка с актуальным состоянием очереди</returns>
+    public Task<JiraAdministrationView?> GetJiraAdministrationAsync(RiskActor actor)
+    {
+        return repository.GetJiraAdministrationAsync(actor);
+    }
+
     /// <summary>Сохраняет проверенную настройку</summary>
     /// <param name="actor">Текущий администратор</param>
     /// <param name="request">Административная команда</param>

@@ -308,7 +308,8 @@ internal sealed partial class RiskRepository
             {
                 var pending = JiraRules.Pending;
                 var query = $"""
-                    UPDATE {EntityMapper.TbName<JiraDeliveryDal>()} SET {EntityMapper.ColName<JiraDeliveryDal>(x => x.State)} = {EntityMapper.ParameterName(nameof(pending))}, {EntityMapper.ColName<JiraDeliveryDal>(x => x.StartedAt)} = NULL, {EntityMapper.ColName<JiraDeliveryDal>(x => x.RetryAt)} = NULL WHERE {EntityMapper.ColName<JiraDeliveryDal>(x => x.Id)} = {EntityMapper.ParameterName(nameof(id))}
+                    UPDATE {EntityMapper.TbName<JiraDeliveryDal>()} SET {EntityMapper.ColName<JiraDeliveryDal>(x => x.State)} = {EntityMapper.ParameterName(nameof(pending))}, {EntityMapper.ColName<JiraDeliveryDal>(x => x.StartedAt)} = NULL, {EntityMapper.ColName<JiraDeliveryDal>(x => x.RetryAt)} = NULL,
+                        {EntityMapper.ColName<JiraDeliveryDal>(x => x.RetryCode)} = NULL WHERE {EntityMapper.ColName<JiraDeliveryDal>(x => x.Id)} = {EntityMapper.ParameterName(nameof(id))}
                     """;
                 await connection.ExecuteAsync(query, new { id, pending }, transaction);
             }

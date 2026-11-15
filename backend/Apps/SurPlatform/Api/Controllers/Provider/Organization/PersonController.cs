@@ -91,6 +91,20 @@ public sealed class PersonController(OrganizationUseCaseManager useCases) : Base
         return await useCases.SetPersonStateAsync(User.GetUserId(), SessionId, id, request);
     }
 
+    /// <summary>Маршрут перевода сотрудника</summary>
+    private const string TransferRoute = OrganizationRoutes.ById + "/transfer";
+
+    /// <summary>Переводит сотрудника с сохранением предыдущей записи в истории</summary>
+    /// <param name="id">Действующая запись сотрудника</param>
+    /// <param name="request">Целевая дирекция, должность и ожидаемая версия</param>
+    /// <returns>Новая запись сотрудника</returns>
+    [HttpPost(TransferRoute)]
+    [ProducesResponseType<OrgPersonDal>(StatusCodes.Status201Created)]
+    public async Task<ActionResult<OrgPersonDal>> TransferPersonAsync(Guid id, PersonTransferRequest request)
+    {
+        return StatusCode(StatusCodes.Status201Created, await useCases.TransferPersonAsync(User.GetUserId(), SessionId, id, request));
+    }
+
     /// <summary>Идентификатор сессии из проверенного access-токена</summary>
     private Guid SessionId
     {

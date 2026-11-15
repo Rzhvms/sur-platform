@@ -39,4 +39,9 @@ public static class IdentityAccounts
     /// Доставка доступа не подтверждена
     /// </summary>
     public const string InvitationFailed = "FAILED";
+
+    /// <summary>
+    /// Служебная команда настроила пароль администратора из конфигурации
+    /// </summary>
+    public const string DevelopmentAccessConfigured = "CONFIGURED";
 }

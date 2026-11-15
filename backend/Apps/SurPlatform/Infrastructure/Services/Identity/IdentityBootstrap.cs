@@ -5,6 +5,7 @@ using Application.Services.Authentication;
 using Infrastructure.Clients;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 
 namespace Infrastructure.Services.Identity;
 
@@ -13,7 +14,8 @@ namespace Infrastructure.Services.Identity;
 /// </summary>
 /// <param name="scopes">Фабрика изолированных клиентских scope</param>
 /// <param name="configuration">Доверенная конфигурация развёртывания</param>
-public sealed class IdentityBootstrap(IServiceScopeFactory scopes, IConfiguration configuration)
+/// <param name="environment">Окружение, в котором разрешены тестовые реквизиты</param>
+public sealed class IdentityBootstrap(IServiceScopeFactory scopes, IConfiguration configuration, IHostEnvironment environment)
 {
     /// <summary>
     /// First admin email key
@@ -25,6 +27,18 @@ public sealed class IdentityBootstrap(IServiceScopeFactory scopes, IConfiguratio
     /// </summary>
     private const string FirstAdminNameKey = "FirstAdministrator:FullName";
 
+    /// <summary>Пароль первого администратора для локального окружения</summary>
+    private const string FirstAdminPasswordKey = "FirstAdministrator:DevelopmentPassword";
+
+    /// <summary>Минимальная длина пароля для входа</summary>
+    private const int MinPasswordLength = 8;
+
+    /// <summary>Максимальная длина пароля для входа</summary>
+    private const int MaxPasswordLength = 256;
+
+    /// <summary>Причина отказа служебной выдачи при отключённой доставке</summary>
+    private const string DevelopmentAccessRequired = "Для выдачи без SMTP настройте DevelopmentPassword первого администратора в окружении Development";
+
     /// <summary>
     /// Missing first admin
     /// </summary>
@@ -35,7 +49,7 @@ public sealed class IdentityBootstrap(IServiceScopeFactory scopes, IConfiguratio
     /// </summary>
     /// <param name="client">Клиент, база которого подготовлена</param>
     /// <param name="reissue">Явная повторная выдача от оператора развёртывания</param>
-    /// <returns>Состояние отправки либо null для уже созданной записи</returns>
+    /// <returns>Состояние локальной выдачи либо null, если она пропущена</returns>
     /// <exception cref="InvalidOperationException">Некорректные параметры первого администратора</exception>
     public async Task<string?> RunAsync(ClientDatabase client, bool reissue = false)
     {
@@ -53,6 +67,22 @@ public sealed class IdentityBootstrap(IServiceScopeFactory scopes, IConfiguratio
             return null;
         }
 
+        var password = environment.IsDevelopment() ? section[FirstAdminPasswordKey] : null;
+        if (string.IsNullOrEmpty(password))
+        {
+            if (reissue)
+            {
+                throw new InvalidOperationException(DevelopmentAccessRequired);
+            }
+
+            return null;
+        }
+
+        if (string.IsNullOrWhiteSpace(password) || password.Length is < MinPasswordLength or > MaxPasswordLength)
+        {
+            throw new InvalidOperationException(DevelopmentAccessRequired);
+        }
+
         if (string.IsNullOrWhiteSpace(email) || email.Length > 254 || !new EmailAddressAttribute().IsValid(email) ||
             string.IsNullOrWhiteSpace(fullName) || fullName.Length > 250)
         {
@@ -62,6 +92,6 @@ public sealed class IdentityBootstrap(IServiceScopeFactory scopes, IConfiguratio
         using var scope = scopes.CreateScope();
         scope.ServiceProvider.GetRequiredService<ClientDatabaseContext>().Select(client);
         return await scope.ServiceProvider.GetRequiredService<IdentityInvitationService>()
-            .BootstrapAsync(email, fullName, reissue);
+            .BootstrapAsync(email, fullName, password, reissue);
     }
 }

@@ -10,6 +10,9 @@ namespace Application.Models;
 public sealed record TreatmentCard(TreatmentDal Treatment, TreatmentAssignmentDal? Assignment,
     TreatmentApprovalDal? LatestApproval, string? RequiredApprovalLevel)
 {
+    /// <summary>Имя текущего исполнителя</summary>
+    public string? AssigneeName { get; init; }
+
     /// <summary>Состояние обмена для меры</summary>
     public JiraTreatmentView? Jira { get; init; }
 }

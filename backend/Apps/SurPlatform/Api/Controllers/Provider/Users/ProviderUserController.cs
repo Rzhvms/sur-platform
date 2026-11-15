@@ -94,7 +94,7 @@ public sealed class ProviderUserController(IdentityAdministrationUseCaseManager 
         {
             UserList = users.Select(user => new GetUserResponse
             {
-                Id = user.Id, Email = user.Email ?? string.Empty, RoleId = user.RoleId,
+                Id = user.Id, Email = user.Email ?? string.Empty, RoleId = user.RoleId, FullName = user.FullName, IsActive = user.IsActive,
                 FirstName = user.FirstName, LastName = user.LastName, Patronymic = user.Patronymic
             }).ToList()
         };

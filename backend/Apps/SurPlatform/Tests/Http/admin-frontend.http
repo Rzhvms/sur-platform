@@ -1,0 +1,137 @@
+# Use a disposable client and fixture IDs, plus two distinct admin accounts and one ordinary account.
+@host = https://localhost:7224
+@admin = REPLACE_ADMIN_TOKEN
+@otherAdmin = REPLACE_SECOND_ADMIN_TOKEN
+@ordinary = REPLACE_ORDINARY_TOKEN
+@person = REPLACE_ACTIVE_TEST_PERSON_ID
+@directorate = REPLACE_TARGET_DIRECTORATE_ID
+@blockedPerson = REPLACE_ACTIVE_PERSON_WITH_PROCESS
+@blockedVersion = REPLACE_CURRENT_BLOCKED_PERSON_VERSION
+
+### Administrator list preserves the cursor and returns the name of newly created users
+GET {{host}}/api/v1/provider/users/list?limit=25
+Authorization: Bearer {{admin}}
+
+> {%
+    client.test("Administrative rows expose a name and account state but no password", function () {
+        client.assert(response.status === 200 && Array.isArray(response.body.userList));
+        for (const row of response.body.userList) {
+            client.assert(typeof row.isActive === "boolean" && "fullName" in row && row.userId);
+            client.assert(!("password" in row) && !("passwordHash" in row));
+        }
+    });
+%}
+
+### Read the original employee record before transfer
+GET {{host}}/api/v1/provider/organization/persons/{{person}}
+Authorization: Bearer {{admin}}
+
+> {%
+    client.test("Source employee has a version and is active", function () {
+        client.assert(response.status === 200 && response.body.isActive && response.body.version);
+        client.global.set("adminTransferVersion", response.body.version);
+        client.global.set("adminTransferUser", response.body.userId);
+    });
+%}
+
+### Transfer into a different active directorate
+POST {{host}}/api/v1/provider/organization/persons/{{person}}/transfer
+Authorization: Bearer {{admin}}
+Content-Type: application/json
+
+{
+  "version": "{{adminTransferVersion}}",
+  "directorateId": "{{directorate}}",
+  "positionName": "Специалист операционного контроля"
+}
+
+> {%
+    client.test("Transfer creates a separate record for the same account", function () {
+        client.assert(response.status === 201 && response.body.isActive);
+        client.assert(response.body.userId === client.global.get("adminTransferUser"));
+        client.assert(response.body.id !== "{{person}}" && response.body.directorateId === "{{directorate}}");
+    });
+%}
+
+### Historical employee record remains readable
+GET {{host}}/api/v1/provider/organization/persons/{{person}}
+Authorization: Bearer {{admin}}
+
+> {%
+    client.test("Previous record is inactive and keeps its original directorate", function () {
+        client.assert(response.status === 200 && !response.body.isActive);
+        client.assert(response.body.directorateId !== "{{directorate}}");
+    });
+%}
+
+### Transfer with an active process dependency must fail
+POST {{host}}/api/v1/provider/organization/persons/{{blockedPerson}}/transfer
+Authorization: Bearer {{admin}}
+Content-Type: application/json
+
+{ "version": "{{blockedVersion}}", "directorateId": "{{directorate}}" }
+
+> {%
+    client.test("Blocking dependencies are returned", function () {
+        client.assert(response.status === 409 && response.body.code === "ORGANIZATION_DEPENDENCIES");
+        client.assert(response.body.dependencyIds.length > 0);
+    });
+%}
+
+### Employee remains active after the rejected transfer
+GET {{host}}/api/v1/provider/organization/persons/{{blockedPerson}}
+Authorization: Bearer {{admin}}
+
+> {%
+    client.test("Rejected transfer leaves the original employee in place", function () {
+        client.assert(response.status === 200 && response.body.isActive);
+        client.assert(response.body.version === "{{blockedVersion}}");
+    });
+%}
+
+### Prepare a Jira restore with a preflight outage after a successful enable, plus a separate UNKNOWN delivery
+GET {{host}}/api/v1/provider/jira
+Authorization: Bearer {{admin}}
+
+> {%
+    client.test("Restoring administrator can reopen the persisted queue notice", function () {
+        client.assert(response.status === 200);
+        client.assert(response.headers.valueOf("Cache-Control").includes("no-store"));
+        client.assert(response.body.pendingCount >= 1 && response.body.unknownCount >= 1);
+        client.assert(response.body.restorationRetryPending === true);
+        client.assert(!("restToken" in response.body) && !("restSecret" in response.body) &&
+            !("webhookSecret" in response.body) && !("webhookHash" in response.body));
+    });
+%}
+
+### Queue counts are shared with other administrators, the outage notice is addressed
+GET {{host}}/api/v1/provider/jira
+Authorization: Bearer {{otherAdmin}}
+
+> {%
+    client.test("Other administrators do not receive the initiator's personal notice", function () {
+        client.assert(response.status === 200 && response.body.restorationRetryPending === false);
+    });
+%}
+
+### Ordinary account cannot read the administrative Jira panel
+GET {{host}}/api/v1/provider/jira
+Authorization: Bearer {{ordinary}}
+
+> {%
+    client.test("The API enforces administrator access", function () {
+        client.assert(response.status === 403);
+    });
+%}
+
+### Historical webhook failures expose current retry state, not an external response body
+GET {{host}}/api/v1/provider/jira/errors
+Authorization: Bearer {{admin}}
+
+> {%
+    client.test("The administrative log includes safe task and retry metadata", function () {
+        client.assert(response.status === 200 && Array.isArray(response.body));
+        client.assert(response.body.some(item => "issueId" in item && item.retryState));
+        client.assert(response.body.every(item => !("rawPayload" in item) && !("secret" in item)));
+    });
+%}

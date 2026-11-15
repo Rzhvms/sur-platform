@@ -36,6 +36,12 @@ public sealed record JiraSettingsDal
     /// <summary>Автор последнего изменения</summary>
     public Guid UpdatedById { get; init; }
 
+    /// <summary>Создатель настройки, если известен</summary>
+    public Guid? CreatedById { get; init; }
+
+    /// <summary>Администратор, восстановивший исходящую очередь последним включением</summary>
+    public Guid? RestoredById { get; init; }
+
     /// <summary>Зашифрованный секрет REST</summary>
     [System.Text.Json.Serialization.JsonIgnore]
     public string RestSecret { get; init; } = string.Empty;
