@@ -37,7 +37,7 @@ internal sealed partial class RiskRepository
             var changes = new List<(string Path, object? Before, object After)>();
             foreach (var link in links)
             {
-                var closed = await SaveProcessLinkAsync(transaction, link, link.IsPrimary, false);
+                var closed = await SaveProcessLinkAsync(transaction, link, false, false);
                 changes.Add((BusinessHistory.ProcessesPath, link, closed));
             }
 

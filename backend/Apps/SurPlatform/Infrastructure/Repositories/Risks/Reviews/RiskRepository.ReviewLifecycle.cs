@@ -53,10 +53,13 @@ internal sealed partial class RiskRepository
 
         var updated = await SaveRiskStateAsync(transaction, risk, RiskRules.AwaitingReview, null, clearCloseReason: true);
         await InsertRiskReviewAsync(run.Id, risk.Id, ReviewRules.Waiting, transaction, previous?.Id, run.InitiatedById);
-        var jira = run.ExternalSystemNameSnapshot == JiraRules.Source && run.Reason == ReviewRules.AfterTreatment;
-        await BusinessHistory.RecordAsync(transaction, operationId, jira ? run.ResponsibleUserId ?? run.InitiatedById : run.InitiatedById,
-            risk.Id, risk, updated, system: jira, relatedChanges: changes, automaticSource: jira ? JiraRules.Source : null,
-            configurationAuthorId: jira ? run.ConfigurationAuthorId : null);
+        var integration = run.SourceType == ReviewRules.ReviewWebhook || run.ExternalSystemNameSnapshot == JiraRules.Source;
+        var automatic = integration || run.SourceType == ReviewRules.ReviewSchedule || run.Reason == ReviewRules.AfterTreatment;
+        var responsible = automatic ? run.ResponsibleUserId ?? run.InitiatedById : run.InitiatedById;
+        await BusinessHistory.RecordAsync(transaction, operationId, responsible,
+            risk.Id, risk, updated, system: automatic, relatedChanges: changes, integration: integration,
+            automaticSource: integration ? run.ExternalSystemNameSnapshot ?? JiraRules.Source : null,
+            configurationAuthorId: automatic ? run.ConfigurationAuthorId : null);
         return updated;
     }
 

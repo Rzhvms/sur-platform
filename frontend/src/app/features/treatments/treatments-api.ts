@@ -4,7 +4,7 @@ import { EMPTY, Observable, expand, reduce } from 'rxjs';
 import { api, errorMessage, problemCode, providerApi } from '../../core/http/api';
 import { text } from '../../shared/text';
 import {
-  Approval, Decision, Executor, JiraDelivery, Transition, Treatment, TreatmentCard, TreatmentDraft, TreatmentQueue, treatmentPageSize, treatmentText,
+  Approval, Decision, Executor, JiraDelivery, Transition, Treatment, TreatmentCard, TreatmentDraft, TreatmentQueue, TreatmentRegistry, treatmentPageSize, treatmentText,
 } from './treatment-contract';
 
 const riskEndpoint = api + '/risks';
@@ -14,6 +14,11 @@ const queueEndpoint = api + '/treatment-approvals';
 @Injectable({ providedIn: 'root' })
 export class TreatmentsApi {
   private readonly http = inject(HttpClient);
+
+  /** Получает одну страницу реестра одним запросом, без обхода карточек рисков */
+  registry(offset: number): Observable<TreatmentRegistry> {
+    return this.http.get<TreatmentRegistry>(endpoint, { params: { offset, limit: treatmentPageSize } });
+  }
 
   list(riskId: string, offset: number): Observable<Treatment[]> {
     return this.http.get<Treatment[]>(this.riskUrl(riskId), { params: { offset, limit: treatmentPageSize } });

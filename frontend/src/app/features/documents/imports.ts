@@ -1,16 +1,22 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
-import { finalize, from, switchMap } from 'rxjs';
+import { finalize, forkJoin, from, switchMap } from 'rxjs';
 import { Session } from '../../core/auth/session';
 import { text } from '../../shared/text';
-import { csvFields, CsvField, describeCsv, mappedColumns, previewCsv } from './csv-preview';
+import { RisksApi } from '../risks/risks-api';
+import { csvFields, CsvField, describeCsv, detectColumns, mappedColumns, previewCsv } from './csv-preview';
 import { DocumentJobView } from './document-job';
 import { DocumentRequest } from './document-request';
 import { DocumentJob, ImportMapping, ImportSource, documentRights, documentText, maxCsvBytes } from './document-contract';
 import { DocumentsApi, documentError } from './documents-api';
 
 type Selected = { jobId: string | null; file: File; source: string; size: number; checksum: string };
+
+const templateFilename = 'risk-import-template.csv';
+const templateColumns = ['Name', 'Description', 'HazardId', 'CategoryId', 'ProcessId'];
+const templateName = 'Пример риска';
+const templateDescription = 'Описание примера риска';
 
 @Component({
   imports: [ReactiveFormsModule, DocumentJobView],
@@ -19,9 +25,11 @@ type Selected = { jobId: string | null; file: File; source: string; size: number
 })
 export class Imports {
   private readonly api = inject(DocumentsApi);
+  private readonly risks = inject(RisksApi);
   private readonly session = inject(Session);
   private readonly destroy = inject(DestroyRef);
   private trackedJobId: string | null = null;
+  private detectedPreview: ReturnType<typeof previewCsv> | null = null;
   protected readonly request = new DocumentRequest<ImportSource>();
   protected readonly t = text;
   protected readonly w = documentText;
@@ -30,6 +38,7 @@ export class Imports {
   protected readonly selected = signal<Selected | null>(null);
   protected readonly remoteSource = signal<string | null>(null);
   protected readonly busy = signal(false);
+  protected readonly templateBusy = signal(false);
   protected readonly error = signal('');
   protected readonly job = signal<DocumentJob | null>(null);
   protected readonly revision = signal(0);
@@ -56,7 +65,27 @@ export class Imports {
       ? this.remoteSource() : file?.source;
     return source !== undefined && source !== null ? previewCsv(source, this.delimiter()) : null;
   });
+  protected readonly columnOptions = computed(() => {
+    const cells = this.preview()?.rows?.[0]?.slice(0, 128) ?? [];
+    return cells.map((cell, index) => ({
+      value: String(index),
+      label: this.header() && cell.trim() ? `${index} · ${cell.slice(0, 80)}` : `${this.w.column} ${index}`,
+    }));
+  });
   protected readonly mayStart = computed(() => this.session.hasRight(documentRights.create));
+
+  constructor() {
+    effect(() => {
+      const frame = this.preview();
+      if (!frame || frame === this.detectedPreview) { return; }
+      this.detectedPreview = frame;
+      if (!this.header()) { return; }
+      const detected = detectColumns(frame.rows[0] ?? [], frame.rows[0]?.length ?? 0);
+      this.matching.patchValue(Object.fromEntries(
+        Object.entries(detected).map(([field, index]) => [field, String(index)]),
+      ));
+    });
+  }
 
   protected choose(input: HTMLInputElement): void {
     const file = input.files?.[0];
@@ -73,6 +102,31 @@ export class Imports {
     from(describeCsv(file)).pipe(takeUntilDestroyed(this.destroy), finalize(() => this.busy.set(false))).subscribe({
       next: description => this.selected.set({ jobId, file, ...description }),
       error: () => { this.error.set(documentText.utf8); input.value = ''; },
+    });
+  }
+
+  protected downloadTemplate(): void {
+    if (this.templateBusy()) { return; }
+    this.error.set('');
+    this.templateBusy.set(true);
+    forkJoin({
+      hazards: this.risks.references('Hazards'), categories: this.risks.references('Categories'), processes: this.risks.processes(),
+    }).pipe(takeUntilDestroyed(this.destroy), finalize(() => this.templateBusy.set(false))).subscribe({
+      next: ({ hazards, categories, processes }) => {
+        const [hazard] = hazards;
+        const [category] = categories;
+        const [process] = processes;
+        if (!hazard || !category || !process) { this.error.set(documentText.templateEmpty); return; }
+        const rows = [templateColumns, [templateName, templateDescription, hazard.id, category.id, process.id]];
+        const csv = rows.map(row => row.map(cell => `"${cell.replaceAll('"', '""')}"`).join(',')).join('\r\n');
+        const url = URL.createObjectURL(new Blob(['\uFEFF' + csv], { type: 'text/csv;charset=utf-8' }));
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = templateFilename;
+        link.click();
+        URL.revokeObjectURL(url);
+      },
+      error: error => this.error.set(documentError(error)),
     });
   }
 
@@ -153,6 +207,7 @@ export class Imports {
 
   protected reset(): void {
     this.trackedJobId = null;
+    this.detectedPreview = null;
     this.request.reset();
     this.selected.set(null);
     this.remoteSource.set(null);

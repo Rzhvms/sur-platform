@@ -27,14 +27,11 @@ services:
       Documents__Minio__SecretKey: ${SUR_MINIO_SECRET_KEY:-}
       ASPNETCORE_HTTP_PORTS: "8080"
       ASPNETCORE_ENVIRONMENT: ${SUR_ENVIRONMENT:-Production}
+      ActivateDemoDataSeed: ${ActivateDemoDataSeed:-false}
+      DemoDataSeedPassword: ${DemoDataSeedPassword:-}
       Http__KnownProxy: 172.29.128.2
       JwtKeys__DirectoryPath: /var/lib/sur/keys
       Identity__DataProtectionDirectory: /var/lib/sur/data-protection
-      Identity__Smtp__Host: ${SUR_SMTP_HOST:-}
-      Identity__Smtp__Port: ${SUR_SMTP_PORT:-587}
-      Identity__Smtp__From: ${SUR_SMTP_FROM:-}
-      Identity__Smtp__Username: ${SUR_SMTP_USERNAME:-}
-      Identity__Smtp__Password: ${SUR_SMTP_PASSWORD:-}
       Clients__0__FirstAdministrator__Email: ${SUR_ALPHA_ADMIN_EMAIL:-}
       Clients__0__FirstAdministrator__FullName: ${SUR_ALPHA_ADMIN_NAME:-}
       Clients__1__FirstAdministrator__Email: ${SUR_BETA_ADMIN_EMAIL:-}

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 import {
-  decisionReason, jiraLink, jiraResolution, validTreatmentDraft,
+  decisionReason, jiraLink, jiraResolution, validTreatmentDraft, treatmentRegistryOffset,
 } from '../src/app/features/treatments/treatment-contract.ts';
 
 const draft = {
@@ -85,4 +85,13 @@ test('card polling cancels hidden requests and resumes immediately without overl
     clock.reset();
   }
   assert.equal(stopped, 2);
+});
+
+test('treatment registry accepts aligned page offsets and rejects malformed or overflowing URLs', () => {
+  for (const value of [null, '', '0', '25', '50', '2147483625']) {
+    assert.equal(treatmentRegistryOffset(value), Number(value ?? 0));
+  }
+  for (const value of ['-25', '1', '25.5', 'Infinity', 'нечисло', '2147483650']) {
+    assert.equal(treatmentRegistryOffset(value), 0);
+  }
 });

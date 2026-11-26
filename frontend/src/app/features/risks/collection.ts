@@ -3,6 +3,7 @@ import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink, RouterLinkActive } from '@angular/router';
 import { Observable, Subject, catchError, combineLatest, debounceTime, exhaustMap, forkJoin, map, of, startWith, switchMap, timer } from 'rxjs';
+import { UiTiming } from '../../core/release/ui-timing';
 import { Session } from '../../core/auth/session';
 import { errorMessage } from '../../core/http/api';
 import { utcTime } from '../../shared/format';
@@ -31,6 +32,7 @@ export class RiskCollection {
   private readonly router = inject(Router);
   private readonly risks = inject(RisksApi);
   private readonly session = inject(Session);
+  private readonly timing = inject(UiTiming);
   private boardPage?: { key: string; columns: RiskColumn[] };
   protected readonly canCreate = computed(() => !this.demo && this.session.hasRight('create_risk'));
   protected readonly moreInColumn = hasNextColumnPage;
@@ -52,6 +54,8 @@ export class RiskCollection {
   protected readonly root = this.demo ? '/demo/risks' : '/risks';
   protected readonly query = toSignal(this.route.queryParamMap.pipe(map(readQuery)), { requireSync: true });
   protected readonly example = signal<ExampleState>('data');
+  protected readonly advancedOpen = signal(false);
+  protected readonly advancedCount = computed(() => this.filters.filter(({ key }) => !!this.query()[key]).length);
   protected readonly filterLink = computed(() => urlQuery({ ...this.query(), page: 1, offsets: undefined }));
   protected readonly detailLink = computed(() => ({ ...urlQuery(this.query()), from: this.isBoard ? 'board' : null }));
   protected readonly form = inject(FormBuilder).nonNullable.group({
@@ -213,6 +217,7 @@ export class RiskCollection {
 
   private ready(value: CollectionData): DataState<CollectionData> {
     this.rememberOptions([...value.rows, ...value.columns.flatMap(column => column.items)]);
+    this.timing.ready(this.isBoard ? 'board' : 'registry');
     return { kind: 'ready', value };
   }
 

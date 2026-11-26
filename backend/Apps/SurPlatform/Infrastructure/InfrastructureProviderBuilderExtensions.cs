@@ -1,3 +1,6 @@
+using Infrastructure.Services.Demo;
+using Infrastructure.Repositories.Demo;
+using Infrastructure.Repositories.Demo.Interfaces;
 using Infrastructure.Observability;
 using Infrastructure.Repositories.Risks;
 using Infrastructure.Repositories.Risks.Interfaces;
@@ -7,7 +10,6 @@ using System.Data;
 using Application.Ports.Repositories;
 using FluentMigrator.Runner;
 using Infrastructure.Migrations;
-using Application.Ports.Notifications;
 using Infrastructure.Repositories.Identity;
 using Infrastructure.Repositories.Organization;
 using Infrastructure.Services.Identity;
@@ -52,12 +54,12 @@ public static class InfrastructureProviderBuilderExtensions
             }
         });
         services.AddSingleton<IdentityBootstrap>();
+        services.AddSingleton<BankingDemoSeeder>();
+        services.AddScoped<IBankingDemoRepository, BankingDemoRepository>();
         services.AddScoped<OrganizationRepository>();
         services.AddScoped<IOrganizationRepository>(provider => provider.GetRequiredService<OrganizationRepository>());
         services.AddScoped<IOrganizationIdentityRepository>(provider => provider.GetRequiredService<OrganizationRepository>());
         services.AddScoped<IIdentityAdministrationRepository, IdentityAdministrationRepository>();
-        // services.AddScoped<IIdentityInvitationSender, SmtpIdentityInvitationSender>();
-        services.AddScoped<IIdentityInvitationSender, DisabledIdentityInvitationSender>();
         services.AddScoped<IUserRepository, UserRepository>();
         services.AddScoped<IRoleRepository, RoleRepository>();
         services.AddScoped<SessionRepository>();

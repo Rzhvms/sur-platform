@@ -23,7 +23,7 @@ public static class ApplicationProviderBuilderExtensions
     public static void AddApplication(this IServiceCollection services)
     {
         services.AddScoped<AccountService>();
-        services.AddScoped<IdentityInvitationService>();
+        services.AddScoped<IdentityAccessService>();
         services.AddScoped<SessionService>();
 
         services.AddScoped<IAuthUseCaseManager, AuthUseCaseManager>();

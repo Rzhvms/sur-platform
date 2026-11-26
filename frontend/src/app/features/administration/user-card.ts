@@ -3,6 +3,7 @@ import { takeUntilDestroyed, toObservable, toSignal } from '@angular/core/rxjs-i
 import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { catchError, finalize, forkJoin, map, of, startWith, switchMap, tap } from 'rxjs';
+import { validTemporaryPassword } from './temporary-password';
 import { errorMessage } from '../../core/http/api';
 import { Session } from '../../core/auth/session';
 import { text } from '../../shared/text';
@@ -47,6 +48,8 @@ export class AdminUserCard {
     employee: new FormControl(false, { nonNullable: true }),
     directorateId: new FormControl('', { nonNullable: true }),
     positionName: new FormControl('', { nonNullable: true }),
+    temporaryPassword: new FormControl('', { nonNullable: true }),
+    repeatTemporaryPassword: new FormControl('', { nonNullable: true }),
   });
   private readonly query = computed(() => ({ id: this.id(), refresh: this.refresh() }));
   protected readonly data = toSignal(toObservable(this.query).pipe(switchMap(({ id }) => forkJoin({
@@ -108,6 +111,7 @@ export class AdminUserCard {
       this.write.run(this.api.patch<User>(rowPath('users', user.userId), body), saved => this.populate(saved, true), () => this.reload());
       return;
     }
+    if (!this.passwordValid()) { this.write.notice.set(adminText.temporaryPasswordInvalid); return; }
     const checked = this.observations();
     if (form.employee && (checked.some(item => item.slot.assignmentId) || (!form.directorateId && !checked.some(item => item.type === 'CEO')))) {
       this.write.notice.set(checked.some(item => item.slot.assignmentId) ? adminText.occupied : text.invalid);
@@ -117,7 +121,7 @@ export class AdminUserCard {
       directorateId: form.directorateId || null, positionName: form.positionName.trim() || null,
       responsibilities: checked.map(({ type, directorateId, slot }) => ({ responsibilityType: type, directorateId: directorateId || null, observedAt: slot.observedAt })),
     } : null;
-    this.write.run(this.api.post<User>('users', { email, fullName, roleIds, organization }), saved =>
+    this.write.run(this.api.post<User>('users', { email, fullName, roleIds, organization, temporaryPassword: form.temporaryPassword }).pipe(finalize(() => this.clearPassword())), saved =>
       void this.router.navigate(['/admin/users', saved.userId], { replaceUrl: true }), () => {
       // Повторно наблюдаем проверенные позиции. Данные мастера и выборы остаются в форме.
       if (!checked.length) { return; }
@@ -136,6 +140,7 @@ export class AdminUserCard {
   }
 
   protected prepare(action: Action, user: User): void {
+    this.clearPassword();
     this.selectedAction.set(action);
     this.confirmed.reset();
     this.relationships.set(null);
@@ -154,9 +159,11 @@ export class AdminUserCard {
     const data = this.data();
     const activeRoles = data.kind === 'ready' ? data.value.roles.filter(role => role.isActive && this.roleIds().includes(role.id)) : [];
     if (action === 'activate' && !activeRoles.length) { this.write.notice.set(adminText.activeRole); return; }
-    const request = action === 'reissue' ? this.api.post<User>(path + '/reissue-access', null, { version })
-      : this.api.post<User>(path + '/' + action, action === 'activate' ? { version, roleIds: activeRoles.map(role => role.id) } : { version });
-    this.write.run(request, saved => {
+    if (action !== 'deactivate' && !this.passwordValid()) { this.write.notice.set(adminText.temporaryPasswordInvalid); return; }
+    const temporaryPassword = this.form.controls.temporaryPassword.value;
+    const request = action === 'reissue' ? this.api.post<User>(path + '/reissue-access', { version, temporaryPassword })
+      : this.api.post<User>(path + '/' + action, action === 'activate' ? { version, temporaryPassword, roleIds: activeRoles.map(role => role.id) } : { version });
+    this.write.run(request.pipe(finalize(() => this.clearPassword())), saved => {
       this.populate(saved, true);
       this.selectedAction.set(null);
     }, () => {
@@ -171,14 +178,22 @@ export class AdminUserCard {
 
   protected blocked(): boolean {
     const links = this.relationships();
-    return !!(links?.processes.length || links?.responsibilities.length);
+    return !!(links?.processes.length || links?.responsibilities.length || links?.treatments.length);
   }
 
-  protected delivery(status: string | null): string {
-    if (status === 'SENT') { return adminText.sent; }
-    if (status === 'PENDING') { return adminText.pending; }
-    if (status === 'FAILED') { return adminText.failed; }
-    return text.unknown;
+  protected cancelAction(): void {
+    this.selectedAction.set(null);
+    this.clearPassword();
+  }
+
+  private passwordValid(): boolean {
+    const { temporaryPassword, repeatTemporaryPassword } = this.form.getRawValue();
+    return validTemporaryPassword(temporaryPassword, repeatTemporaryPassword);
+  }
+
+  private clearPassword(): void {
+    this.form.controls.temporaryPassword.reset();
+    this.form.controls.repeatTemporaryPassword.reset();
   }
 
   protected reload(clear = true): void {
@@ -187,6 +202,7 @@ export class AdminUserCard {
   }
 
   private populate(user: User | null, reread = false): void {
+    this.clearPassword();
     if (reread) { this.reload(); }
     this.form.patchValue({ fullName: user?.fullName ?? '', email: user?.email ?? '' });
     this.roleIds.set(user?.roleIds ?? []);

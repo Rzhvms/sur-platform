@@ -1,3 +1,4 @@
+@temporaryPassword = SurFixture-Access-2026!
 # Use a disposable client database and an authenticated administrator
 @base = https://localhost:7224/api/v1/provider
 @adminToken = REPLACE_TEST_ADMIN_TOKEN
@@ -44,7 +45,7 @@ Content-Type: application/json
 
 {
   "email":"rest-ceo@example.test",
-  "fullName":"REST CEO",
+  "temporaryPassword":"{{temporaryPassword}}", "fullName":"REST CEO",
   "roleIds":["{{ceoRoleId}}"],
   "organization":{"responsibilities":[{"responsibilityType":"CEO","observedAt":"{{observedAt}}"}]}
 }
@@ -56,7 +57,7 @@ Content-Type: application/json
 
 {
   "email":"rest-racing-ceo@example.test",
-  "fullName":"REST Racing CEO",
+  "temporaryPassword":"{{temporaryPassword}}", "fullName":"REST Racing CEO",
   "roleIds":["{{ceoRoleId}}"],
   "organization":{"responsibilities":[{"responsibilityType":"CEO","observedAt":"{{observedAt}}"}]}
 }
@@ -68,7 +69,7 @@ Content-Type: application/json
 
 {
   "email":"rest-already-occupied@example.test",
-  "fullName":"REST Occupied Position",
+  "temporaryPassword":"{{temporaryPassword}}", "fullName":"REST Occupied Position",
   "roleIds":["{{ceoRoleId}}"],
   "organization":{"responsibilities":[{"responsibilityType":"CEO","observedAt":"{{occupiedObservedAt}}"}]}
 }
@@ -170,7 +171,7 @@ POST {{base}}/users/{{userId}}/activate
 Authorization: Bearer {{adminToken}}
 Content-Type: application/json
 
-{"version":"{{userVersion}}"}
+{"temporaryPassword":"{{temporaryPassword}}","version":"{{userVersion}}"}
 
 ### 200 reactivates the selected old employee ID when no other active employee exists
 PUT {{base}}/organization/persons/{{personId}}/state

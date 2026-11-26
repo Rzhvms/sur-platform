@@ -3,14 +3,20 @@
   "version": "0.1.0",
   "private": true,
   "type": "module",
-  "engines": { "node": "26.10.0", "npm": "11.19.1" },
+  "engines": {
+    "node": "26.10.0",
+    "npm": "11.19.1"
+  },
   "packageManager": "npm@11.19.1",
   "scripts": {
     "start": "node scripts/serve.mjs",
     "preview": "ng serve --host 127.0.0.1",
     "build": "ng build",
     "check": "ngc --noEmit -p tsconfig.app.json",
-    "test": "node --test scripts/*.test.mjs"
+    "test": "node --import ./scripts/test-register.mjs --test scripts/*.test.mjs",
+    "release:stamp": "node scripts/stamp-release.mjs",
+    "start:http": "ng serve --host 127.0.0.1 --proxy-config scripts/proxy.cjs",
+    "build:release": "npm run release:stamp && ng build --configuration production"
   },
   "dependencies": {
     "@angular/common": "22.2.6",

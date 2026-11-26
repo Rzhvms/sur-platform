@@ -25,20 +25,11 @@ public static class IdentityAccounts
     /// </summary>
     public const int TemporaryPasswordDays = 10;
 
-    /// <summary>
-    /// Письмо ожидает подтверждения доставки
-    /// </summary>
-    public const string InvitationPending = "PENDING";
+    /// <summary>Минимальная длина временного пароля</summary>
+    public const int MinPasswordLength = 8;
 
-    /// <summary>
-    /// Почтовый сервер принял письмо
-    /// </summary>
-    public const string InvitationSent = "SENT";
-
-    /// <summary>
-    /// Доставка доступа не подтверждена
-    /// </summary>
-    public const string InvitationFailed = "FAILED";
+    /// <summary>Верхняя граница длины пароля</summary>
+    public const int MaxPasswordLength = 256;
 
     /// <summary>
     /// Служебная команда настроила пароль администратора из конфигурации

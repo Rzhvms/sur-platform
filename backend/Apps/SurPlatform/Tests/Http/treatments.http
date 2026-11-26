@@ -208,3 +208,48 @@ Content-Type: application/json
 ### History preserves the original approval and separate revocation
 GET {{public}}/treatments/{{measure}}/approvals
 Authorization: Bearer {{admin}}
+
+### Global registry reads a bounded tenant page and names without loading individual cards
+GET {{public}}/treatments?offset=0&limit=1
+Authorization: Bearer {{admin}}
+
+> {%
+    client.test("Registry is bounded and contains related names", function () {
+        client.assert(response.status === 200);
+        client.assert(response.body.items.length <= 1);
+        client.assert(typeof response.body.hasMore === "boolean");
+        for (const item of response.body.items) {
+            client.assert(typeof response.body.riskNames[item.riskId] === "string");
+            client.assert(typeof response.body.processNames[item.processId] === "string");
+        }
+    });
+%}
+
+### Invalid page size is rejected rather than returning an unbounded registry
+GET {{public}}/treatments?limit=101
+Authorization: Bearer {{admin}}
+
+> {% client.test("Oversized page is rejected", function () { client.assert(response.status === 400); }); %}
+
+### Negative offset is rejected
+GET {{public}}/treatments?offset=-1
+Authorization: Bearer {{admin}}
+
+> {% client.test("Negative offset is rejected", function () { client.assert(response.status === 400); }); %}
+
+### Anonymous requests cannot read the tenant registry
+GET {{public}}/treatments
+
+> {% client.test("Anonymous registry is rejected", function () { client.assert(response.status === 401); }); %}
+
+### Large valid offset returns an empty page with no invented totals
+GET {{public}}/treatments?offset=2147483647&limit=1
+Authorization: Bearer {{admin}}
+
+> {%
+    client.test("An empty page has no next page", function () {
+        client.assert(response.status === 200);
+        client.assert(response.body.items.length === 0);
+        client.assert(response.body.hasMore === false);
+    });
+%}

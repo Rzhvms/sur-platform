@@ -13,27 +13,46 @@
 </div>
 
 <section class="collection" [attr.aria-label]="isBoard ? t.boardHeading : t.registryHeading">
-  <form class="toolbar" [formGroup]="form" (ngSubmit)="applyFilters()">
+  <form class="risk-filters" [formGroup]="form" (ngSubmit)="applyFilters()">
+    <div class="toolbar">
     <label class="search-field">
       <span class="sr-only">{{ t.filterSearch }}</span><span class="search-icon" aria-hidden="true"></span>
       <input type="search" formControlName="search" [placeholder]="t.searchPlaceholder" maxlength="250">
     </label>
-    <label>
+    <label class="toolbar-select">
       <span class="sr-only">{{ t.filterStatus }}</span>
       <select formControlName="status" (change)="applyFilters()">
         <option value="">{{ t.allStatuses }}</option>
         @for (item of statuses; track item) { <option [value]="item">{{ labels[item] }}</option> }
       </select>
+      <svg class="select-chevron" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6" /></svg>
     </label>
-    <label>
+    <label class="toolbar-select">
       <span class="sr-only">{{ t.sort }}</span>
       <select formControlName="sort" (change)="applyFilters()">
         <option value="recent">{{ t.recent }}</option><option value="name">{{ t.nameSort }}</option>
       </select>
+      <svg class="select-chevron" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6" /></svg>
     </label>
     @if (!demo) {
-      <details class="advanced-filters">
-        <summary>{{ t.filters }}</summary>
+      <button type="button" class="advanced-filter-toggle" [class.is-expanded]="advancedOpen()"
+        [attr.aria-expanded]="advancedOpen()" aria-controls="risk-advanced-filters" (click)="advancedOpen.set(!advancedOpen())">
+        <svg aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round">
+          <path d="M4 7h16M4 17h16M8 4v6m8 4v6" />
+        </svg>
+        <span>{{ t.filters }}</span>
+        @if (advancedCount()) { <span class="filter-count" [attr.aria-label]="t.activeFilters + ': ' + advancedCount()">{{ advancedCount() }}</span> }
+        <svg class="filter-chevron" aria-hidden="true" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="m6 9 6 6 6-6" /></svg>
+      </button>
+    }
+    <button #clearButton type="button" class="subtle" (click)="showClear(clearButton)">{{ t.clear }}</button>
+    </div>
+    @if (!demo) {
+      <section id="risk-advanced-filters" class="advanced-filter-panel" [hidden]="!advancedOpen()" aria-labelledby="advanced-filter-title">
+        <div class="advanced-filter-heading">
+          <h2 id="advanced-filter-title">{{ t.refineFilters }}</h2>
+          <p>{{ t.advancedFiltersHint }}</p>
+        </div>
         <div class="filter-fields">
           @for (filter of filters; track filter.key) {
             <label>{{ filter.label }}
@@ -47,11 +66,12 @@
             </label>
           }
         </div>
-        <p class="muted">{{ t.filterOptionsHint }}</p>
-        <button type="submit" [disabled]="form.invalid">{{ t.apply }}</button>
-      </details>
+        <div class="advanced-filter-actions">
+          <p class="muted">{{ t.filterOptionsHint }}</p>
+          <button class="primary" type="submit" [disabled]="form.invalid">{{ t.applyFilters }}</button>
+        </div>
+      </section>
     }
-    <button #clearButton type="button" class="subtle" (click)="showClear(clearButton)">{{ t.clear }}</button>
   </form>
 
   <sur-confirm [heading]="t.clearTitle" [question]="t.clearQuestion" [action]="t.confirm" (confirm)="clear()" />

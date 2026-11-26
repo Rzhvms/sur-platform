@@ -1,9 +1,11 @@
-<h1>{{ w.reports }}</h1>
+<div class="page-heading"><h1>{{ w.reports }}</h1></div>
+<p class="report-hint">{{ w.reportsHint }}</p>
 @if (request.id(); as id) {
   <div class="action-row"><button type="button" (click)="request.reset()">{{ w.createNew }}</button></div>
   @for (jobId of [id]; track jobId) { <sur-document-job [id]="jobId" kind="REPORT" /> }
 } @else {
-  <section class="panel">
+  <section class="panel report-form" aria-labelledby="report-form-title">
+    <h2 id="report-form-title">{{ w.snapshotParams }}</h2>
     <form class="form-stack" [formGroup]="form" (ngSubmit)="submit(null)">
       <fieldset class="form-fields" [disabled]="request.busy() || !!request.attempt()">
         <legend>{{ t.filters }}</legend>
@@ -11,15 +13,18 @@
           <option value="">{{ t.allStatuses }}</option>
           @for (entry of statuses; track entry[0]) { <option [value]="entry[0]">{{ entry[1] }}</option> }
         </select></label>
-        <label>{{ t.process }} · ID <input formControlName="processId" list="report-processes" /></label>
-        <datalist id="report-processes">
+        <label>{{ t.process }} <select formControlName="processId">
+          <option value="">{{ t.all }}</option>
           @for (item of processes(); track item.id) { <option [value]="item.id">{{ item.name }}</option> }
-        </datalist>
-        <label>{{ t.directorate }} · ID <input formControlName="directorateId" /></label>
-        <label>{{ t.category }} · ID <input formControlName="categoryId" list="report-categories" /></label>
-        <datalist id="report-categories">
+        </select></label>
+        <label>{{ t.directorate }} <select formControlName="directorateId">
+          <option value="">{{ t.all }}</option>
+          @for (item of directorates(); track item.id) { <option [value]="item.id">{{ item.name }}</option> }
+        </select></label>
+        <label>{{ t.category }} <select formControlName="categoryId">
+          <option value="">{{ t.all }}</option>
           @for (item of categories(); track item.id) { <option [value]="item.id">{{ item.name }}</option> }
-        </datalist>
+        </select></label>
         <label class="inline-check full-field"><input formControlName="historical" type="checkbox" /> {{ w.historical }}</label>
         @if (form.controls.historical.value) {
           <label>{{ w.localTime }} <input type="datetime-local" formControlName="local" /></label>
@@ -33,9 +38,8 @@
           }
           <button type="button" [disabled]="request.busy()" (click)="request.reset()">{{ t.cancel }}</button>
         } @else {
-          <button type="submit" class="primary" [disabled]="request.busy()">{{ w.view }}</button>
+          <button type="submit" class="primary" [disabled]="request.busy()">{{ mayExport() ? w.csv : w.view }}</button>
           @if (mayExport()) {
-            <button type="button" [disabled]="request.busy()" (click)="submit('CSV')">{{ w.csv }}</button>
             <button type="button" [disabled]="request.busy()" (click)="submit('XLSX')">{{ w.xlsx }}</button>
           }
         }

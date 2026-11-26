@@ -88,20 +88,21 @@ internal sealed partial class OrganizationRepository
     {
         return WriteAsync(actor, sessionId, async transaction =>
         {
+            var process = await GetAsync<ProcessDal>(id, transaction);
+            var version = request.Version;
+            var ownerId = request.OwnerId;
+            RequireVersion(process, version);
+            if (process.OwnerId == ownerId)
+            {
+                return process;
+            }
+
             if (!request.Confirmed)
             {
                 throw new IdentityCommandException(409, OrganizationErrors.ConfirmOwner);
             }
 
-            var process = await GetAsync<ProcessDal>(id, transaction);
-            var version = request.Version;
-            var ownerId = request.OwnerId;
-            RequireVersion(process, version);
             await RequireOwnerAsync(ownerId, process.DirectorateId, transaction);
-            if (process.OwnerId == ownerId)
-            {
-                return process;
-            }
 
             var query = $"""
                 UPDATE {EntityMapper.TbName<ProcessDal>()}

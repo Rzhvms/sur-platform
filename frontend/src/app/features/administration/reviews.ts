@@ -40,7 +40,7 @@ const runStates: Record<string, string> = {
 };
 const sourceTypes: Record<string, string> = {
   REVIEW_SCHEDULE: labels['review-schedules'], REVIEW_WEBHOOK: labels['review-webhooks'],
-  MANUAL: 'Вручную', RISK_CARD: 'Карточка риска', TREATMENT: 'Завершение меры',
+  TRANSFER: 'Передача риска', RISK_CARD: 'Карточка риска', TREATMENT: 'Завершение меры',
 };
 const field = (value = '') => new FormControl(value, { nonNullable: true });
 const defaultForm = { name: '', responsibleUserId: '', isActive: true, externalSystemName: '',

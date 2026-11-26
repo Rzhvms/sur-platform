@@ -52,23 +52,32 @@
     <button type="button" [disabled]="!!pending()" (click)="refreshForPreview()">{{ w.refreshRisk }}</button>
   }
 
-  <details class="workflow-details">
-    <summary>{{ w.matrix }}</summary>
+  <section class="matrix-section" aria-labelledby="risk-matrix-heading">
+    <div class="matrix-heading"><h3 id="risk-matrix-heading">{{ w.matrix }}</h3>
+      @if (selected(); as assessment) {
+        <span class="matrix-context">{{ assessment.isActive ? t.currentRating : t.previousRating }} · {{ assessment.riskScore }}</span>
+      }
+    </div>
     @if (method.kind === 'loading') { <sur-data-state kind="loading" /> }
     @else if (method.kind === 'error') { <sur-data-state kind="error" [message]="method.message" (retry)="reload('matrix')" /> }
     @else {
       <p class="muted">{{ w.likelihoodScale }}</p>
       <div class="workflow-scroll" tabindex="0" role="region" [attr.aria-label]="w.matrix">
         <table class="workflow-table risk-matrix">
+          <caption class="sr-only">{{ w.matrix }}</caption>
           <thead><tr><th scope="col">{{ w.likelihood }} / {{ w.impact }}</th>
-            @for (level of positiveImpacts(); track level.id) { <th scope="col">{{ level.weight }} · {{ level.name }}</th> }
+            @for (level of positiveImpacts(); track level.id) { <th scope="col"><span class="matrix-weight">{{ level.weight }}</span><span>{{ level.name }}</span></th> }
           </tr></thead>
           <tbody>
             @for (row of method.value.scores; track $index; let rowIndex = $index) {
-              <tr><th scope="row">{{ positiveLikelihoods()[rowIndex]?.weight }} · {{ positiveLikelihoods()[rowIndex]?.name }}</th>
+              <tr><th scope="row"><span class="matrix-weight">{{ positiveLikelihoods()[rowIndex]?.weight }}</span><span>{{ positiveLikelihoods()[rowIndex]?.name }}</span></th>
                 @for (score of row; track $index; let colIndex = $index) {
-                  <td><span class="rating" [attr.data-band]="band(score)"
-                    [class.selected-matrix-cell]="selected()?.likelihoodLevelId === positiveLikelihoods()[rowIndex]?.id && selected()?.impactLevelId === positiveImpacts()[colIndex]?.id">{{ score }}</span></td>
+                  <td [attr.data-band]="band(score)"
+                    [class.selected-matrix-cell]="selected()?.likelihoodLevelId === positiveLikelihoods()[rowIndex]?.id && selected()?.impactLevelId === positiveImpacts()[colIndex]?.id"><span>{{ score }}</span>
+                    @if (selected()?.likelihoodLevelId === positiveLikelihoods()[rowIndex]?.id && selected()?.impactLevelId === positiveImpacts()[colIndex]?.id) {
+                      <span class="matrix-marker" aria-hidden="true">●</span><span class="sr-only">{{ w.selectedAssessment }}</span>
+                    }
+                  </td>
                 }
               </tr>
             }
@@ -76,57 +85,76 @@
         </table>
       </div>
     }
-  </details>
+    @if (selected()?.riskScore === 0) { <p class="muted">{{ w.zeroOutsideMatrix }}</p> }
+    <p class="matrix-footnote muted">{{ w.matrixColorNote }}</p>
+  </section>
 
-  <h3 class="workflow-subtitle">{{ w.history }}</h3>
-  @let entries = history();
-  @if (entries.kind === 'loading') { <sur-data-state kind="loading" /> }
-  @else if (entries.kind === 'error') { <sur-data-state kind="error" [message]="entries.message" (retry)="reload('history')" /> }
-  @else {
-    <ul class="related-list">
-      @for (entry of entries.value; track entry.id) {
-        <li class="assessment-entry">
-          <div><sur-rating [score]="entry.riskScore" />
-            <time class="muted" [attr.datetime]="entry.createdAt">{{ utc(entry.createdAt) }}</time>
-            @if (entry.isActive) { <span class="primary-process">{{ t.currentRating }}</span> }
-            @if (method.kind === 'ready') {
-              <p>{{ w.likelihood }} · {{ levelName(method.value, entry.likelihoodLevelId, 'likelihood') }}</p>
-              <p>{{ w.impact }} · {{ levelName(method.value, entry.impactLevelId, 'impact') }}</p>
-            }
-            @if (entry.lossAmount !== null) { <p>{{ w.amount }} · {{ money(entry.lossAmount) }}</p> }
-          </div>
-          <button type="button" [attr.aria-pressed]="selected()?.id === entry.id" (click)="selectScale(entry)">{{ w.assessmentScale }}</button>
-        </li>
-      } @empty { <li class="muted">{{ w.emptyHistory }}</li> }
-    </ul>
-    @if (page() || entries.value.length === pageSize) {
-      <div class="pagination">
-        <button type="button" [disabled]="page() === 0" (click)="page.set(page() - 1)">{{ t.previous }}</button>
-        <button type="button" [disabled]="entries.value.length < pageSize" (click)="page.set(page() + 1)">{{ t.next }}</button>
-      </div>
-    }
-  }
-  @if (selected(); as assessment) {
-    <section class="workflow-details">
-      <h3>{{ w.assessmentScale }}</h3>
-      <p class="muted">{{ utc(assessment.createdAt) }}</p>
-      @let snapshot = scale();
-      @if (snapshot.kind === 'loading') { <sur-data-state kind="loading" /> }
-      @else if (snapshot.kind === 'error') { <sur-data-state kind="error" [message]="snapshot.message" (retry)="reload('scale')" /> }
-      @else if (snapshot.kind === 'ready') {
-        @if (snapshot.value; as value) {
-        <p>{{ w.scaleVersion }} {{ value.version.sequence }} · {{ utc(value.version.createdAt) }}</p>
-        <dl class="fields">
-          @for (level of value.thresholds; track level.weight) {
-            <div><dt>{{ w.impact }} {{ level.weight }}</dt><dd>
-              @if (level.maxLossAmount === null) { {{ money(level.minLossAmount) }} {{ w.noLimit }} }
-              @else if (level.maxLossAmount < level.minLossAmount) { {{ w.emptyRange }} }
-              @else { {{ money(level.minLossAmount) }} – {{ money(level.maxLossAmount) }} }
-            </dd></div>
-          }
-        </dl>
-        } @else { <p class="muted">{{ w.noScale }}</p> }
+  <details class="assessment-history">
+    <summary>{{ w.history }}</summary>
+    @let entries = history();
+    @if (entries.kind === 'loading') { <sur-data-state kind="loading" /> }
+    @else if (entries.kind === 'error') { <sur-data-state kind="error" [message]="entries.message" (retry)="reload('history')" /> }
+    @else {
+      <ul class="assessment-timeline">
+        @for (entry of entries.value; track entry.id) {
+          <li class="assessment-record" [class.assessment-record-selected]="selected()?.id === entry.id">
+            <header class="assessment-record-heading">
+              <div class="assessment-record-identity">
+                <sur-rating [score]="entry.riskScore" />
+                <time [attr.datetime]="entry.createdAt">{{ utc(entry.createdAt) }}</time>
+              </div>
+              @if (entry.isActive) { <span class="primary-process">{{ t.currentRating }}</span> }
+            </header>
+            <dl class="assessment-facts">
+              @if (method.kind === 'ready') {
+                <div><dt>{{ w.likelihood }}</dt><dd>{{ levelName(method.value, entry.likelihoodLevelId, 'likelihood') }}</dd></div>
+                <div><dt>{{ w.impact }}</dt><dd>{{ levelName(method.value, entry.impactLevelId, 'impact') }}</dd></div>
+              }
+              <div><dt>{{ w.amount }}</dt><dd>{{ entry.lossAmount === null ? t.unknown : money(entry.lossAmount) }}</dd></div>
+            </dl>
+            <footer class="assessment-record-footer">
+              <button type="button" [attr.aria-pressed]="selected()?.id === entry.id" aria-controls="assessment-scale" (click)="selectScale(entry)">{{ selected()?.id === entry.id ? w.shownScale : w.viewScale }}</button>
+            </footer>
+          </li>
+        } @empty { <li class="muted">{{ w.emptyHistory }}</li> }
+      </ul>
+      @if (page() || entries.value.length === pageSize) {
+        <div class="pagination">
+          <button type="button" [disabled]="page() === 0" (click)="page.set(page() - 1)">{{ t.previous }}</button>
+          <button type="button" [disabled]="entries.value.length < pageSize" (click)="page.set(page() + 1)">{{ t.next }}</button>
+        </div>
       }
-    </section>
-  }
+    }
+    @if (selected(); as assessment) {
+      <section class="assessment-scale" id="assessment-scale" aria-labelledby="assessment-scale-heading">
+        <header class="assessment-scale-heading">
+          <div><h3 id="assessment-scale-heading">{{ w.assessmentScale }}</h3><p class="muted">{{ w.assessmentFrom }} {{ utc(assessment.createdAt) }}</p></div>
+          <sur-rating [score]="assessment.riskScore" />
+        </header>
+        @let snapshot = scale();
+        @if (snapshot.kind === 'loading') { <sur-data-state kind="loading" /> }
+        @else if (snapshot.kind === 'error') { <sur-data-state kind="error" [message]="snapshot.message" (retry)="reload('scale')" /> }
+        @else if (snapshot.kind === 'ready') {
+          @if (snapshot.value; as value) {
+            <p class="scale-version"><span>{{ w.scaleVersion }} {{ value.version.sequence }}</span><time [attr.datetime]="value.version.createdAt">{{ utc(value.version.createdAt) }}</time></p>
+            <div class="scale-table-scroll" tabindex="0" role="region" [attr.aria-label]="w.assessmentScale">
+              <table class="assessment-scale-table">
+                <caption class="sr-only">{{ w.assessmentScale }}</caption>
+                <thead><tr><th scope="col">{{ w.impact }}</th><th scope="col">{{ w.lossRange }}</th></tr></thead>
+                <tbody>
+                  @for (level of value.thresholds; track level.weight) {
+                    <tr><th scope="row"><span class="scale-level">{{ level.weight }}</span></th><td>
+                      @if (level.maxLossAmount === null) { {{ money(level.minLossAmount) }} {{ w.noLimit }} }
+                      @else if (level.maxLossAmount < level.minLossAmount) { {{ w.emptyRange }} }
+                      @else { {{ money(level.minLossAmount) }} - {{ money(level.maxLossAmount) }} }
+                    </td></tr>
+                  }
+                </tbody>
+              </table>
+            </div>
+          } @else { <p class="muted">{{ w.noScale }}</p> }
+        }
+      </section>
+    }
+  </details>
 </section>

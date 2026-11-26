@@ -34,7 +34,7 @@ export function readSessionClaims(token: string): SessionClaims {
 
 /** Возвращает только обычные внутренние маршруты приложения. */
 export function internalDestination(value: string | null): string | null {
-  if (!value || !/^\/(risks|treatments|approvals|admin|administration|documents|reports|imports)(?:\/|[?#]|$)/.test(value)) {
+  if (!value || !/^\/(risks|treatments|approvals|admin|administration|documents|reports|imports|help)(?:\/|[?#]|$)/.test(value)) {
     return null;
   }
   const path = value.split(/[?#]/, 1)[0];

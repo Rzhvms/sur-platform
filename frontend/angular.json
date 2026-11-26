@@ -1,7 +1,9 @@
 {
   "$schema": "./node_modules/@angular/cli/lib/config/schema.json",
   "version": 1,
-  "cli": { "analytics": false },
+  "cli": {
+    "analytics": false
+  },
   "projects": {
     "sur": {
       "projectType": "application",
@@ -16,19 +18,54 @@
             "index": "src/index.html",
             "tsConfig": "tsconfig.app.json",
             "outputPath": "dist/sur",
-            "styles": ["src/styles.css"]
+            "styles": [
+              "src/styles.css"
+            ],
+            "assets": [
+              {
+                "glob": "release.json",
+                "input": "public",
+                "output": "/"
+              }
+            ]
           },
           "configurations": {
-            "production": { "outputHashing": "all", "budgets": [{ "type": "initial", "maximumWarning": "550kB", "maximumError": "750kB" }] },
-            "development": { "optimization": false, "sourceMap": true, "extractLicenses": false }
+            "production": {
+              "outputHashing": "all",
+              "budgets": [
+                {
+                  "type": "initial",
+                  "maximumWarning": "550kB",
+                  "maximumError": "750kB"
+                }
+              ],
+              "optimization": {
+                "scripts": true,
+                "styles": {
+                  "minify": true,
+                  "inlineCritical": false
+                },
+                "fonts": false
+              },
+              "sourceMap": false
+            },
+            "development": {
+              "optimization": false,
+              "sourceMap": true,
+              "extractLicenses": false
+            }
           },
           "defaultConfiguration": "production"
         },
         "serve": {
           "builder": "@angular/build:dev-server",
           "configurations": {
-            "development": { "buildTarget": "sur:build:development" },
-            "production": { "buildTarget": "sur:build:production" }
+            "development": {
+              "buildTarget": "sur:build:development"
+            },
+            "production": {
+              "buildTarget": "sur:build:production"
+            }
           },
           "defaultConfiguration": "development"
         }

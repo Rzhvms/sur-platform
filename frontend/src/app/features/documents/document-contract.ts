@@ -21,9 +21,10 @@ export const documentPageSize = 25;
 export const documentRights = { view: 'view_report', export: 'export_report', import: 'import_data', create: 'create_risk' } as const;
 
 export const documentText = {
-  reports: 'Отчёты', imports: 'Импорт CSV', history: 'Журнал изменений', view: 'Создать снимок',
-  csv: 'Подготовить CSV', xlsx: 'Подготовить XLSX', json: 'Подготовить JSON',
-  from: 'С даты UTC', to: 'По дату UTC включительно', historical: 'Исторический срез', localTime: 'Дата и время среза',
+  reports: 'Отчёты', reportsHint: 'Сформируйте срез реестра рисков по выбранным фильтрам и выгрузите его в CSV или XLSX.', snapshotParams: 'Параметры среза',
+  imports: 'Импорт CSV', history: 'Журнал изменений', view: 'Просмотреть снимок',
+  csv: 'Скачать CSV', xlsx: 'Скачать XLSX', json: 'Подготовить JSON',
+  from: 'С даты UTC', to: 'По дату UTC включительно', historical: 'Сортировка по дате', localTime: 'Дата и время среза',
   offset: 'Смещение UTC', asOf: 'Момент среза', captured: 'Фиксация снимка', generated: 'Формирование файла',
   completed: 'Завершено', requested: 'Регистрация задания', author: 'Автор', totalProcessed: 'Обработано строк',
   totalErrors: 'Отклонено строк', imported: 'Созданные риски', row: 'Запись', results: 'Результаты импорта',
@@ -36,6 +37,12 @@ export const documentText = {
   invalidMapping: 'Выберите разные столбцы для всех обязательных полей.',
   unknownCommand: 'Ответ на команду не получен. Повтор отправит те же параметры.',
   sameFile: 'Для продолжения используйте тот же CSV, который был зарегистрирован.',
+  importHint: 'CSV должен содержать колонки Name, Description, HazardId, CategoryId, ProcessId. Идентификаторы справочников — UUID. Выгрузка отчёта для импорта не подходит.',
+  template: 'Скачать шаблон CSV', templateEmpty: 'Нет доступных справочников для шаблона.',
+  checkField: 'Проверьте поле', invalidRow: 'Строка не соответствует формату импорта.',
+  referenceMissing: 'Справочник не найден: проверьте ID опасности, категории и процесса.',
+  referenceInactive: 'Справочник неактивен.', importAccessDenied: 'Нет права регистрировать риск в дирекции этого процесса.',
+  loadPreviewFirst: 'Загрузите исходный CSV, чтобы выбрать столбцы.',
   createNew: 'Начать новое задание', file: 'Скачать файл', downloadProgress: 'Скачивание файла…',
   status: 'Статус задания', noRows: 'Выборка пуста.', invalidPeriod: 'Укажите корректный диапазон дат UTC.',
   invalidSnapshot: 'Проверьте дату, время, смещение UTC и фильтры среза.',

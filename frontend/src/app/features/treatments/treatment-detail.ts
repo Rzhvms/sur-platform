@@ -2,7 +2,7 @@ import { DOCUMENT } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toObservable, toSignal } from '@angular/core/rxjs-interop';
-import { FormControl, ReactiveFormsModule, Validators } from '@angular/forms';
+import { FormControl, FormGroup, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { EMPTY, Observable, catchError, distinctUntilChanged, filter, finalize, map, of, startWith, switchMap } from 'rxjs';
 import { Session } from '../../core/auth/session';
@@ -16,7 +16,7 @@ import { RisksApi } from '../risks/risks-api';
 import { ApprovalActions } from './approval-actions';
 import { TreatmentDraftForm } from './draft';
 import { JiraDeliveryView } from './jira-delivery';
-import { Approval, Executor, Transition, Treatment, TreatmentCard, TreatmentDraft, approvalLevel, treatmentPageSize, treatmentStatuses, treatmentText } from './treatment-contract';
+import { Approval, Executor, Transition, Treatment, TreatmentCard, TreatmentDraft, approvalRights, approvalLevel, treatmentPageSize, treatmentStatuses, treatmentText, treatmentRegistryOffset } from './treatment-contract';
 import { TreatmentsApi, treatmentWriteError } from './treatments-api';
 import { pollWhileVisible } from './visible-poll';
 
@@ -52,6 +52,8 @@ export class TreatmentDetail {
   protected readonly person = new FormControl('', { nonNullable: true });
   protected readonly actual = new FormControl<number | null>(null, Validators.min(0));
   protected readonly confirmed = new FormControl(false, { nonNullable: true });
+  /** Подключает выбор исполнителя и параметры перехода к отправке Angular-формы */
+  protected readonly commandForm = new FormGroup({ person: this.person, actual: this.actual, confirmed: this.confirmed });
   protected readonly t = text;
   protected readonly w = treatmentText;
   protected readonly statuses = treatmentStatuses;
@@ -60,6 +62,10 @@ export class TreatmentDetail {
   protected readonly date = calendarDate;
   protected readonly time = utcTime;
   protected readonly level = approvalLevel;
+  /** Доступ к очереди совпадает с правилами навигации; конкретный запрос проверяет сервер */
+  protected readonly canOpenApprovals = computed(() => this.session.hasRight('admin') || approvalRights.some(right => this.session.hasRight(right)));
+  protected readonly fromRegistry = computed(() => this.params().get('source') === 'registry');
+  protected readonly registryQuery = computed(() => ({ offset: treatmentRegistryOffset(this.params().get('offset')) }));
   protected readonly fromApprovals = computed(() => this.params().get('source') === 'approvals');
   protected readonly riskQuery = computed(() => ({ ...urlQuery(readQuery(this.params())), from: this.params().get('from') === 'board' ? 'board' : null }));
   protected readonly pageSize = treatmentPageSize;

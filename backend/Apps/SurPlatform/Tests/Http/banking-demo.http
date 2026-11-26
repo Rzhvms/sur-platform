@@ -1,0 +1,70 @@
+@public = https://localhost:7224/api/v1/public
+@provider = https://localhost:7224/api/v1/provider
+
+### Run on a dedicated demo client after startup with ActivateDemoDataSeed=true
+GET {{public}}/risks/board
+Authorization: Bearer {{adminToken}}
+
+> {%
+client.test("All six board columns contain banking examples", function () {
+    client.assert(response.status === 200 && response.body.length === 6);
+    for (const column of response.body) { client.assert(column.totalCount >= 3); }
+    const ids = response.body.flatMap(column => column.items.map(row => row.risk.id))
+        .filter(id => id.startsWith("ba4c0001-0009-")).sort();
+    client.assert(ids.length === 18);
+    const before = client.global.get("bankingSeedIds");
+    if (before) { client.assert(JSON.stringify(ids) === before, "Restart must preserve IDs and counts"); }
+    client.global.set("bankingSeedIds", JSON.stringify(ids));
+});
+%}
+
+### Draft has no assessment and a stable primary process
+GET {{public}}/risks/ba4c0001-0009-4000-8000-000000000001
+Authorization: Bearer {{adminToken}}
+
+> {%
+client.test("Draft passport is usable", function () {
+    client.assert(response.status === 200);
+    client.assert(response.body.data.risk.status === "DRAFT");
+    client.assert(response.body.data.currentAssessment === null && response.body.passportEditable);
+    client.assert(response.body.data.processes.filter(row => row.isPrimary).length === 1);
+});
+%}
+
+### Review shows a historical assessment separately
+GET {{public}}/risks/ba4c0001-0009-4000-8000-00000000000a
+Authorization: Bearer {{adminToken}}
+
+> {%
+client.test("Review does not substitute previous score for current score", function () {
+    client.assert(response.status === 200);
+    client.assert(response.body.data.risk.status === "AWAITING_REVIEW");
+    client.assert(response.body.data.currentAssessment === null && response.body.previousAssessment !== null);
+    client.assert(response.body.reviews.some(row => row.review.status === "WAITING"));
+});
+%}
+
+### Zero is a real score, not a missing assessment
+GET {{public}}/risks/ba4c0001-0009-4000-8000-00000000000d
+Authorization: Bearer {{adminToken}}
+
+> {%
+client.test("Accepted risk preserves zero", function () {
+    client.assert(response.status === 200);
+    client.assert(response.body.data.currentAssessment.riskScore === 0);
+});
+%}
+
+### Current employee names and roles are available for administration
+GET {{provider}}/users?limit=100
+Authorization: Bearer {{adminToken}}
+
+> {%
+client.test("Demo profiles are distinct and have no password in response", function () {
+    client.assert(response.status === 200);
+    const users = response.body.filter(user => user.email && user.email.endsWith("@bank-demo.invalid"));
+    client.assert(users.length === 11);
+    client.assert(new Set(users.map(user => user.email)).size === 11);
+    client.assert(users.every(user => !("password" in user) && !("temporaryPassword" in user)));
+});
+%}

@@ -25,7 +25,7 @@ export const exampleRisks: RiskDetails[] = examples.map(([name, process, owner, 
     hazardId: '', version: '', passportEditable: false,
     description: index === 0
       ? 'При остановке основной системы охлаждения температура в серверном помещении может превысить допустимый предел. Возможны остановка сервисов и восстановление инфраструктуры с привлечением дежурной команды.'
-      : `${name}. Ответственный процесс — «${process}».`,
+      : `${name}. Ответственный процесс - «${process}».`,
     category: index < 3 ? 'Операционные' : 'Внутренние процессы',
     asset: index === 0 ? 'Серверное помещение № 2' : null,
     author: owner, createdAt: '2026-10-20T09:00:00Z',

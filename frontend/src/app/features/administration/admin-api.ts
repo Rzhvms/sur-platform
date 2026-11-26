@@ -22,7 +22,8 @@ export type Assignment = Omit<Row, 'name'> & {
   responsibilityType: ResponsibilityType; personId: string; directorateId: string | null;
 };
 export type Process = Row & { directorateId: string; ownerId: string; description: string | null };
-export type OrgContext = { person: Person | null; processes: Process[]; responsibilities: Assignment[] };
+export type TreatmentSummary = { id: string; title: string };
+export type OrgContext = { person: Person | null; processes: Process[]; responsibilities: Assignment[]; treatments: TreatmentSummary[] };
 export type Slot = { assignmentId: string | null; observedAt: string };
 type Param = Record<string, string | number | boolean>;
 
@@ -44,7 +45,9 @@ export const adminText = {
   protectedRole: 'Роль ADMIN защищена системными правилами.', roleInUse: 'Сначала назначьте затронутым пользователям другую действующую роль.',
   duplicateEmail: 'Этот адрес уже используется.', orgIneligible: 'Выбранная запись не подходит для операции. Проверьте её статус и роли.',
   saved: 'Изменения сохранены.', conflict: 'Запись изменилась. Сверьте актуальные данные перед сохранением.',
-  sent: 'Доступ отправлен', pending: 'Отправка ожидается', failed: 'Отправка не подтверждена',
+  temporaryPassword: 'Временный пароль', repeatTemporaryPassword: 'Повторите временный пароль',
+  temporaryPasswordHint: 'От 8 до 256 символов. Передайте пароль пользователю самостоятельно. Он действует 10 дней и требует смены при первом входе.',
+  temporaryPasswordInvalid: 'Введите временный пароль от 8 до 256 символов и подтвердите его.',
   noDirectorate: 'Без дирекции', usersEmpty: 'Пользователей пока нет', rights: 'Права',
 } as const;
 

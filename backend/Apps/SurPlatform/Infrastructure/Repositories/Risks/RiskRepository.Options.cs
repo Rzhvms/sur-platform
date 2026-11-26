@@ -69,7 +69,7 @@ internal sealed partial class RiskRepository
         bool allDirectorates, int offset, int limit, Guid[]? excluded = null)
     {
         var query = $"""
-            SELECT p.{EntityMapper.ColName<ProcessDal>(x => x.Id)}, p.{EntityMapper.ColName<ProcessDal>(x => x.Name)}, p.{EntityMapper.ColName<ProcessDal>(x => x.DirectorateId)}, p.{EntityMapper.ColName<ProcessDal>(x => x.OwnerId)},
+            SELECT p.{EntityMapper.ColName<ProcessDal>(x => x.Id)}, p.{EntityMapper.ColName<ProcessDal>(x => x.Name)}, p.{EntityMapper.ColName<ProcessDal>(x => x.DirectorateId)}, d.{EntityMapper.ColName<DirectorateDal>(x => x.Name)} AS {EntityMapper.ColName<RiskProcessOption>(x => x.DirectorateName)}, p.{EntityMapper.ColName<ProcessDal>(x => x.OwnerId)},
                 u.{EntityMapper.ColName<UserProfileDal>(x => x.FullName)} AS {EntityMapper.ColName<RiskProcessOption>(x => x.OwnerName)}
             FROM {EntityMapper.TbName<ProcessDal>()} p
             JOIN {EntityMapper.TbName<DirectorateDal>()} d ON d.{EntityMapper.ColName<DirectorateDal>(x => x.Id)} = p.{EntityMapper.ColName<ProcessDal>(x => x.DirectorateId)}

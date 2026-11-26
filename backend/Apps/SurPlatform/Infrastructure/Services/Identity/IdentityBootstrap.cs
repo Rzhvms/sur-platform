@@ -37,7 +37,7 @@ public sealed class IdentityBootstrap(IServiceScopeFactory scopes, IConfiguratio
     private const int MaxPasswordLength = 256;
 
     /// <summary>Причина отказа служебной выдачи при отключённой доставке</summary>
-    private const string DevelopmentAccessRequired = "Для выдачи без SMTP настройте DevelopmentPassword первого администратора в окружении Development";
+    private const string DevelopmentAccessRequired = "Настройте DevelopmentPassword первого администратора в окружении Development";
 
     /// <summary>
     /// Missing first admin
@@ -91,7 +91,7 @@ public sealed class IdentityBootstrap(IServiceScopeFactory scopes, IConfiguratio
 
         using var scope = scopes.CreateScope();
         scope.ServiceProvider.GetRequiredService<ClientDatabaseContext>().Select(client);
-        return await scope.ServiceProvider.GetRequiredService<IdentityInvitationService>()
+        return await scope.ServiceProvider.GetRequiredService<IdentityAccessService>()
             .BootstrapAsync(email, fullName, password, reissue);
     }
 }

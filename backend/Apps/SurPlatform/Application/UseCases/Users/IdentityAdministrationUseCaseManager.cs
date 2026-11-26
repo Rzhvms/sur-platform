@@ -9,9 +9,9 @@ namespace Application.UseCases.Users;
 /// Координирует административные запросы пользователей и ролей
 /// </summary>
 /// <param name="repository">Хранилище выбранного клиента</param>
-/// <param name="invitations">Сервис выдачи временного доступа</param>
+/// <param name="access">Сервис выдачи временного доступа</param>
 public sealed class IdentityAdministrationUseCaseManager(
-    IIdentityAdministrationRepository repository, IdentityInvitationService invitations)
+    IIdentityAdministrationRepository repository, IdentityAccessService access)
 {
     /// <summary>
     /// Читает страницу пользователей
@@ -84,7 +84,7 @@ public sealed class IdentityAdministrationUseCaseManager(
     /// <returns>Созданная запись</returns>
     public Task<IdentityUser> CreateAsync(Guid actor, Guid sessionId, CreateIdentityUserRequest request)
     {
-        return invitations.CreateAsync(actor, sessionId, request);
+        return access.CreateAsync(actor, sessionId, request);
     }
 
     /// <summary>
@@ -108,10 +108,11 @@ public sealed class IdentityAdministrationUseCaseManager(
     /// <param name="userId">Пользователь</param>
     /// <param name="activation">Параметры активации</param>
     /// <param name="version">Версия карточки</param>
-    /// <returns>Карточка и состояние письма</returns>
-    public Task<IdentityUser> ReissueAsync(Guid actor, Guid sessionId, Guid userId, ActivateIdentityUserRequest? activation, Guid version)
+    /// <param name="temporaryPassword">Новый временный пароль</param>
+    /// <returns>Обновлённая карточка пользователя</returns>
+    public Task<IdentityUser> ReissueAsync(Guid actor, Guid sessionId, Guid userId, ActivateIdentityUserRequest? activation, Guid version, string temporaryPassword)
     {
-        return invitations.ReissueAsync(actor, sessionId, userId, activation, version);
+        return access.ReissueAsync(actor, sessionId, userId, activation, version, temporaryPassword);
     }
 
     /// <summary>Отключает учётную запись и связанную запись сотрудника</summary>

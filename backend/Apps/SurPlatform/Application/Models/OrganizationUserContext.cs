@@ -8,4 +8,5 @@ namespace Application.Models;
 /// <param name="Person">Действующая запись сотрудника, если есть</param>
 /// <param name="Processes">Активные процессы во владении</param>
 /// <param name="Responsibilities">Активные назначения сотрудника</param>
-public sealed record OrganizationUserContext(OrgPersonDal? Person, ProcessDal[] Processes, ResponsibilityDal[] Responsibilities);
+/// <param name="Treatments">Меры сотрудника в статусах «Ожидает выполнения» и «В работе»</param>
+public sealed record OrganizationUserContext(OrgPersonDal? Person, ProcessDal[] Processes, ResponsibilityDal[] Responsibilities, TreatmentDal[] Treatments);

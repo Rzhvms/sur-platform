@@ -5,6 +5,9 @@ namespace Application.Constants;
 /// </summary>
 public static class IdentityErrorCodes
 {
+    /// <summary>Временный пароль отсутствует или не соответствует ограничениям</summary>
+    public const string InvalidTemporaryPassword = "INVALID_TEMPORARY_PASSWORD";
+
     /// <summary>
     /// Машиночитаемый код Identity для access denied
     /// </summary>

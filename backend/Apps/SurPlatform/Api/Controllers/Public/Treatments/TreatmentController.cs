@@ -25,6 +25,18 @@ public sealed class TreatmentController(TreatmentUseCaseManager useCases) : Base
     /// <summary>Базовый маршрут контроллера</summary>
     private const string TreatmentRoute = "treatments";
 
+    /// <summary>Читает общий список мер текущего клиента</summary>
+    /// <param name="offset">Смещение страницы</param>
+    /// <param name="limit">Размер страницы</param>
+    /// <returns>Страница мер со связанными названиями</returns>
+    [HttpGet]
+    [ProducesResponseType<TreatmentRegistry>(StatusCodes.Status200OK)]
+    public Task<TreatmentRegistry> ListAsync([Range(0, int.MaxValue)] int offset = 0,
+        [Range(1, RiskRoutes.MaxPage)] int limit = RiskRoutes.DefaultPage)
+    {
+        return useCases.ListTreatmentRegistryAsync(User.GetRiskActor(), offset, limit);
+    }
+
     /// <summary>Маршрут операции Get</summary>
     private const string GetRoute = "{id:guid}";
 

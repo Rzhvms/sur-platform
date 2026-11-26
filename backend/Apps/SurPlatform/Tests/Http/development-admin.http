@@ -2,7 +2,7 @@
 @developmentAdminEmail = admin@sur.test
 @developmentAdminPassword = SurDev-Admin-2026!
 
-### First Development start with a fresh tenant database and SMTP disabled
+### First Development start with a fresh tenant database without a mail transport
 POST {{public}}/connect/token
 Content-Type: application/json
 

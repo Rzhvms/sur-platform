@@ -116,7 +116,7 @@ public sealed class ProviderUserController(IdentityAdministrationUseCaseManager 
     /// Создаёт пользователя с временным доступом и выбранными ролями
     /// </summary>
     /// <param name="request">Данные нового пользователя</param>
-    /// <returns>Созданная учётная запись и результат доставки</returns>
+    /// <returns>Созданная учётная запись с временным доступом</returns>
     [HttpPost]
     [ProducesResponseType<IdentityUser>(StatusCodes.Status201Created)]
     public async Task<ActionResult<IdentityUser>> CreateAsync(CreateIdentityUserRequest request)
@@ -141,23 +141,23 @@ public sealed class ProviderUserController(IdentityAdministrationUseCaseManager 
     /// </summary>
     /// <param name="userId">Активируемая запись</param>
     /// <param name="request">Версия карточки и при необходимости набор ролей</param>
-    /// <returns>Запись с состоянием доставки</returns>
+    /// <returns>Обновлённая учётная запись</returns>
     [HttpPost(ActivateRoute)]
     public Task<IdentityUser> ActivateAsync(Guid userId, ActivateIdentityUserRequest request)
     {
-        return useCases.ReissueAsync(User.GetUserId(), SessionId, userId, request, request.Version);
+        return useCases.ReissueAsync(User.GetUserId(), SessionId, userId, request, request.Version, request.TemporaryPassword);
     }
 
     /// <summary>
-    /// Заменяет пароль временным и отправляет новое письмо
+    /// Заменяет пароль временным и отзывает прежние сессии
     /// </summary>
     /// <param name="userId">Получатель доступа</param>
-    /// <param name="version">Версия карточки</param>
-    /// <returns>Запись с состоянием доставки</returns>
+    /// <param name="request">Версия карточки и новый временный пароль</param>
+    /// <returns>Обновлённая учётная запись</returns>
     [HttpPost(ReissueRoute)]
-    public Task<IdentityUser> ReissueAsync(Guid userId, [FromQuery] Guid version)
+    public Task<IdentityUser> ReissueAsync(Guid userId, IssueIdentityAccessRequest request)
     {
-        return useCases.ReissueAsync(User.GetUserId(), SessionId, userId, null, version);
+        return useCases.ReissueAsync(User.GetUserId(), SessionId, userId, null, request.Version, request.TemporaryPassword);
     }
 
     /// <summary>Читает организационные зависимости для подтверждения деактивации</summary>

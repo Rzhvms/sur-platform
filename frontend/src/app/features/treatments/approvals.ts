@@ -14,28 +14,35 @@ import { TreatmentsApi } from './treatments-api';
   imports: [ApprovalActions, DataStateView, RouterLink],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="panel-heading"><h1>{{ w.approvals }}</h1><button type="button" (click)="refresh()">{{ t.refresh }}</button></div>
-    @if (notice()) { <p role="status">{{ notice() }}</p> }
+    <div class="page-heading approval-page-heading"><h1>{{ w.approvals }}</h1><button type="button" (click)="refresh()">{{ t.refresh }}</button></div>
+    @if (notice()) { <p class="notice approval-page-notice" role="status">{{ notice() }}</p> }
     @let state = result();
     @if (state.kind === 'loading') { <sur-data-state kind="loading" /> }
     @else if (state.kind === 'error') { <sur-data-state kind="error" [message]="state.message" (retry)="refresh()" /> }
     @else {
-      <p role="status">{{ w.queue }}: <strong>{{ state.value.count }}</strong></p>
+      <p class="approval-queue-count" role="status">{{ w.queue }} <strong>{{ state.value.count }}</strong></p>
+      <div class="approval-queue-list">
       @for (item of state.value.items; track item.id) {
-        <section class="panel">
-          <h2><a [routerLink]="['/treatments', item.treatmentId]" [queryParams]="{ source: 'approvals' }">{{ state.value.treatmentTitles?.[item.treatmentId] ?? w.openTreatment }}</a></h2>
-          <dl class="fields">
+        <section class="panel approval-queue-card">
+          <header class="approval-queue-card-heading"><h2><a [routerLink]="['/treatments', item.treatmentId]" [queryParams]="{ source: 'approvals' }">{{ state.value.treatmentTitles?.[item.treatmentId] ?? w.openTreatment }}</a></h2><span class="approval-level-badge">{{ level(item.requiredLevel) }}</span></header>
+          <dl class="approval-queue-facts">
             <div><dt>{{ w.level }}</dt><dd>{{ level(item.requiredLevel) }}</dd></div>
             <div><dt>{{ w.plan }}</dt><dd>{{ money(item.costPlanned) }}</dd></div>
             <div><dt>{{ w.trigger }}</dt><dd>{{ money(item.triggerThreshold) }}</dd></div>
-            <div><dt>{{ w.ownerThreshold }}</dt><dd>{{ money(item.ownerThreshold) }}</dd></div>
-            <div><dt>{{ w.directorThreshold }}</dt><dd>{{ money(item.directorThreshold) }}</dd></div>
-            <div><dt>{{ w.ceoThreshold }}</dt><dd>{{ money(item.ceoThreshold) }}</dd></div>
+
             <div><dt>{{ t.created }}</dt><dd>{{ time(item.requestedAt) }}</dd></div>
           </dl>
+          <details class="approval-thresholds"><summary>{{ w.savedThresholds }}</summary>
+            <dl class="approval-queue-facts">
+              <div><dt>{{ w.ownerThreshold }}</dt><dd>{{ money(item.ownerThreshold) }}</dd></div>
+              <div><dt>{{ w.directorThreshold }}</dt><dd>{{ money(item.directorThreshold) }}</dd></div>
+              <div><dt>{{ w.ceoThreshold }}</dt><dd>{{ money(item.ceoThreshold) }}</dd></div>
+            </dl>
+          </details>
           <sur-approval-actions [approval]="item" [inQueue]="true" (changed)="refresh($event)" />
         </section>
-      } @empty { <p class="muted">{{ w.noApprovals }}</p> }
+      } @empty { <p class="panel muted">{{ w.noApprovals }}</p> }
+      </div>
       @if (offset() || offset() + pageSize < state.value.count) {
         <div class="pagination">
           <button type="button" [disabled]="offset() === 0" (click)="page(-1)">{{ t.previous }}</button>

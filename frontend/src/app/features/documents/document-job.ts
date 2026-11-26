@@ -7,6 +7,7 @@ import { money, utcTime } from '../../shared/format';
 import { statuses, text } from '../../shared/text';
 import { DataState, DataStateView } from '../../shared/ui/data-state';
 import { DocumentJob, DocumentKind, DocumentRow, JsonRecord, canPoll, documentPageSize, documentText, stateLabels } from './document-contract';
+import { csvFields, CsvField } from './csv-preview';
 import { DocumentsApi, documentError } from './documents-api';
 
 const interval = 2500;
@@ -114,6 +115,11 @@ export class DocumentJobView {
     return typeof status === 'string' ? statuses[status as keyof typeof statuses] ?? status : text.unknown;
   }
 
+  protected reportStatusCode(data: JsonRecord): string {
+    const status = asRecord(data['RiskDal'])?.['Status'];
+    return typeof status === 'string' ? status : '';
+  }
+
   protected nameValue(value: unknown): string {
     return typeof value === 'string' && value.length ? value : text.unknown;
   }
@@ -134,6 +140,20 @@ export class DocumentJobView {
 
   protected code(value: unknown): string {
     return typeof value === 'string' && /^[A-Z][A-Z0-9_]{1,80}$/.test(value) ? value : text.unknown;
+  }
+
+  protected importReason(data: JsonRecord): string {
+    const field = data['field'];
+    if (typeof field === 'string' && field in csvFields) {
+      return `${this.w.checkField} «${csvFields[field as CsvField]}»`;
+    }
+    switch (data['code']) {
+      case 'RISK_RESOURCE_NOT_FOUND': return this.w.referenceMissing;
+      case 'RISK_REFERENCE_INACTIVE': return this.w.referenceInactive;
+      case 'ACCESS_DENIED': return this.w.importAccessDenied;
+      case 'IMPORT_INVALID_ROW': return this.w.invalidRow;
+      default: return '';
+    }
   }
 }
 

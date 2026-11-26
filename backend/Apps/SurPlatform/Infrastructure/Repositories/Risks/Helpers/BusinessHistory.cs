@@ -53,10 +53,12 @@ internal static class BusinessHistory
     /// <param name="automaticSource">Конкретный источник автоматического события</param>
     /// <param name="configurationAuthorId">Администратор, изменивший настройку автоматического источника</param>
     /// <param name="automaticInitiatorId">Пользователь автоматического последствия, если он есть</param>
+    /// <param name="integration">Изменение принято от внешней системы, источник INTEGRATION</param>
     internal static async Task RecordAsync<T>(IDbTransaction transaction, Guid operationId, Guid actorUserId,
         Guid entityId, T? before, T? after, string? entityTypeOverride = null,
         string? relatedPath = null, object? relatedBefore = null, object? relatedAfter = null, bool system = false, IReadOnlyList<(string Path, object? Before, object After)>? relatedChanges = null,
-        string? automaticSource = null, Guid? configurationAuthorId = null, Guid? automaticInitiatorId = null) where T : class
+        string? automaticSource = null, Guid? configurationAuthorId = null, Guid? automaticInitiatorId = null,
+        bool integration = false) where T : class
     {
         var previous = JsonSerializer.SerializeToNode(before, JsonSerializerOptions.Web) as JsonObject;
         var next = JsonSerializer.SerializeToNode(after, JsonSerializerOptions.Web) as JsonObject ?? new JsonObject();
@@ -102,7 +104,7 @@ internal static class BusinessHistory
             actorUserId = system ? Application.Constants.IdentityAccounts.SystemUserId : actorUserId,
             initiatorUserId = automaticSource is not null ? automaticInitiatorId : system ? (Guid?)actorUserId : null,
             responsibleUserId = system ? (Guid?)actorUserId : null,
-            source = automaticSource == Application.Constants.JiraRules.Source ? Application.Constants.JiraRules.Integration : system ? SystemSource : UserSource,
+            source = integration || automaticSource == Application.Constants.JiraRules.Source ? Application.Constants.JiraRules.Integration : system ? SystemSource : UserSource,
             automaticSource, configurationAuthorId,
             operation = before is null ? CreateOperation : after is null ? DeleteOperation : deleted ? SoftDeleteOperation : UpdateOperation,
             changes, commentTextBeforeDeletion = deletedText

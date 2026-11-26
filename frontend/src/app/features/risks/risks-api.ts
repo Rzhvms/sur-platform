@@ -16,6 +16,7 @@ const referencePageSize = 100;
 export const historyPageSize = 25;
 
 export interface AssessmentLevel { id: string; weight: number; name: string }
+export interface ProcessOption extends RiskOption { directorateId: string; directorateName: string }
 export interface AssessmentMatrix { name: string; formula: string; likelihoodLevels: AssessmentLevel[]; impactLevels: AssessmentLevel[]; scores: number[][] }
 export interface ImpactScale {
   version: { id: string; sequence: number; createdAt: string };
@@ -91,8 +92,8 @@ export class RisksApi {
     return this.options<RiskReference>(kind);
   }
 
-  processes(): Observable<RiskOption[]> {
-    return this.options<RiskOption>('processes');
+  processes(): Observable<ProcessOption[]> {
+    return this.options<ProcessOption>('processes');
   }
 
   assets(): Observable<RiskOption[]> {

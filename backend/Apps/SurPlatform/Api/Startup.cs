@@ -294,6 +294,7 @@ public sealed class Startup(IWebHostEnvironment env, IConfiguration configuratio
         services.AddSwaggerGen(options =>
         {
             options.OperationFilter<IdentityOperationFilter>();
+            options.SchemaFilter<ManualAccessSchemaFilter>();
             options.DocumentFilter<SpecialAuthorizationDocumentFilter>();
             options.OperationFilter<DocumentTransferFilter>();
             options.AddSecurityDefinition(BearerSchemeId, new OpenApiSecurityScheme

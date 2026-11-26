@@ -1,7 +1,12 @@
 export const workflow = {
   assessment: 'Оценка риска', history: 'История оценок', emptyHistory: 'Сохранённых оценок пока нет',
+  selectedAssessment: 'Выбранная оценка',
+  viewScale: 'Посмотреть шкалу', shownScale: 'Шкала показана ниже',
+  assessmentFrom: 'Для оценки от', lossRange: 'Диапазон денежного ущерба',
+  zeroOutsideMatrix: 'Нулевая оценка не входит в положительные ячейки матрицы.',
+  matrixColorNote: 'Число в ячейке - балл риска: вероятность × тяжесть.',
   matrix: 'Матрица риска', likelihood: 'Вероятность', impact: 'Тяжесть',
-  likelihoodScale: 'Строки — вероятность, столбцы — тяжесть.',
+  likelihoodScale: 'Строки - вероятность, столбцы - тяжесть.',
   scale: 'Денежная шкала', assessmentScale: 'Шкала на момент оценки', noScale: 'Для этой записи версия шкалы отсутствует.',
   scaleVersion: 'Версия шкалы', emptyRange: 'Пустой диапазон', noLimit: 'и выше',
   amount: 'Денежный ущерб', weeks: 'Недели простоя', days: 'Дни простоя', hours: 'Часы простоя',

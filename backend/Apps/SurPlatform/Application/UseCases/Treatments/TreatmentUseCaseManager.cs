@@ -9,6 +9,16 @@ namespace Application.UseCases.Treatments;
 /// <param name="repository">Хранилище рисков текущего клиента</param>
 public sealed class TreatmentUseCaseManager(IRiskRepository repository)
 {
+    /// <summary>Читает страницу общего списка мер текущего клиента</summary>
+    /// <param name="actor">Участник клиентского запроса</param>
+    /// <param name="offset">Смещение страницы</param>
+    /// <param name="limit">Размер страницы</param>
+    /// <returns>Меры, связанные названия и наличие следующей страницы</returns>
+    public Task<TreatmentRegistry> ListTreatmentRegistryAsync(RiskActor actor, int offset, int limit)
+    {
+        return repository.ListTreatmentRegistryAsync(actor, offset, limit);
+    }
+
     /// <summary>Читает меры риска</summary>
     /// <param name="actor">Участник клиентского запроса</param>
     /// <param name="riskId">Риск</param>

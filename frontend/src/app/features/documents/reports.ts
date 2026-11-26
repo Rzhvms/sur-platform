@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, inject } from '@angular/core';
+import { ChangeDetectionStrategy, Component, computed, inject } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { catchError, of } from 'rxjs';
@@ -30,6 +30,13 @@ export class Reports {
     ? this.risks.processes().pipe(catchError(() => of([]))) : of([]), { initialValue: [] });
   protected readonly categories = toSignal(this.session.hasRight('view_risk')
     ? this.risks.references('Categories').pipe(catchError(() => of([]))) : of([]), { initialValue: [] });
+  protected readonly directorates = computed(() => {
+    const seen = new Map<string, string>();
+    for (const item of this.processes()) {
+      if (item.directorateId && item.directorateName) { seen.set(item.directorateId, item.directorateName); }
+    }
+    return [...seen].map(([id, name]) => ({ id, name })).sort((a, b) => a.name.localeCompare(b.name));
+  });
   protected readonly form = new FormGroup({
     historical: new FormControl(false, { nonNullable: true }), local: field(), offset: field('+00:00'),
     processId: field(), directorateId: field(), categoryId: field(), status: field(),
@@ -47,7 +54,8 @@ export class Reports {
       }
       return;
     }
-    if (format && !this.mayExport()) { return; }
+    const target = format ?? (this.mayExport() ? 'CSV' : null);
+    if (target && !this.mayExport()) { return; }
     const form = this.form.getRawValue();
     const asOf = form.historical ? snapshotTime(form.local, form.offset.trim()) : null;
     const processId = form.processId.trim() || null;
@@ -58,6 +66,6 @@ export class Reports {
       this.request.error.set(documentText.invalidSnapshot);
       return;
     }
-    this.request.send({ asOf, processId, directorateId, categoryId, status: form.status || null, format }, body => this.api.report(body));
+    this.request.send({ asOf, processId, directorateId, categoryId, status: form.status || null, format: target }, body => this.api.report(body));
   }
 }

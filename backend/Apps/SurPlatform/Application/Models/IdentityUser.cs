@@ -51,7 +51,7 @@ public sealed record IdentityUser
     public bool IsActive { get; init; }
 
     /// <summary>
-    /// Состояние доставки доступа
+    /// Исторический статус прежней выдачи; новая ручная выдача возвращает null
     /// </summary>
     public string? InvitationStatus { get; init; }
 

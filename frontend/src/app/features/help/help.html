@@ -1,0 +1,71 @@
+<h1>{{ content.title }}</h1>
+<p>{{ content.introduction }}</p>
+<nav class="admin-navigation" [attr.aria-label]="content.contents">
+  <a [routerLink]="[]" fragment="help-roles">{{ content.rolesTitle }}</a>
+  <a [routerLink]="[]" fragment="help-rights">{{ content.rightsTitle }}</a>
+  <a [routerLink]="[]" fragment="help-workflow">{{ content.workflowTitle }}</a>
+  <a [routerLink]="[]" fragment="help-glossary">{{ content.glossaryTitle }}</a>
+  <a [routerLink]="[]" fragment="help-sources">{{ content.sourcesTitle }}</a>
+</nav>
+<nav class="panel" [attr.aria-label]="content.workflowTitle">
+  <ul>
+    @for (step of content.workflows; track step.id) {
+      <li><a [routerLink]="[]" [fragment]="step.id">{{ step.title }}</a></li>
+    }
+  </ul>
+</nav>
+<section class="panel" aria-labelledby="help-rights">
+  <h2 id="help-rights" tabindex="-1">{{ content.rightsTitle }}</h2>
+  <p>{{ content.rightsHint }}</p>
+  <ul>
+    @for (right of rights(); track right) { <li><code>{{ right }}</code></li> }
+    @empty { <li>{{ content.emptyRights }}</li> }
+  </ul>
+</section>
+<section class="panel" aria-labelledby="help-roles">
+  <h2 id="help-roles" tabindex="-1">{{ content.rolesTitle }}</h2>
+  <p>{{ content.rolesHint }}</p>
+  @for (role of content.roles; track role.code) {
+    <h3>{{ role.name }} · <code>{{ role.code }}</code></h3>
+    <p>{{ role.description }}</p>
+  }
+  <p>{{ content.executorHint }}</p>
+  <p>{{ content.overviewHint }}</p>
+  <p>{{ content.adminHint }}</p>
+</section>
+<section class="panel" aria-labelledby="help-workflow">
+  <h2 id="help-workflow" tabindex="-1">{{ content.workflowTitle }}</h2>
+  @for (step of content.workflows; track step.id) {
+    <h3 [id]="step.id" tabindex="-1">{{ step.title }}</h3>
+    <p>{{ step.description }}</p>
+    <p><strong>{{ content.requiredAccess }}:</strong> {{ step.rights }}</p>
+  }
+</section>
+<section class="panel" aria-labelledby="help-glossary">
+  <h2 id="help-glossary" tabindex="-1">{{ content.glossaryTitle }}</h2>
+  <p>{{ content.glossaryHint }}</p>
+  <p>{{ content.standardsNote }}</p>
+  <nav [attr.aria-label]="content.glossaryTitle">
+    <ul>
+      @for (entry of content.glossary; track entry.id) {
+        <li><a [routerLink]="[]" [fragment]="entry.id">{{ entry.term }}</a></li>
+      }
+    </ul>
+  </nav>
+  <dl>
+    @for (entry of content.glossary; track entry.id) {
+      <dt [id]="entry.id" tabindex="-1"><strong>{{ entry.term }}</strong></dt>
+      <dd>{{ entry.meaning }}</dd>
+    }
+  </dl>
+</section>
+<section class="panel" aria-labelledby="help-sources">
+  <h2 id="help-sources" tabindex="-1">{{ content.sourcesTitle }}</h2>
+  <p>{{ content.gostNote }}</p>
+  <ul>
+    @for (source of content.sources; track source.href) {
+      <li><a [href]="source.href" target="_blank" rel="noopener noreferrer">{{ source.title }}</a></li>
+    }
+  </ul>
+  <p>{{ content.scopeNote }}</p>
+</section>

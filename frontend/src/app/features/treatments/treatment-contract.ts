@@ -31,6 +31,14 @@ export interface Approval {
   revokeReason: string | null;
 }
 
+/** Страница общего списка мер текущего клиента без вымышленного общего количества */
+export interface TreatmentRegistry {
+  items: Treatment[];
+  hasMore: boolean;
+  riskNames: Record<string, string>;
+  processNames: Record<string, string>;
+}
+
 export interface TreatmentQueue { items: Approval[]; count: number; treatmentTitles?: Record<string, string> }
 
 export interface JiraDelivery {
@@ -63,9 +71,22 @@ export const treatmentStatuses: Record<string, string> = {
   REJECTED: 'Отклонено', REVOKED: 'Отозвано',
 };
 export const treatmentText = {
+  confirmDecision: 'Подтвердить решение',
+  approveConfirm: 'Подтвердите согласование меры по сохранённому уровню и плановым расходам.',
+  rejectConfirm: 'Укажите причину отказа. Мера вернётся в черновик для доработки.',
+  revokeConfirm: 'Укажите причину отзыва. Запрос на согласовании вернёт меру в черновик, а отзыв принятого согласования отменит меру.',
+  savedThresholds: 'Пороги на момент запроса',
+  awaitingApproval: 'Ожидается согласование', openApprovals: 'Открыть согласования',
+  approvalQueueHint: 'Решение принимается в разделе «Согласования». Откройте очередь, найдите эту меру и выберите «Согласовать» или «Отклонить».',
+  approvalAccessHint: 'Для согласования нужно право и действующее назначение требуемого уровня. Администратор также может принять решение.',
   approvals: 'Согласования', queue: 'Ожидают решения', noApprovals: 'Нет запросов на согласование',
   approvalHistory: 'История согласований', level: 'Уровень согласования', trigger: 'Порог для запроса',
   ownerThreshold: 'Порог владельца процесса', directorThreshold: 'Порог директора', ceoThreshold: 'Порог генерального директора',
+  registryHint: 'Меры по всем рискам. Для создания новой меры откройте карточку нужного риска.',
+  registryEmpty: 'Мер пока нет. Выберите риск и создайте первую меру в его карточке.',
+  registryUnavailable: 'Список мер временно недоступен. Повторите загрузку позже.',
+  registryRisk: 'Связанный риск', toRegistry: 'Вернуться к списку мер',
+  manageHeading: 'Выберите риск для работы с мерами',
   manageFromRisk: 'Откройте карточку риска, чтобы найти его меры или создать черновик.',
   toRisks: 'Открыть реестр рисков', toRisk: 'Вернуться к мерам риска', create: 'Создать меру',
   start: 'Запустить меры', startHint: 'Для запуска нужна хотя бы одна ожидающая мера. Все активные меры должны ожидать выполнения.',
@@ -73,6 +94,7 @@ export const treatmentText = {
   compareDraft: 'Продолжить с актуальной версией', plan: 'Плановые расходы', actual: 'Фактические расходы',
   submit: 'Отправить на согласование', approve: 'Согласовать', reject: 'Отклонить', revoke: 'Отозвать',
   reason: 'Причина', reasonRequired: 'Укажите причину.', confirmTransition: 'Подтверждаю переход', discardDrafts: 'Если это последняя активная мера, сервер отменит оставшиеся черновики и откроет пересмотр риска. Подтвердите переход.',
+  noEligibleExecutors: 'Нет доступных исполнителей. Проверьте активных сотрудников и их принадлежность к допустимой дирекции.',
   executor: 'Исполнитель', noExecutor: 'Исполнитель не назначен', chooseExecutor: 'Выберите исполнителя',
   loadExecutors: 'Загрузить исполнителей', dispatch: 'Назначить и передать в ожидание', assignment: 'Изменить исполнителя',
   unassign: 'Снять исполнителя', hold: 'Приостановить', resume: 'Возобновить', complete: 'Завершить', cancel: 'Отменить меру',
@@ -135,4 +157,12 @@ export function jiraResolution(jira: JiraDelivery, reviewed: string | null, issu
   }
   const key = issue.trim();
   return key ? { attemptStartedAt: reviewed, issue: key, confirmAbsent: false } : null;
+}
+
+/** Некорректный offset не отправляется в API и не создаёт дробные страницы */
+export function treatmentRegistryOffset(value: string | null): number {
+  const maximumOffset = 2_147_483_647;
+  const offset = Number(value ?? 0);
+  return Number.isSafeInteger(offset) && offset >= 0 && offset <= maximumOffset
+    && offset % treatmentPageSize === 0 ? offset : 0;
 }

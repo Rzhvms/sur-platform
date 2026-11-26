@@ -1,4 +1,4 @@
-import { ChangeDetectionStrategy, Component, DestroyRef, computed, effect, inject, signal } from '@angular/core';
+import { ChangeDetectionStrategy, Component, DestroyRef, ElementRef, computed, effect, inject, signal, viewChild } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet, Routes } from '@angular/router';
 import { filter, finalize } from 'rxjs';
@@ -10,6 +10,9 @@ import { Session } from './core/auth/session';
 import { internalDestination } from './core/auth/session-policy';
 import { treatmentText } from './features/treatments/treatment-contract';
 import { text } from './shared/text';
+import { UiTiming } from './core/release/ui-timing';
+import { Release } from './core/release/release';
+import { releaseText } from './core/release/release-policy';
 import { documentText } from './features/documents/document-contract';
 
 @Component({
@@ -23,44 +26,90 @@ import { documentText } from './features/documents/document-contract';
         <a class="brand" [routerLink]="demo() ? '/demo/risks' : '/risks'" [attr.aria-label]="t.product">
           <span class="brand-mark" aria-hidden="true">{{ t.brand }}</span>
         </a>
-        <nav [attr.aria-label]="t.navigation">
+        <button class="menu-toggle" type="button" [attr.aria-label]="t.openMenu"
+          aria-haspopup="dialog" aria-controls="navigation-menu" [attr.aria-expanded]="menuOpen()" (click)="openMenu()">
+          <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
+            <path d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+      </header>
+      <dialog #navigationMenu id="navigation-menu" class="navigation-drawer" aria-labelledby="navigation-title"
+        (close)="menuOpen.set(false)" (click)="dismissBackdrop($event)" (keydown)="keepMenuFocus($event)">
+        <div class="drawer-heading">
+          <h2 id="navigation-title">{{ t.menu }}</h2>
+          <button class="drawer-close" type="button" [attr.aria-label]="t.closeMenu" (click)="closeMenu()" autofocus>
+            <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
+              <path d="m6 6 12 12M18 6 6 18" />
+            </svg>
+          </button>
+        </div>
+        <nav class="drawer-navigation" [attr.aria-label]="t.navigation">
           @if (demo()) {
-            <a routerLink="/demo/risks" routerLinkActive="selected" ariaCurrentWhenActive="page">{{ t.risks }}</a>
+            <a routerLink="/demo/risks" routerLinkActive="selected" ariaCurrentWhenActive="page" (click)="closeMenu()">{{ t.risks }}</a>
           } @else {
             @for (section of visibleSections(); track section.path) {
-              <a [routerLink]="['/', section.path]" routerLinkActive="selected" ariaCurrentWhenActive="page">{{ section.label }}</a>
+              <a [routerLink]="['/', section.path]" routerLinkActive="selected" ariaCurrentWhenActive="page" (click)="closeMenu()">{{ section.label }}</a>
+            }
+            @if (session.token() && !session.restricted()) {
+              <a routerLink="/help" routerLinkActive="selected" ariaCurrentWhenActive="page" (click)="closeMenu()">{{ t.help }}</a>
             }
           }
         </nav>
-        @if (demo()) {
-          <span class="demo-label">{{ t.demo }}</span>
-          <a class="session-action" routerLink="/login">{{ t.login }}</a>
-        } @else if (session.token()) {
-          <button class="session-action" [disabled]="leaving()" (click)="logout()">{{ t.logout }}</button>
-        }
-      </header>
+        <div class="drawer-footer">
+          @if (demo()) {
+            <span class="demo-label">{{ t.demo }}</span>
+            <a class="session-action" routerLink="/login" (click)="closeMenu()">{{ t.login }}</a>
+          } @else if (session.token()) {
+            <button class="session-action" [disabled]="leaving()" (click)="logout()">{{ t.logout }}</button>
+          }
+        </div>
+      </dialog>
     }
-    <main #main id="main" tabindex="-1" [class.login-layout]="login()">
-      <router-outlet />
+    <main #main id="main" tabindex="-1" [class.login-layout]="login() || (!demo() && !release.ready())">
+      @if (demo() || release.ready()) {
+        <router-outlet />
+      } @else {
+        <section class="release-card" role="status" aria-live="polite">
+          <div class="brand-mark release-mark" aria-hidden="true">{{ t.brand }}</div>
+          @if (release.busy() && !release.message()) {
+            <span class="spinner" aria-hidden="true"></span>
+            <p class="muted">{{ t.loading }}</p>
+          } @else {
+            <h1>{{ r.heading }}</h1>
+            <p>{{ release.message() }}</p>
+            <div class="release-actions">
+              <button class="primary" type="button" [disabled]="release.busy()" (click)="release.check()">{{ r.retry }}</button>
+              <button class="release-secondary" type="button" (click)="reloadApplication()">{{ r.refresh }}</button>
+            </div>
+          }
+        </section>
+      }
     </main>
   `,
 })
 export class App {
   protected readonly t = text;
+  protected readonly r = releaseText;
+  protected readonly release = inject(Release);
   protected readonly session = inject(Session);
   protected readonly demo = signal(false);
   protected readonly login = signal(false);
   protected readonly leaving = signal(false);
+  protected readonly menuOpen = signal(false);
+  private readonly navigationMenu = viewChild<ElementRef<HTMLDialogElement>>('navigationMenu');
   protected readonly visibleSections = computed(() => sections.filter(section => canOpen(this.session.rights(), section)));
+  private readonly timing = inject(UiTiming);
   private readonly location = signal('');
   private readonly router = inject(Router);
   private readonly destroyRef = inject(DestroyRef);
 
   constructor() {
+    this.release.check();
     this.router.events.pipe(
       filter((event): event is NavigationEnd => event instanceof NavigationEnd),
       takeUntilDestroyed(this.destroyRef),
     ).subscribe(event => {
+      this.closeMenu();
       this.demo.set(event.urlAfterRedirects.startsWith('/demo/'));
       this.location.set(event.urlAfterRedirects);
       this.login.set(/^\/(login|change-password)(?:[?#]|$)/.test(event.urlAfterRedirects));
@@ -91,12 +140,59 @@ export class App {
     });
   }
 
+  /** Native dialog удерживает фокус и возвращает его на бургер при закрытии */
+  protected openMenu(): void {
+    const menu = this.navigationMenu()?.nativeElement;
+    if (menu && !menu.open) {
+      menu.showModal();
+      this.menuOpen.set(true);
+    }
+  }
+
+  /** Закрывает панель при выборе раздела, выходе или изменении маршрута */
+  protected closeMenu(): void {
+    this.navigationMenu()?.nativeElement.close();
+    this.menuOpen.set(false);
+  }
+
+  /** Замыкает Tab между крайними элементами панели, не затрагивая Escape */
+  protected keepMenuFocus(event: KeyboardEvent): void {
+    if (event.key !== 'Tab') { return; }
+    const items = this.navigationMenu()?.nativeElement.querySelectorAll<HTMLElement>('a[href], button:not(:disabled)');
+    if (!items?.length) { return; }
+    const first = items[0];
+    const last = items[items.length - 1];
+    if (event.shiftKey && event.target === first) {
+      event.preventDefault();
+      last.focus();
+    } else if (!event.shiftKey && event.target === last) {
+      event.preventDefault();
+      first.focus();
+    }
+  }
+
+  /** Клик по backdrop попадает в dialog, но лежит за границами самой панели */
+  protected dismissBackdrop(event: MouseEvent): void {
+    const menu = this.navigationMenu()?.nativeElement;
+    if (!menu || event.target !== menu) { return; }
+    const bounds = menu.getBoundingClientRect();
+    if (event.clientX < bounds.left || event.clientX > bounds.right ||
+        event.clientY < bounds.top || event.clientY > bounds.bottom) {
+      this.closeMenu();
+    }
+  }
+
+  protected reloadApplication(): void {
+    window.location.reload();
+  }
+
   protected skipToMain(event: Event, main: HTMLElement): void {
     event.preventDefault();
     main.focus();
   }
 
   protected logout(): void {
+    this.closeMenu();
     this.leaving.set(true);
     this.session.logout().pipe(
       takeUntilDestroyed(this.destroyRef),
@@ -118,6 +214,7 @@ export const routes: Routes = [
   { path: 'login', component: Login, title: text.login },
   { path: 'change-password', component: ChangePassword, canActivate: [requireSession], title: text.changePassword },
   { path: 'forbidden', component: Forbidden, canActivate: [requireSession], title: text.accessDenied },
+  { path: 'help', canActivate: [requireSession], title: text.help, loadComponent: () => import('./features/help/help').then(m => m.Help) },
   { path: 'risks', canActivate: [requireSession], loadChildren: () => import('./features/risks/routes').then(m => m.riskRoutes) },
   { path: 'demo/risks', data: { demo: true }, loadChildren: () => import('./features/risks/routes').then(m => m.demoRiskRoutes) },
   { path: 'demo', pathMatch: 'full', redirectTo: 'demo/risks' },

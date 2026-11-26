@@ -14,6 +14,46 @@ namespace Infrastructure.Repositories.Risks;
 internal sealed partial class RiskRepository
 {
     /// <inheritdoc/>
+    public async Task<TreatmentRegistry> ListTreatmentRegistryAsync(RiskActor actor, int offset, int limit)
+    {
+        using var transaction = connection.BeginTransaction(IsolationLevel.RepeatableRead);
+        await RequireRightAsync(actor, RiskRules.View, transaction);
+        var fetchLimit = limit + 1;
+        var pageQuery = $"""
+            SELECT * FROM {EntityMapper.TbName<TreatmentDal>()}
+            ORDER BY {EntityMapper.ColName<TreatmentDal>(x => x.CreatedAt)} DESC,
+                {EntityMapper.ColName<TreatmentDal>(x => x.Id)} DESC
+            OFFSET {EntityMapper.ParameterName(nameof(offset))} LIMIT {EntityMapper.ParameterName(nameof(fetchLimit))}
+            """;
+        var rows = (await connection.QueryAsync<TreatmentDal>(pageQuery, new { offset, fetchLimit }, transaction)).ToArray();
+        var items = rows.Take(limit).ToArray();
+        var riskNames = new Dictionary<Guid, string>();
+        var processNames = new Dictionary<Guid, string>();
+        if (items.Length > 0)
+        {
+            var riskIds = items.Select(item => item.RiskId).Distinct().ToArray();
+            var riskQuery = $"""
+                SELECT {EntityMapper.ColName<RiskDal>(x => x.Id)}, {EntityMapper.ColName<RiskDal>(x => x.Name)}
+                FROM {EntityMapper.TbName<RiskDal>()}
+                WHERE {EntityMapper.ColName<RiskDal>(x => x.Id)} = ANY({EntityMapper.ParameterName(nameof(riskIds))})
+                """;
+            var risks = await connection.QueryAsync<RiskDal>(riskQuery, new { riskIds }, transaction);
+            riskNames = risks.ToDictionary(risk => risk.Id, risk => risk.Name);
+
+            var processIds = items.Select(item => item.ProcessId).Distinct().ToArray();
+            var processQuery = $"""
+                SELECT {EntityMapper.ColName<ProcessDal>(x => x.Id)}, {EntityMapper.ColName<ProcessDal>(x => x.Name)}
+                FROM {EntityMapper.TbName<ProcessDal>()}
+                WHERE {EntityMapper.ColName<ProcessDal>(x => x.Id)} = ANY({EntityMapper.ParameterName(nameof(processIds))})
+                """;
+            var processes = await connection.QueryAsync<ProcessDal>(processQuery, new { processIds }, transaction);
+            processNames = processes.ToDictionary(process => process.Id, process => process.Name);
+        }
+        transaction.Commit();
+        return new TreatmentRegistry(items, rows.Length > limit) { RiskNames = riskNames, ProcessNames = processNames };
+    }
+
+    /// <inheritdoc/>
     public async Task<TreatmentDal[]> ListTreatmentsAsync(RiskActor actor, Guid riskId, int offset, int limit)
     {
         using var transaction = connection.BeginTransaction(IsolationLevel.RepeatableRead);

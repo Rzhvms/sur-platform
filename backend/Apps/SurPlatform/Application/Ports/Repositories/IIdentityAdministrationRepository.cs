@@ -49,8 +49,8 @@ public interface IIdentityAdministrationRepository
     /// <param name="sessionId">Сессия инициатора</param>
     /// <param name="request">Входные данные команды</param>
     /// <param name="passwordHash">Защищённое представление временного пароля</param>
-    /// <returns>Данные для отправки письма</returns>
-    Task<IdentityInvitation> CreateAsync(Guid actor, Guid sessionId, CreateIdentityUserRequest request, string passwordHash);
+    /// <returns>Идентификатор пользователя с выданным доступом</returns>
+    Task<Guid> CreateAsync(Guid actor, Guid sessionId, CreateIdentityUserRequest request, string passwordHash);
 
     /// <summary>
     /// Сохраняет разрешённые изменения пользователя
@@ -81,8 +81,8 @@ public interface IIdentityAdministrationRepository
     /// <param name="activation">Параметры активации или null для повторной выдачи</param>
     /// <param name="version">Ожидаемая версия записи или выдачи по контексту команды</param>
     /// <param name="passwordHash">Защищённое представление временного пароля</param>
-    /// <returns>Данные для отправки письма</returns>
-    Task<IdentityInvitation> IssueAsync(Guid actor, Guid sessionId, Guid userId, ActivateIdentityUserRequest? activation, Guid version, string passwordHash);
+    /// <returns>Идентификатор пользователя с выданным доступом</returns>
+    Task<Guid> IssueAsync(Guid actor, Guid sessionId, Guid userId, ActivateIdentityUserRequest? activation, Guid version, string passwordHash);
 
     /// <summary>
     /// Создаёт первого администратора или повторно выдаёт ему доступ
@@ -93,22 +93,6 @@ public interface IIdentityAdministrationRepository
     /// <param name="reissue">Признак явной служебной повторной выдачи</param>
     /// <returns>Признак создания администратора или смены его пароля</returns>
     Task<bool> BootstrapAsync(string email, string fullName, string passwordHash, bool reissue);
-
-    /// <summary>
-    /// Проверяет актуальность поручения перед доставкой
-    /// </summary>
-    /// <param name="userId">Целевая учётная запись</param>
-    /// <param name="version">Ожидаемая версия записи или выдачи по контексту команды</param>
-    /// <returns>Признак актуальной выдачи</returns>
-    Task<bool> IsInvitationCurrentAsync(Guid userId, Guid version);
-
-    /// <summary>
-    /// Сохраняет результат только для текущей выдачи
-    /// </summary>
-    /// <param name="userId">Целевая учётная запись</param>
-    /// <param name="version">Ожидаемая версия записи или выдачи по контексту команды</param>
-    /// <param name="status">Подтверждённый результат отправки</param>
-    Task FinishInvitationAsync(Guid userId, Guid version, string status);
 
     /// <summary>Отключает учётную запись и связанную запись сотрудника</summary>
     /// <param name="actor">Администратор</param>

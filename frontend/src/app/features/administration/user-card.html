@@ -15,7 +15,7 @@
       <dl class="fields">
         <div><dt>{{ t.email }}</dt><dd>{{ user.email || t.unknown }}</dd></div>
         <div><dt>{{ t.filterStatus }}</dt><dd>{{ user.isActive ? w.active : w.inactive }}</dd></div>
-        <div><dt>{{ w.reissue }}</dt><dd>{{ delivery(user.invitationStatus) }}</dd></div>
+
       </dl>
     }
     <form class="form-stack" [formGroup]="form" (ngSubmit)="submit(detail)">
@@ -34,6 +34,9 @@
           </fieldset>
         }
         @if (!user) {
+          <label>{{ w.temporaryPassword }} <input type="password" autocomplete="new-password" formControlName="temporaryPassword" minlength="8" maxlength="256" required /></label>
+          <label>{{ w.repeatTemporaryPassword }} <input type="password" autocomplete="new-password" formControlName="repeatTemporaryPassword" minlength="8" maxlength="256" required /></label>
+          <p class="muted full-field">{{ w.temporaryPasswordHint }}</p>
           <label class="inline-check full-field"><input type="checkbox" formControlName="employee" /> {{ w.employee }}</label>
           @if (form.controls.employee.value) {
             <label>{{ t.directorate }}
@@ -74,6 +77,11 @@
       @if (selectedAction(); as action) {
         <div class="notice">
           <p>{{ action === 'deactivate' ? w.confirmDeactivate : w.confirmReissue }}</p>
+          @if (action !== 'deactivate') {
+            <label>{{ w.temporaryPassword }} <input type="password" autocomplete="new-password" [formControl]="form.controls.temporaryPassword" minlength="8" maxlength="256" required /></label>
+            <label>{{ w.repeatTemporaryPassword }} <input type="password" autocomplete="new-password" [formControl]="form.controls.repeatTemporaryPassword" minlength="8" maxlength="256" required /></label>
+            <p class="muted">{{ w.temporaryPasswordHint }}</p>
+          }
           @if (loadingContext()) { <sur-data-state kind="loading" /> }
           @if (relationships(); as links) {
             @if (links.person) { <p>{{ w.employee }} · {{ links.person.positionName || links.person.fullName }}</p> }
@@ -82,13 +90,14 @@
               <ul>
                 @for (process of links.processes; track process.id) { <li>{{ process.name }}</li> }
                 @for (assignment of links.responsibilities; track assignment.id) { <li>{{ labels[assignment.responsibilityType] }} · {{ assignment.id }}</li> }
+                @for (treatment of links.treatments; track treatment.id) { <li>{{ treatment.title }}</li> }
               </ul>
               <a routerLink="/admin/organization">{{ w.organization }}</a>
             }
           }
           <label class="inline-check"><input type="checkbox" [formControl]="confirmed" /> {{ action === 'activate' ? w.activate : action === 'deactivate' ? w.deactivate : w.reissue }}</label>
           <button type="button" [disabled]="write.busy() || loadingContext() || (action === 'deactivate' && (!relationships() || blocked()))" (click)="command(user, action)">{{ action === 'activate' ? w.activate : action === 'deactivate' ? w.deactivate : w.reissue }}</button>
-          <button type="button" [disabled]="write.busy()" (click)="selectedAction.set(null)">{{ t.cancel }}</button>
+          <button type="button" [disabled]="write.busy()" (click)="cancelAction()">{{ t.cancel }}</button>
         </div>
       }
     }

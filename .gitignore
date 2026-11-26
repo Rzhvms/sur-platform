@@ -78,6 +78,10 @@ appsettings.*.Local.json
 tmp/
 temp/
 
+# Local document storage without MinIO
+
+sur-documents/
+
 # Backup files
 
 *.bak

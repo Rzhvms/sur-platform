@@ -1,7 +1,7 @@
 <section class="panel" id="treatments">
   <div class="panel-heading">
     <h2>{{ t.treatments }}</h2>
-    <div class="action-row">
+    <div class="treatment-actions">
       @if (processes().length && !editing()) {
         <button type="button" (click)="editing.set(true)">{{ w.create }}</button>
       }
@@ -22,12 +22,19 @@
   @if (state.kind === 'loading') { <sur-data-state kind="loading" /> }
   @else if (state.kind === 'error') { <sur-data-state kind="error" [message]="state.message" (retry)="retry()" /> }
   @else {
-    <ul class="related-list">
+    <ul class="risk-treatment-list">
       @for (item of state.value; track item.id) {
-        <li>
-          <a [routerLink]="['/treatments', item.id]" [queryParams]="origin()">{{ item.title }}</a>
-          <p class="muted">{{ processName(item.processId) }} · {{ statuses[item.status] ?? item.status }} · {{ t.due }} {{ date(item.dueDate.slice(0, 10)) }} · {{ w.plan }}: {{ money(item.costPlanned) }}
-            @if (item.costActual !== null) { · {{ w.actual }}: {{ money(item.costActual) }} }</p>
+        <li class="risk-treatment-card">
+          <div class="risk-treatment-heading">
+            <a class="treatment-title-link" [routerLink]="['/treatments', item.id]" [queryParams]="origin()"><span>{{ item.title }}</span><span aria-hidden="true">↗</span></a>
+            <span class="treatment-state">{{ statuses[item.status] ?? item.status }}</span>
+          </div>
+          <p class="treatment-process">{{ processName(item.processId) }}</p>
+          <dl class="treatment-facts">
+            <div><dt>{{ t.due }}</dt><dd>{{ date(item.dueDate.slice(0, 10)) }}</dd></div>
+            <div><dt>{{ w.plan }}</dt><dd>{{ money(item.costPlanned) }}</dd></div>
+            <div><dt>{{ w.actual }}</dt><dd>{{ item.costActual === null ? t.unknown : money(item.costActual) }}</dd></div>
+          </dl>
         </li>
       } @empty { <li class="muted">{{ t.noTreatments }}</li> }
     </ul>

@@ -22,7 +22,7 @@ internal sealed partial class OrganizationRepository
         if (person is null)
         {
             transaction.Commit();
-            return new OrganizationUserContext(null, [], []);
+            return new OrganizationUserContext(null, [], [], []);
         }
 
         var personId = person.Id;
@@ -36,10 +36,18 @@ internal sealed partial class OrganizationRepository
             WHERE {IsActive} AND {EntityMapper.ColName<ResponsibilityDal>(x => x.PersonId)} = {EntityMapper.ParameterName(nameof(personId))}
             ORDER BY {Id}
             """;
+        var protectedStatuses = new[] { TreatmentRules.Waiting, TreatmentRules.Working };
+        var treatmentsQuery = $"""
+            SELECT m.* FROM {EntityMapper.TbName<TreatmentAssignmentDal>()} a
+            JOIN {EntityMapper.TbName<TreatmentDal>()} m ON m.{EntityMapper.ColName<TreatmentDal>(x => x.Id)} = a.{EntityMapper.ColName<TreatmentAssignmentDal>(x => x.TreatmentId)}
+            WHERE a.{EntityMapper.ColName<TreatmentAssignmentDal>(x => x.AssigneeId)} = {EntityMapper.ParameterName(nameof(personId))} AND m.{EntityMapper.ColName<TreatmentDal>(x => x.Status)} = ANY({EntityMapper.ParameterName(nameof(protectedStatuses))})
+            ORDER BY m.{EntityMapper.ColName<TreatmentDal>(x => x.Id)}
+            """;
         var processes = await connection.QueryAsync<ProcessDal>(processesQuery, new { personId }, transaction);
         var responsibilities = await connection.QueryAsync<ResponsibilityDal>(responsibilitiesQuery, new { personId }, transaction);
+        var treatments = await connection.QueryAsync<TreatmentDal>(treatmentsQuery, new { personId, protectedStatuses }, transaction);
         transaction.Commit();
-        return new OrganizationUserContext(person, processes.ToArray(), responsibilities.ToArray());
+        return new OrganizationUserContext(person, processes.ToArray(), responsibilities.ToArray(), treatments.ToArray());
     }
 
     /// <summary>Ищет активные организационные связи, оставшиеся без необходимой роли</summary>

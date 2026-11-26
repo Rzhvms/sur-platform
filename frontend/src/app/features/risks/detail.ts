@@ -9,6 +9,7 @@ import { calendarDate, money, utcTime } from '../../shared/format';
 import { text } from '../../shared/text';
 import { DataState, DataStateView } from '../../shared/ui/data-state';
 import { Rating, Status } from '../../shared/ui/status';
+import { UiTiming } from '../../core/release/ui-timing';
 import { Session } from '../../core/auth/session';
 import { RiskComments } from './comments';
 import { RiskAssessment } from './assessment';
@@ -31,10 +32,13 @@ export class RiskDetail {
   private readonly route = inject(ActivatedRoute);
   private readonly session = inject(Session);
   private readonly risks = inject(RisksApi);
+  private readonly timing = inject(UiTiming);
   private readonly reload = new Subject<void>();
   private readonly drafts = new Map<string, string>();
   private readonly query = toSignal(this.route.queryParamMap, { requireSync: true });
   private readonly demo = this.route.parent?.snapshot.data['demo'] === true;
+  /** Выбранный раздел следует за URL, включая переходы назад и вперёд */
+  protected readonly section = toSignal(this.route.fragment, { initialValue: this.route.snapshot.fragment });
   protected readonly t = text;
   protected readonly note = new FormControl('', { nonNullable: true });
   protected readonly showId = this.demo;
@@ -85,7 +89,10 @@ export class RiskDetail {
       return of(item ? { kind: 'ready', value: item } : { kind: 'error', message: text.missing });
     }
     return this.risks.details(id).pipe(
-      map((value): DataState<RiskDetails> => ({ kind: 'ready', value })),
+      map((value): DataState<RiskDetails> => {
+        this.timing.ready('risk-card');
+        return { kind: 'ready', value };
+      }),
       catchError((error: unknown): Observable<DataState<RiskDetails>> => {
         this.notFound.set(error instanceof HttpErrorResponse && error.status === 404);
         return of({ kind: 'error', message: errorMessage(error) });

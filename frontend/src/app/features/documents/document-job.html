@@ -1,14 +1,14 @@
-<section class="panel">
+<section class="panel document-job">
   <h2>{{ w.status }}</h2>
   @let result = state();
   @if (result.kind === 'loading') { <sur-data-state kind="loading" /> }
   @else if (result.kind === 'error') { <sur-data-state kind="error" [message]="result.message" (retry)="reload()" /> }
   @else {
     @let job = result.value;
-    <p role="status"><strong>{{ labels[job.state] }}</strong></p>
+    <p class="document-state" role="status">{{ labels[job.state] }}</p>
     <dl class="fields">
       <div><dt>{{ w.requested }}</dt><dd>{{ time(job.createdAt) }}</dd></div>
-      @if (job.kind !== 'IMPORT') { <div><dt>{{ w.author }}</dt><dd>{{ job.authorId }}</dd></div> }
+      @if (job.kind !== 'IMPORT') { <div><dt>{{ w.author }}</dt><dd>{{ t.ownComment }}</dd></div> }
       @if (job.kind === 'REPORT') {
         <div><dt>{{ w.asOf }}</dt><dd>{{ job.asOf ? time(job.asOf) : t.unknown }}</dd></div>
       }
@@ -35,16 +35,22 @@
       @else if (page.kind === 'error') { <sur-data-state kind="error" [message]="page.message" (retry)="reload()" /> }
       @else {
         <h3>{{ job.kind === 'IMPORT' ? w.results : w.reports }}</h3>
-        <ul class="related-list">
+        <ul class="document-report-list">
           @for (row of page.value; track row.number) {
-            <li>
+            <li class="document-report-card">
               @if (job.kind === 'IMPORT') {
                 <strong>{{ w.row }} {{ row.number }}</strong> ·
-                @if (row.hasError) { {{ code(row.data['code']) }} }
+                @if (row.hasError) {
+                  <span class="pill pill-error">{{ code(row.data['code']) }}</span>
+                  @if (importReason(row.data); as reason) { <span class="muted"> — {{ reason }}</span> }
+                }
                 @else { <a [routerLink]="['/risks', row.data['riskId']]">{{ t.riskName }}</a> }
               } @else {
-                <strong>{{ reportName(row.data) }}</strong><p class="muted">{{ reportStatus(row.data) }}</p>
-                <dl class="fields">
+                <div class="document-report-heading">
+                  <strong>{{ reportName(row.data) }}</strong>
+                  <span class="pill" [attr.data-status]="reportStatusCode(row.data)">{{ reportStatus(row.data) }}</span>
+                </div>
+                <dl class="document-report-facts">
                   <div><dt>{{ t.category }}</dt><dd>{{ nameValue(row.data['RiskCategoryDal']) }}</dd></div>
                   <div><dt>{{ t.hazard }}</dt><dd>{{ nameValue(row.data['HazardDal']) }}</dd></div>
                   <div><dt>{{ t.process }}</dt><dd>{{ reportProcesses(row.data) }}</dd></div>

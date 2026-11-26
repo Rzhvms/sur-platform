@@ -147,7 +147,7 @@ internal sealed partial class RiskRepository
         foreach (var link in links)
         {
             var keep = selected.Contains(link.ProcessId);
-            var isPrimary = keep ? link.ProcessId == primary : link.IsPrimary;
+            var isPrimary = keep && link.ProcessId == primary;
             if (!keep || isPrimary != link.IsPrimary)
             {
                 var updated = await SaveProcessLinkAsync(transaction, link, isPrimary, keep);

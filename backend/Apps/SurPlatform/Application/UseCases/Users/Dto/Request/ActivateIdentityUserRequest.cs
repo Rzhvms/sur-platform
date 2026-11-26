@@ -1,3 +1,4 @@
+using Application.Constants;
 using System.ComponentModel.DataAnnotations;
 
 namespace Application.UseCases.Users.Dto.Request;
@@ -7,6 +8,18 @@ namespace Application.UseCases.Users.Dto.Request;
 /// </summary>
 public sealed record ActivateIdentityUserRequest
 {
+    /// <summary>Временный пароль, передаваемый пользователю администратором</summary>
+    [Required, StringLength(IdentityAccounts.MaxPasswordLength, MinimumLength = IdentityAccounts.MinPasswordLength)]
+    [DataType(DataType.Password)]
+    public required string TemporaryPassword { get; init; }
+
+    /// <summary>Не включает временный пароль в диагностическое представление</summary>
+    /// <returns>Имя контракта без значений полей</returns>
+    public override string ToString()
+    {
+        return nameof(ActivateIdentityUserRequest);
+    }
+
     /// <summary>
     /// Версия прочитанной карточки
     /// </summary>

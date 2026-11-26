@@ -177,6 +177,7 @@ internal sealed partial class RiskRepository
             var saveQuery = $"SAVEPOINT {savepoint}";
             await connection.ExecuteAsync(saveQuery, transaction: transaction);
             string? code = null;
+            string? field = null;
             Guid? riskId = null;
             try
             {
@@ -190,12 +191,18 @@ internal sealed partial class RiskRepository
                 var rollbackQuery = $"ROLLBACK TO SAVEPOINT {savepoint}";
                 await connection.ExecuteAsync(rollbackQuery, transaction: transaction);
                 code = error is IdentityCommandException command ? command.Code : DocumentRules.InvalidRow;
+                field = error switch
+                {
+                    FormatException => error.Message,
+                    ValidationException validation => validation.ValidationResult.MemberNames.FirstOrDefault(),
+                    _ => null
+                };
             }
 
             var row = new DocumentRowDal
             {
                 JobId = id, Number = number, HasError = code is not null,
-                Data = JsonSerializer.Serialize(new { riskId, code }, JsonSerializerOptions.Web)
+                Data = JsonSerializer.Serialize(new { riskId, code, field }, JsonSerializerOptions.Web)
             };
             var insertQuery = $"""
                 INSERT INTO {EntityMapper.TbName<DocumentRowDal>()} ({EntityMapper.ColName<DocumentRowDal>(x => x.JobId)},
@@ -222,13 +229,30 @@ internal sealed partial class RiskRepository
         {
             Name = ReadImportField(mapping, fields, nameof(RiskPassportRequest.Name)),
             Description = ReadImportField(mapping, fields, nameof(RiskPassportRequest.Description)),
-            HazardId = Guid.Parse(ReadImportField(mapping, fields, nameof(RiskPassportRequest.HazardId))),
-            CategoryId = Guid.Parse(ReadImportField(mapping, fields, nameof(RiskPassportRequest.CategoryId))),
-            ProcessId = Guid.Parse(ReadImportField(mapping, fields, nameof(RiskPassportRequest.ProcessId))),
-            AssetId = string.IsNullOrWhiteSpace(asset) ? null : Guid.Parse(asset)
+            HazardId = ReadIdentifier(mapping, fields, nameof(RiskPassportRequest.HazardId)),
+            CategoryId = ReadIdentifier(mapping, fields, nameof(RiskPassportRequest.CategoryId)),
+            ProcessId = ReadIdentifier(mapping, fields, nameof(RiskPassportRequest.ProcessId)),
+            AssetId = string.IsNullOrWhiteSpace(asset) ? null : ReadIdentifier(mapping, fields, nameof(RiskPassportRequest.AssetId))
         };
         Validator.ValidateObject(request, new ValidationContext(request), true);
         return request;
+    }
+
+    /// <summary>Читает обязательный идентификатор справочника</summary>
+    /// <param name="mapping">Индексы полей</param>
+    /// <param name="fields">Ячейки строки</param>
+    /// <param name="name">Поле целевого паспорта</param>
+    /// <returns>Разобранный идентификатор</returns>
+    /// <exception cref="FormatException">Значение не является идентификатором</exception>
+    private static Guid ReadIdentifier(ImportMapping mapping, string[] fields, string name)
+    {
+        var value = ReadImportField(mapping, fields, name);
+        if (!Guid.TryParse(value, out var id))
+        {
+            throw new FormatException(name);
+        }
+
+        return id;
     }
 
     /// <summary>Возвращает ячейку выбранной колонки</summary>
@@ -246,7 +270,7 @@ internal sealed partial class RiskRepository
 
         if (index >= fields.Length || fields[index].Contains('\0'))
         {
-            throw new FormatException();
+            throw new FormatException(name);
         }
 
         return fields[index];

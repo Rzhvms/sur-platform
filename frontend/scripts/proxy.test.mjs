@@ -49,3 +49,18 @@ test('requires a canonical DNS HTTPS origin and validates TLS with the configure
   assert.equal(proxy.agent.options.ca, cert);
   assert.equal(proxy.agent.options.rejectUnauthorized, true);
 });
+
+
+test('proxies only the exact release endpoint alongside browser API routes', () => {
+  const config = defineProxy('https://localhost:7224', undefined);
+  const matcher = new RegExp(Object.keys(config)[0]);
+  const proxy = first(config);
+  for (const url of ['/health/release', '/health/release?probe=1']) {
+    assert.equal(matcher.test(url), true);
+    assert.equal(proxy.bypass({ url }), undefined);
+  }
+  for (const url of ['/health/release/private', '/health/live', '/health/release/../internal']) {
+    assert.equal(matcher.test(url), false);
+    assert.equal(proxy.bypass({ url }), false);
+  }
+});

@@ -1,7 +1,7 @@
 import { HttpErrorResponse } from '@angular/common/http';
 import { ChangeDetectionStrategy, Component, DestroyRef, inject, input, output, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
-import { FormControl, ReactiveFormsModule } from '@angular/forms';
+import { FormControl, FormGroup, ReactiveFormsModule } from '@angular/forms';
 import { finalize } from 'rxjs';
 import { Session } from '../../core/auth/session';
 import { problemCode } from '../../core/http/api';
@@ -14,17 +14,21 @@ import { TreatmentsApi, treatmentWriteError } from './treatments-api';
   imports: [ReactiveFormsModule],
   changeDetection: ChangeDetectionStrategy.OnPush,
   template: `
-    <div class="action-row">
+    @if (!selection()) {
+    <div class="approval-actions">
       @if (inQueue() && approval().status === 'PENDING') {
-        <button type="button" [disabled]="busy()" (click)="choose('approve')">{{ w.approve }}</button>
-        <button type="button" [disabled]="busy()" (click)="choose('reject')">{{ w.reject }}</button>
+        <button type="button" class="primary" [disabled]="busy()" (click)="choose('approve')">{{ w.approve }}</button>
+        <button type="button" class="approval-negative" [disabled]="busy()" (click)="choose('reject')">{{ w.reject }}</button>
       }
       @if (session.hasRight('admin')) {
         <button type="button" [disabled]="busy()" (click)="choose('revoke')">{{ w.revoke }}</button>
       }
     </div>
+    }
     @if (selection(); as choice) {
-      <form class="form-stack" (ngSubmit)="submit()">
+      <form class="form-stack approval-confirmation" [formGroup]="form" (ngSubmit)="submit()" aria-labelledby="approval-confirm-heading-{{ approval().id }}">
+        <h3 id="approval-confirm-heading-{{ approval().id }}">{{ w[choice.action] }}</h3>
+        <p>{{ choice.action === 'approve' ? w.approveConfirm : choice.action === 'reject' ? w.rejectConfirm : w.revokeConfirm }}</p>
         @if (choice.action !== 'approve') {
           <label>{{ w.reason }} <textarea [formControl]="reason" required></textarea></label>
         }
@@ -32,13 +36,13 @@ import { TreatmentsApi, treatmentWriteError } from './treatments-api';
           <p role="status">{{ w.discardDrafts }}</p>
           <label><input type="checkbox" [formControl]="confirmed" /> {{ w.confirmTransition }}</label>
         }
-        <div class="action-row">
-          <button class="primary" type="submit" [disabled]="busy()">{{ w[choice.action] }}</button>
-          <button type="button" [disabled]="busy()" (click)="selection.set(null)">{{ t.cancel }}</button>
+        <div class="approval-actions">
+          <button class="primary" type="submit" [disabled]="busy() || (confirmation() && !confirmed.value)">{{ busy() ? t.loading : w.confirmDecision }}</button>
+          <button type="button" [disabled]="busy()" (click)="cancel()">{{ t.cancel }}</button>
         </div>
       </form>
     }
-    @if (notice()) { <p role="status">{{ notice() }}</p> }
+    @if (notice()) { <p class="form-error" role="alert">{{ notice() }}</p> }
   `,
 })
 export class ApprovalActions {
@@ -56,6 +60,8 @@ export class ApprovalActions {
   protected readonly confirmation = signal(false);
   protected readonly confirmed = new FormControl(false, { nonNullable: true });
   protected readonly reason = new FormControl('', { nonNullable: true });
+  /** Директива формы связывает нативный submit с Angular ngSubmit */
+  protected readonly form = new FormGroup({ reason: this.reason, confirmed: this.confirmed });
 
   /** Фиксируем версию запроса, которую пользователь изучил перед решением. */
   protected choose(action: Decision): void {
@@ -64,6 +70,13 @@ export class ApprovalActions {
     this.confirmed.reset();
     this.confirmation.set(false);
     this.notice.set('');
+  }
+
+  /** Закрывает подтверждение вместе с сообщением валидации */
+  protected cancel(): void {
+    this.selection.set(null);
+    this.notice.set('');
+    this.confirmation.set(false);
   }
 
   protected submit(): void {

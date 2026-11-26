@@ -181,6 +181,13 @@ public interface IRiskRepository
     /// <returns>Действующие процессы клиента</returns>
     Task<RiskProcessOption[]> ListSplitProcessesAsync(RiskActor actor, Guid id, int offset, int limit);
 
+    /// <summary>Читает страницу общего списка мер текущего клиента</summary>
+    /// <param name="actor">Участник клиентского запроса</param>
+    /// <param name="offset">Смещение страницы</param>
+    /// <param name="limit">Размер страницы</param>
+    /// <returns>Меры, связанные названия и наличие следующей страницы</returns>
+    Task<TreatmentRegistry> ListTreatmentRegistryAsync(RiskActor actor, int offset, int limit);
+
     /// <summary>Читает меры риска</summary>
     /// <param name="actor">Участник клиентского запроса</param>
     /// <param name="riskId">Риск</param>

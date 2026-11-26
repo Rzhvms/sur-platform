@@ -186,11 +186,7 @@ internal sealed partial class RiskRepository
         var previous = await ReadAssignmentAsync(id, transaction);
         if (issue.Assignee is null)
         {
-            RequireTreatmentState(target != TreatmentRules.Working);
-            if (previous is not null && target == TreatmentRules.Hold)
-            {
-                await SaveJiraAssignmentAsync(settings, id, null, previous, operationId, transaction);
-            }
+            throw new IdentityCommandException(409, TreatmentRules.InvalidExecutor);
         }
         else
         {
@@ -200,13 +196,13 @@ internal sealed partial class RiskRepository
                 SELECT {EntityMapper.ColName<OrgPersonDal>(x => x.Id)} FROM {EntityMapper.TbName<OrgPersonDal>()} WHERE {EntityMapper.ColName<OrgPersonDal>(x => x.UserId)} = {EntityMapper.ParameterName(nameof(user))} AND {EntityMapper.ColName<OrgPersonDal>(x => x.IsActive)}
                 """;
             var assignee = await connection.QuerySingleOrDefaultAsync<Guid?>(query, new { user }, transaction);
-            if (assignee is null || (await ReadEligibleExecutorsAsync(measure.ProcessId, assignee, 0, 1, transaction)).Length != 1)
+            if (assignee is not Guid assigneeId || (await ReadEligibleExecutorsAsync(measure.ProcessId, assigneeId, 0, 1, transaction)).Length != 1)
             {
                 throw new IdentityCommandException(409, TreatmentRules.InvalidExecutor);
             }
             if (previous?.AssigneeId != assignee)
             {
-                await SaveJiraAssignmentAsync(settings, id, assignee, previous, operationId, transaction);
+                await SaveJiraAssignmentAsync(settings, id, assigneeId, previous, operationId, transaction);
             }
         }
         if (target != measure.Status)
@@ -232,33 +228,22 @@ internal sealed partial class RiskRepository
     /// <param name="previous">Предыдущее назначение</param>
     /// <param name="operationId">Идентификатор общей команды</param>
     /// <param name="transaction">Транзакция применения</param>
-    private async Task SaveJiraAssignmentAsync(JiraSettingsDal settings, Guid id, Guid? assignee, TreatmentAssignmentDal? previous, Guid operationId, IDbTransaction transaction)
+    private async Task SaveJiraAssignmentAsync(JiraSettingsDal settings, Guid id, Guid assignee, TreatmentAssignmentDal? previous, Guid operationId, IDbTransaction transaction)
     {
 
-        var row = new TreatmentAssignmentDal { Id = Guid.NewGuid(), TreatmentId = id, AssigneeId = assignee.GetValueOrDefault(),
+        var row = new TreatmentAssignmentDal { Id = Guid.NewGuid(), TreatmentId = id, AssigneeId = assignee,
             AssignedById = IdentityAccounts.SystemUserId, AssignmentSource = JiraRules.AssignmentSource };
-        TreatmentAssignmentDal? updated = null;
-        if (assignee is null)
-        {
-            var query = $"""
-                DELETE FROM {EntityMapper.TbName<TreatmentAssignmentDal>()} WHERE {EntityMapper.ColName<TreatmentAssignmentDal>(x => x.TreatmentId)} = {EntityMapper.ParameterName(nameof(id))}
-                """;
-            await connection.ExecuteAsync(query, new { id }, transaction);
-        }
-        else
-        {
-            var query = $"""
-                INSERT INTO {EntityMapper.TbName<TreatmentAssignmentDal>()} ({EntityMapper.ColName<TreatmentAssignmentDal>(x => x.Id)}, {EntityMapper.ColName<TreatmentAssignmentDal>(x => x.TreatmentId)}, {EntityMapper.ColName<TreatmentAssignmentDal>(x => x.AssigneeId)}, {EntityMapper.ColName<TreatmentAssignmentDal>(x => x.AssignedById)}, {EntityMapper.ColName<TreatmentAssignmentDal>(x => x.AssignmentSource)})
-                VALUES ({EntityMapper.ParameterName(nameof(row.Id))}, {EntityMapper.ParameterName(nameof(row.TreatmentId))}, {EntityMapper.ParameterName(nameof(row.AssigneeId))}, {EntityMapper.ParameterName(nameof(row.AssignedById))}, {EntityMapper.ParameterName(nameof(row.AssignmentSource))})
-                ON CONFLICT ({EntityMapper.ColName<TreatmentAssignmentDal>(x => x.TreatmentId)}) DO UPDATE SET
-                    {EntityMapper.ColName<TreatmentAssignmentDal>(x => x.AssigneeId)} = EXCLUDED.{EntityMapper.ColName<TreatmentAssignmentDal>(x => x.AssigneeId)},
-                    {EntityMapper.ColName<TreatmentAssignmentDal>(x => x.AssignedById)} = EXCLUDED.{EntityMapper.ColName<TreatmentAssignmentDal>(x => x.AssignedById)},
-                    {EntityMapper.ColName<TreatmentAssignmentDal>(x => x.AssignmentSource)} = EXCLUDED.{EntityMapper.ColName<TreatmentAssignmentDal>(x => x.AssignmentSource)},
-                    {EntityMapper.ColName<TreatmentAssignmentDal>(x => x.AssignedAt)} = clock_timestamp() RETURNING *
-                """;
-            updated = await connection.QuerySingleAsync<TreatmentAssignmentDal>(query, row, transaction);
-        }
-        await BusinessHistory.RecordAsync(transaction, operationId, settings.ResponsibleUserId, (updated ?? previous ?? row).Id,
+        var query = $"""
+            INSERT INTO {EntityMapper.TbName<TreatmentAssignmentDal>()} ({EntityMapper.ColName<TreatmentAssignmentDal>(x => x.Id)}, {EntityMapper.ColName<TreatmentAssignmentDal>(x => x.TreatmentId)}, {EntityMapper.ColName<TreatmentAssignmentDal>(x => x.AssigneeId)}, {EntityMapper.ColName<TreatmentAssignmentDal>(x => x.AssignedById)}, {EntityMapper.ColName<TreatmentAssignmentDal>(x => x.AssignmentSource)})
+            VALUES ({EntityMapper.ParameterName(nameof(row.Id))}, {EntityMapper.ParameterName(nameof(row.TreatmentId))}, {EntityMapper.ParameterName(nameof(row.AssigneeId))}, {EntityMapper.ParameterName(nameof(row.AssignedById))}, {EntityMapper.ParameterName(nameof(row.AssignmentSource))})
+            ON CONFLICT ({EntityMapper.ColName<TreatmentAssignmentDal>(x => x.TreatmentId)}) DO UPDATE SET
+                {EntityMapper.ColName<TreatmentAssignmentDal>(x => x.AssigneeId)} = EXCLUDED.{EntityMapper.ColName<TreatmentAssignmentDal>(x => x.AssigneeId)},
+                {EntityMapper.ColName<TreatmentAssignmentDal>(x => x.AssignedById)} = EXCLUDED.{EntityMapper.ColName<TreatmentAssignmentDal>(x => x.AssignedById)},
+                {EntityMapper.ColName<TreatmentAssignmentDal>(x => x.AssignmentSource)} = EXCLUDED.{EntityMapper.ColName<TreatmentAssignmentDal>(x => x.AssignmentSource)},
+                {EntityMapper.ColName<TreatmentAssignmentDal>(x => x.AssignedAt)} = clock_timestamp() RETURNING *
+            """;
+        var updated = await connection.QuerySingleAsync<TreatmentAssignmentDal>(query, row, transaction);
+        await BusinessHistory.RecordAsync(transaction, operationId, settings.ResponsibleUserId, updated.Id,
             previous, updated, system: true, automaticSource: JiraRules.Source, configurationAuthorId: settings.UpdatedById);
     }
 
