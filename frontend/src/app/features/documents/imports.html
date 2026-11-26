@@ -1,4 +1,5 @@
 <h1>{{ w.imports }}</h1>
+<p class="report-hint">{{ w.importHint }}</p>
 @if (request.id(); as id) {
   <div class="action-row"><button type="button" [disabled]="busy()" (click)="reset()">{{ w.createNew }}</button></div>
   @for (jobId of [id]; track jobId) {
@@ -21,6 +22,7 @@
           </dl>
         }
         <div class="action-row">
+          <button type="button" [disabled]="busy() || request.busy() || templateBusy()" (click)="downloadTemplate()">{{ templateBusy() ? t.loading : w.template }}</button>
           @if (status === 'UPLOADING') {
             <button class="primary" type="button" [disabled]="busy() || !selectedFile()" (click)="upload()">{{ w.upload }}</button>
           } @else {
@@ -35,7 +37,7 @@
     @if (status === 'AWAITING_MAPPING') {
       @if (!preview()) { <button type="button" [disabled]="busy()" (click)="readSource()">{{ w.readPreview }}</button> }
       <form class="form-stack" [formGroup]="matching" (ngSubmit)="start()">
-        <fieldset class="form-fields" [disabled]="busy() || !!frozenMapping() || !mayStart()">
+        <fieldset class="form-fields" [disabled]="busy() || !!frozenMapping() || !mayStart() || !preview()">
           <label>{{ w.delimiter }}
             <select #separator [value]="delimiter()" (change)="delimiter.set(separator.value === ';' ? ';' : ',')">
               <option value=",">{{ w.comma }}</option><option value=";">{{ w.semicolon }}</option>
@@ -44,15 +46,16 @@
           <label class="inline-check"><input #headerFlag type="checkbox" [checked]="header()" (change)="header.set(headerFlag.checked)" /> {{ w.header }}</label>
           @for (field of fields; track field) {
             <label>{{ labels[field] }}
-              <input [formControlName]="field" list="csv-columns" inputmode="numeric" [attr.placeholder]="field === 'AssetId' ? w.noAsset : null" />
+              <select [formControlName]="field">
+                @if (field === 'AssetId') { <option value="">{{ w.noAsset }}</option> }
+                @for (column of columnOptions(); track column.value) {
+                  <option [value]="column.value">{{ column.label }}</option>
+                }
+              </select>
             </label>
           }
-          <datalist id="csv-columns">
-            @for (cell of preview()?.rows?.[0]?.slice(0, 128) ?? []; track $index) {
-              <option [value]="$index">{{ header() ? cell.slice(0, 100) : w.column + ' ' + $index }}</option>
-            }
-          </datalist>
         </fieldset>
+        @if (!preview()) { <p class="notice">{{ w.loadPreviewFirst }}</p> }
         @if (mayStart()) {
           <div class="action-row">
             <button class="primary" type="submit" [disabled]="busy()">{{ frozenMapping() ? t.retry : w.start }}</button>

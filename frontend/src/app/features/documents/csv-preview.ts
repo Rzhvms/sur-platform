@@ -55,6 +55,37 @@ export const csvFields = {
 } as const;
 export type CsvField = keyof typeof csvFields;
 
+/** Обязательные поля паспорта, которым всегда назначается отдельный столбец. */
+export const requiredCsvFields: readonly CsvField[] = ['Name', 'Description', 'HazardId', 'CategoryId', 'ProcessId'];
+
+const headerAliases: Record<CsvField, readonly string[]> = {
+  Name: ['name', 'название', 'названиериска', 'риск'],
+  Description: ['description', 'описание'],
+  HazardId: ['hazardid', 'hazard', 'опасность', 'idопасности', 'идопасности'],
+  CategoryId: ['categoryid', 'category', 'категория', 'idкатегории', 'идкатегории'],
+  ProcessId: ['processid', 'process', 'процесс', 'idпроцесса', 'идпроцесса'],
+  AssetId: ['assetid', 'asset', 'объект', 'idобъекта', 'идобъекта'],
+};
+
+/** Сопоставляет поля паспорта с колонками по названиям заголовков и заполняет остаток свободными столбцами. */
+export function detectColumns(header: readonly string[], columnCount: number): Partial<Record<CsvField, number>> {
+  const result: Partial<Record<CsvField, number>> = {};
+  const used = new Set<number>();
+  const normalized = header.slice(0, columnCount).map(cell => cell.trim().toLowerCase().replace(/[\s\u00a0_.-]+/g, ''));
+  for (const field of Object.keys(csvFields) as CsvField[]) {
+    const index = normalized.findIndex((cell, position) => !used.has(position) && headerAliases[field].includes(cell));
+    if (index >= 0) { result[field] = index; used.add(index); }
+  }
+  for (const field of requiredCsvFields) {
+    if (result[field] !== undefined) { continue; }
+    const index = Array.from({ length: columnCount }, (_, position) => position).find(position => !used.has(position));
+    if (index === undefined) { break; }
+    result[field] = index;
+    used.add(index);
+  }
+  return result;
+}
+
 export function mappedColumns(raw: Record<CsvField, string>): Record<string, number> | null {
   const result: Record<string, number> = {};
   const seen = new Set<number>();
