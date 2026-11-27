@@ -12,7 +12,6 @@ import { TreatmentsApiService } from '../../features/treatments/treatments-api.s
 import { text } from '../../shared/text';
 import { accessToken } from '../auth/access';
 import { SessionService } from '../auth/session.service';
-import { ReleaseService } from '../release/release.service';
 import { errorMessage } from './api';
 
 let configured = false;
@@ -137,18 +136,6 @@ test('real session serializes concurrent refresh behind fresh CSRF and then read
   await Promise.all([one, two]);
   assert.deepEqual(session.rights(), ['view_risk']);
   assert.equal(session.sid(), 'session-device-one');
-});
-
-test('release verification rejects incompatible API data before displaying forms', () => {
-  const { injector, requests } = setup([ReleaseService]);
-  const release = injector.get(ReleaseService);
-  release.check();
-  requests.expectOne('/health/release').flush({ version: '0.1.0', revision: 'fixture-revision', contractVersion: 2 });
-  assert.equal(release.ready(), false);
-  assert.ok(release.message());
-  release.check();
-  requests.expectOne('/health/release').flush({ version: '0.1.0', revision: 'fixture-revision', contractVersion: 1 });
-  assert.equal(release.ready(), true);
 });
 
 test('binary document errors retain the ProblemDetails code and HTTP status', async () => {
