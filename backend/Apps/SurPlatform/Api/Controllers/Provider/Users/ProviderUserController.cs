@@ -1,8 +1,8 @@
-using Application.UseCases.Organization;
+using Application.UseCases.Organization.Interfaces;
 using Application.Constants;
 using Application.Models;
 using Application.UseCases.Users.Dto.Response;
-using Application.UseCases.Users;
+using Application.UseCases.Users.Interfaces;
 using Application.UseCases.Users.Dto.Request;
 using Core.Api.Controllers.ControllerTypes;
 using Core.Api.Extensions;
@@ -18,7 +18,7 @@ namespace Api.Controllers.Provider.Users;
 [Route("users")]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
-public sealed class ProviderUserController(IdentityAdministrationUseCaseManager useCases, OrganizationUseCaseManager organization)
+public sealed class ProviderUserController(IIdentityAdministrationUseCaseManager useCases, IOrganizationUseCaseManager organization)
     : BaseProviderController
 {
     /// <summary>

@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using Api.Constants;
 using Api.Extensions;
 using Api.Controllers.Provider.Risks.Dto.Response;
-using Application.UseCases.Risks;
+using Application.UseCases.Risks.Interfaces;
 using Application.UseCases.Risks.Dto.Request;
 using Core.Api.Controllers.ControllerTypes;
 using Microsoft.AspNetCore.Authorization;
@@ -20,7 +20,7 @@ namespace Api.Controllers.Provider.Risks;
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
-public sealed class ReviewScheduleController(ReviewUseCaseManager useCases, IConfiguration configuration) : BaseProviderController
+public sealed class ReviewScheduleController(IReviewUseCaseManager useCases, IConfiguration configuration) : BaseProviderController
 {
     /// <summary>Ключ зоны для новых календарных правил</summary>
     private const string TimeZoneKey = "Application:TimeZone";

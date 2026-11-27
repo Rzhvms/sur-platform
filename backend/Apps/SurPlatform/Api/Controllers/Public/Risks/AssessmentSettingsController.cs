@@ -1,6 +1,6 @@
 using Api.Extensions;
 using Application.Models;
-using Application.UseCases.Risks;
+using Application.UseCases.Risks.Interfaces;
 using Core.Api.Controllers.ControllerTypes;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -15,7 +15,7 @@ namespace Api.Controllers.Public.Risks;
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
-public sealed class AssessmentSettingsController(RiskUseCaseManager useCases) : BasePublicController
+public sealed class AssessmentSettingsController(IRiskUseCaseManager useCases) : BasePublicController
 {
     /// <summary>Возвращает текущую денежную шкалу</summary>
     /// <returns>Результат операции</returns>

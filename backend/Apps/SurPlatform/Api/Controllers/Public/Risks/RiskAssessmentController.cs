@@ -3,7 +3,7 @@ using Api.Constants;
 using Api.Extensions;
 using Application.Constants;
 using Application.Models;
-using Application.UseCases.Risks;
+using Application.UseCases.Risks.Interfaces;
 using Application.UseCases.Risks.Dto.Request;
 using Core.Api.Controllers.ControllerTypes;
 using Domain.DalModels;
@@ -22,7 +22,7 @@ namespace Api.Controllers.Public.Risks;
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
-public sealed class RiskAssessmentController(RiskUseCaseManager useCases) : BasePublicController
+public sealed class RiskAssessmentController(IRiskUseCaseManager useCases) : BasePublicController
 {
     /// <summary>Читает историю оценок</summary>
     /// <param name="id">Риск</param>

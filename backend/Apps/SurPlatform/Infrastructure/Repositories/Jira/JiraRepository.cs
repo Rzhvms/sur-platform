@@ -1,3 +1,4 @@
+using Infrastructure.Services.Jira.Helpers;
 using Infrastructure.Repositories.History.Helpers;
 using Infrastructure.Repositories.Jira.Models;
 using Application.Constants;
@@ -18,7 +19,7 @@ using Infrastructure.Repositories.Sessions.Interfaces;
 using Infrastructure.Repositories.Shared;
 using Infrastructure.Repositories.Treatments.Interfaces;
 using Infrastructure.Repositories.Treatments;
-using Infrastructure.Services.Jira;
+using Infrastructure.Services.Jira.Interfaces;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Configuration;
 using System.Data;
@@ -43,7 +44,7 @@ internal sealed class JiraRepository : ClientRepository, IJiraRepository, IJiraW
     private readonly IConfiguration _jiraConfiguration;
 
     /// <summary>HTTPS-клиент Jira</summary>
-    private readonly JiraRestClient _jiraRest;
+    private readonly IJiraRestClient _jiraRest;
 
     /// <summary>Защита реквизитов Jira</summary>
     private readonly IDataProtectionProvider _protection;
@@ -78,7 +79,7 @@ internal sealed class JiraRepository : ClientRepository, IJiraRepository, IJiraW
         OperationsMetrics operations,
         ClientDatabaseContext databaseContext,
         IConfiguration jiraConfiguration,
-        JiraRestClient jiraRest,
+        IJiraRestClient jiraRest,
         IDataProtectionProvider protection,
         IJiraStateRepository jiraStateRepository,
         IReviewStateRepository reviewStateRepository,
@@ -272,10 +273,10 @@ internal sealed class JiraRepository : ClientRepository, IJiraRepository, IJiraW
         {
             throw new IdentityCommandException(409, IdentityErrorCodes.StaleVersion);
         }
-        var address = JiraRestClient.Resolve(_jiraConfiguration, RequiredText(request.BaseUrl));
+        var address = JiraRequestHelper.Resolve(_jiraConfiguration, RequiredText(request.BaseUrl));
         var project = RequiredText(request.Project);
         var issueType = RequiredText(request.IssueType);
-        if (!JiraRestClient.IsResourceId(project) || !JiraRestClient.IsResourceId(issueType))
+        if (!JiraRequestHelper.IsResourceId(project) || !JiraRequestHelper.IsResourceId(issueType))
         {
             throw new IdentityCommandException(400, JiraRules.Invalid);
         }
@@ -351,7 +352,7 @@ internal sealed class JiraRepository : ClientRepository, IJiraRepository, IJiraW
     public async Task<JsonElement> DiscoverJiraAsync(RiskActor actor, JiraDiscoveryRequest request, CancellationToken cancellation)
     {
         var previous = await GetJiraAsync(actor);
-        var address = JiraRestClient.Resolve(_jiraConfiguration, RequiredText(request.BaseUrl));
+        var address = JiraRequestHelper.Resolve(_jiraConfiguration, RequiredText(request.BaseUrl));
         var token = request.RestToken ?? (previous is not null && previous.BaseUrl == address.AbsoluteUri
             ? JiraProtector().Unprotect(previous.RestSecret) : null);
         if (string.IsNullOrWhiteSpace(token) || token.Any(char.IsWhiteSpace))
@@ -374,7 +375,7 @@ internal sealed class JiraRepository : ClientRepository, IJiraRepository, IJiraW
                     })
                 });
             }
-            if (!JiraRestClient.IsResourceId(key))
+            if (!JiraRequestHelper.IsResourceId(key))
             {
                 throw new IdentityCommandException(400, JiraRules.Invalid);
             }
@@ -398,7 +399,7 @@ internal sealed class JiraRepository : ClientRepository, IJiraRepository, IJiraW
 
         try
         {
-            var uri = JiraRestClient.Resolve(_jiraConfiguration, row.BaseUrl);
+            var uri = JiraRequestHelper.Resolve(_jiraConfiguration, row.BaseUrl);
             var project = Uri.EscapeDataString(row.Project);
             var issueType = Uri.EscapeDataString(row.IssueType);
             var prefix = $"issue/createmeta/{project}/issuetypes";
@@ -411,7 +412,7 @@ internal sealed class JiraRepository : ClientRepository, IJiraRepository, IJiraW
             var fields = await _jiraRest.MetadataAsync(uri, token, prefix + "/" + issueType, cancellation);
             var names = new HashSet<string>(StringComparer.Ordinal) { "project", "issuetype", "summary", "assignee", "duedate" };
             var available = fields.Select(field => field.GetProperty("fieldId").GetString()).ToHashSet();
-            if (!names.IsSubsetOf(available) || !available.Contains(JiraRestClient.DescriptionField) ||
+            if (!names.IsSubsetOf(available) || !available.Contains(JiraRequestHelper.DescriptionField) ||
                 fields.Any(field => field.GetProperty("required").GetBoolean() &&
                 !names.Contains(field.GetProperty("fieldId").GetString() ?? string.Empty) &&
                 (!field.TryGetProperty("hasDefaultValue", out var hasDefault) || !hasDefault.GetBoolean())))
@@ -461,13 +462,13 @@ internal sealed class JiraRepository : ClientRepository, IJiraRepository, IJiraW
         {
             throw new IdentityCommandException(400, JiraRules.Invalid);
         }
-        var address = JiraRestClient.Resolve(_jiraConfiguration, settings.BaseUrl);
+        var address = JiraRequestHelper.Resolve(_jiraConfiguration, settings.BaseUrl);
         try
         {
             foreach (var user in users)
             {
                 var emailAddress = RequiredText(user.Email);
-                var candidates = await _jiraRest.RequestAsync(address, token, JiraRestClient.UserSearchPath + Uri.EscapeDataString(emailAddress), cancellation);
+                var candidates = await _jiraRest.RequestAsync(address, token, JiraRequestHelper.UserSearchPath + Uri.EscapeDataString(emailAddress), cancellation);
                 var exact = candidates.EnumerateArray().Where(candidate => candidate.GetProperty("active").GetBoolean()
                     && candidate.TryGetProperty("emailAddress", out var email)
                     && string.Equals(email.GetString(), user.Email, StringComparison.OrdinalIgnoreCase)).ToArray();
@@ -610,7 +611,7 @@ internal sealed class JiraRepository : ClientRepository, IJiraRepository, IJiraW
     private async Task<JiraIssueSnapshot> ReadJiraIssueAsync(JiraSettingsDal settings, Uri address, string token, string target, CancellationToken cancellation)
     {
 
-        if (!JiraRestClient.IsResourceId(target))
+        if (!JiraRequestHelper.IsResourceId(target))
         {
             throw new IdentityCommandException(400, JiraRules.Invalid);
         }
@@ -622,7 +623,7 @@ internal sealed class JiraRepository : ClientRepository, IJiraRepository, IJiraW
         {
             throw new IdentityCommandException(409, JiraRules.Conflict);
         }
-        if (!JiraRestClient.IsResourceId(RequiredText(issue.GetProperty("key").GetString())))
+        if (!JiraRequestHelper.IsResourceId(RequiredText(issue.GetProperty("key").GetString())))
         {
             throw new IdentityCommandException(409, JiraRules.Conflict);
         }
@@ -742,7 +743,7 @@ internal sealed class JiraRepository : ClientRepository, IJiraRepository, IJiraW
         {
             try
             {
-                issue = await ReadJiraIssueAsync(settings, JiraRestClient.Resolve(_jiraConfiguration, settings.BaseUrl),
+                issue = await ReadJiraIssueAsync(settings, JiraRequestHelper.Resolve(_jiraConfiguration, settings.BaseUrl),
                     JiraProtector().Unprotect(settings.RestSecret), target, cancellation);
             }
             catch (Exception error) when (IsJiraFailure(error) && !cancellation.IsCancellationRequested)
@@ -825,7 +826,7 @@ internal sealed class JiraRepository : ClientRepository, IJiraRepository, IJiraW
         {
             return;
         }
-        var address = JiraRestClient.Resolve(_jiraConfiguration, settings.BaseUrl);
+        var address = JiraRequestHelper.Resolve(_jiraConfiguration, settings.BaseUrl);
         var token = JiraProtector().Unprotect(settings.RestSecret);
         var pending = JiraRules.Pending;
         var working = TreatmentRules.Working;
@@ -916,7 +917,7 @@ internal sealed class JiraRepository : ClientRepository, IJiraRepository, IJiraW
             }
             return;
         }
-        var fields = JiraRestClient.CreateFields(settings, candidate.Measure, candidate.Login);
+        var fields = JiraRequestHelper.CreateFields(settings, candidate.Measure, candidate.Login);
         var started = await WriteAsync<DateTime?>(JiraSystemActor(), null, async transaction =>
         {
             var current = await _jiraStateRepository.ReadJiraAsync(transaction);
@@ -950,7 +951,7 @@ internal sealed class JiraRepository : ClientRepository, IJiraRepository, IJiraW
             var issue = await _jiraRest.RequestAsync(address, token, "issue", cancellation, fields);
             var issueId = RequiredText(issue.GetProperty("id").GetString());
             var issueKey = RequiredText(issue.GetProperty("key").GetString());
-            if (!JiraRestClient.IsResourceId(issueKey) || !JiraRestClient.IsResourceId(issueId))
+            if (!JiraRequestHelper.IsResourceId(issueKey) || !JiraRequestHelper.IsResourceId(issueId))
             {
                 throw new IdentityCommandException(409, JiraRules.Conflict);
             }

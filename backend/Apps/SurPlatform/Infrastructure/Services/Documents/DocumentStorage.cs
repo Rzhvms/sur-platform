@@ -1,3 +1,4 @@
+using Infrastructure.Services.Documents.Interfaces;
 using System.Security.Cryptography;
 using Application.Constants;
 using Application.Exceptions;
@@ -9,7 +10,7 @@ using Minio.Exceptions;
 namespace Infrastructure.Services.Documents;
 
 /// <summary>Закрытый потоковый доступ к файлам MinIO или локальной папке развёртывания</summary>
-internal sealed class DocumentStorage : IDisposable
+internal sealed class DocumentStorage : IDocumentStorage
 {
     /// <summary>Адрес оператора в формате host:port</summary>
     private const string Endpoint = "Documents:Minio:Endpoint";
@@ -65,13 +66,8 @@ internal sealed class DocumentStorage : IDisposable
         }
     }
 
-    /// <summary>Сверяет ранее загруженный объект по размеру и контрольной сумме</summary>
-    /// <param name="key">Изолированный серверный ключ</param>
-    /// <param name="length">Ожидаемый размер</param>
-    /// <param name="checksum">Ожидаемый SHA-256</param>
-    /// <param name="cancellation">Отмена чтения</param>
-    /// <returns>Предыдущая запись объекта подтверждена</returns>
-    internal async Task<bool> ConfirmAsync(string key, long length, string checksum, CancellationToken cancellation)
+    /// <inheritdoc/>
+    public async Task<bool> ConfirmAsync(string key, long length, string checksum, CancellationToken cancellation)
     {
         if (_client is null)
         {
@@ -108,13 +104,8 @@ internal sealed class DocumentStorage : IDisposable
         }
     }
 
-    /// <summary>Создаёт объект и подтверждает содержимое после записи</summary>
-    /// <param name="key">Изолированный серверный ключ</param>
-    /// <param name="source">Поток, сверенный с контрольной суммой</param>
-    /// <param name="length">Размер потока</param>
-    /// <param name="checksum">Ожидаемый SHA-256</param>
-    /// <param name="cancellation">Отмена передачи</param>
-    internal async Task SaveAsync(string key, Stream source, long length, string checksum, CancellationToken cancellation)
+    /// <inheritdoc/>
+    public async Task SaveAsync(string key, Stream source, long length, string checksum, CancellationToken cancellation)
     {
         if (_client is null)
         {
@@ -145,11 +136,8 @@ internal sealed class DocumentStorage : IDisposable
         }
     }
 
-    /// <summary>Передаёт объект потоком, закрываемым SDK после вызова получателя</summary>
-    /// <param name="key">Изолированный серверный ключ</param>
-    /// <param name="consume">Получатель потока</param>
-    /// <param name="cancellation">Отмена передачи</param>
-    internal async Task ReadAsync(string key, Func<Stream, CancellationToken, Task> consume, CancellationToken cancellation)
+    /// <inheritdoc/>
+    public async Task ReadAsync(string key, Func<Stream, CancellationToken, Task> consume, CancellationToken cancellation)
     {
         if (_client is null)
         {

@@ -1,7 +1,7 @@
 using System.Net.Http.Headers;
 using Application.Constants;
 using Application.Models;
-using Application.UseCases.Risks;
+using Application.UseCases.Risks.Interfaces;
 using Core.Api.Controllers.ControllerTypes;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -12,7 +12,7 @@ namespace Api.Controllers.Public.Risks;
 /// <param name="useCases">Приём и сохранение доверенного сигнала</param>
 [Route("review-webhooks")]
 [AllowAnonymous]
-public sealed class ReviewWebhookController(ReviewUseCaseManager useCases) : BasePublicController
+public sealed class ReviewWebhookController(IReviewUseCaseManager useCases) : BasePublicController
 {
     /// <summary>Название отдельной схемы авторизации в OpenAPI</summary>
     internal const string OpenApiScheme = "reviewWebhookBearer";

@@ -3,7 +3,7 @@ using Api.Constants;
 using Api.Extensions;
 using Application.Constants;
 using Application.Models;
-using Application.UseCases.Risks;
+using Application.UseCases.Risks.Interfaces;
 using Application.UseCases.Risks.Dto;
 using Core.Api.Controllers.ControllerTypes;
 using Domain.DalModels;
@@ -20,7 +20,7 @@ namespace Api.Controllers.Provider.Risks;
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
-public sealed class BusinessHistoryController(RiskUseCaseManager useCases) : BaseProviderController
+public sealed class BusinessHistoryController(IRiskUseCaseManager useCases) : BaseProviderController
 {
     /// <summary>Читает историю включая ожидающие поручения</summary>
     /// <param name="period">Включительный диапазон дат UTC</param>

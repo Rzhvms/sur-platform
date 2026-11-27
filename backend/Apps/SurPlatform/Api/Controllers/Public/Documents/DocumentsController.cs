@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using Api.Extensions;
 using Application.Constants;
 using Application.Exceptions;
-using Application.UseCases.Documents;
+using Application.UseCases.Documents.Interfaces;
 using Application.UseCases.Documents.Dto.Request;
 using Application.UseCases.Documents.Dto.Response;
 using Core.Api.Controllers.ControllerTypes;
@@ -19,7 +19,7 @@ namespace Api.Controllers.Public.Documents;
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
-public sealed class DocumentsController(DocumentUseCaseManager useCases) : BasePublicController
+public sealed class DocumentsController(IDocumentUseCaseManager useCases) : BasePublicController
 {
     /// <summary>Политика браузерных и промежуточных кешей личных файлов</summary>
     private const string NoStore = "private, no-store";

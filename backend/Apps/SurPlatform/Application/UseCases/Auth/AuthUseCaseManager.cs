@@ -1,5 +1,5 @@
 using Application.Constants;
-using Application.Services.Authentication;
+using Application.Services.Authentication.Interfaces;
 using Application.UseCases.Auth.Dto.Request;
 using Application.UseCases.Auth.Dto.Response.ConnectToken;
 using Application.UseCases.Auth.Dto.Response.CreateUser;
@@ -11,7 +11,7 @@ using Codes = Application.ErrorCodes.ErrorCodes;
 namespace Application.UseCases.Auth;
 
 /// <inheritdoc />
-public sealed class AuthUseCaseManager(AccountService accountService, SessionService sessionService) : IAuthUseCaseManager
+internal sealed class AuthUseCaseManager(IAccountService accountService, ISessionService sessionService) : IAuthUseCaseManager
 {
     /// <summary>
     /// Session revoked

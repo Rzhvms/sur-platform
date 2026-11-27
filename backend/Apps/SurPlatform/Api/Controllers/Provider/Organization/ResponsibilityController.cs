@@ -3,7 +3,7 @@ using Application.Models;
 using Application.UseCases.Organization.Dto.Request;
 using Domain.DalModels;
 using Application.Constants;
-using Application.UseCases.Organization;
+using Application.UseCases.Organization.Interfaces;
 using Core.Api.Controllers.ControllerTypes;
 using Core.Api.Extensions;
 using Domain.DalModels.Organization;
@@ -19,7 +19,7 @@ namespace Api.Controllers.Provider.Organization;
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
-public sealed class ResponsibilityController(OrganizationUseCaseManager useCases) : BaseProviderController
+public sealed class ResponsibilityController(IOrganizationUseCaseManager useCases) : BaseProviderController
 {
     /// <summary>
     /// Читает страницу справочника

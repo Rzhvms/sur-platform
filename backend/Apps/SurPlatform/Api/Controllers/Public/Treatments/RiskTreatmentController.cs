@@ -3,7 +3,7 @@ using Api.Constants;
 using Api.Extensions;
 using Application.Constants;
 using Application.Models;
-using Application.UseCases.Treatments;
+using Application.UseCases.Treatments.Interfaces;
 using Application.UseCases.Treatments.Dto.Request;
 using Core.Api.Controllers.ControllerTypes;
 using Domain.DalModels;
@@ -22,7 +22,7 @@ namespace Api.Controllers.Public.Treatments;
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
-public sealed class RiskTreatmentController(TreatmentUseCaseManager useCases) : BasePublicController
+public sealed class RiskTreatmentController(ITreatmentUseCaseManager useCases) : BasePublicController
 {
     /// <summary>Читает меры риска</summary>
     /// <param name="riskId">Риск</param>

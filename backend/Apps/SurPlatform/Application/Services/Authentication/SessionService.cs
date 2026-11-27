@@ -1,3 +1,4 @@
+using Application.Services.Authentication.Interfaces;
 using Application.Constants;
 using Application.Helpers.Jwt;
 using Application.Models;
@@ -17,24 +18,19 @@ namespace Application.Services.Authentication;
 /// <param name="jwtSettings">Настройки выпуска токенов</param>
 /// <param name="signingKey">Ключ подписи access-токенов</param>
 /// <param name="clock">Источник времени для проверки и выпуска токенов</param>
-public sealed class SessionService(
+internal sealed class SessionService(
     ISessionRepository sessionRepository,
     IRoleRepository roleRepository,
     JwtSettings jwtSettings,
     RsaSecurityKey signingKey,
-    TimeProvider clock)
+    TimeProvider clock) : ISessionService
 {
     /// <summary>
     /// Граница между issuer и исходным секретом при хешировании
     /// </summary>
     private const string RefreshHashSeparator = "\n";
 
-    /// <summary>
-    /// Создание сессии и токенов для нового входа
-    /// </summary>
-    /// <param name="userId">Пользователь с проверенным паролем</param>
-    /// <param name="accessVersion">Версия доступа во время проверки пароля</param>
-    /// <returns>Токены сессии или отказ при изменении доступа</returns>
+    /// <inheritdoc/>
     public async Task<SessionTokens?> CreateAsync(Guid userId, long accessVersion)
     {
         var currentDateTime = clock.GetUtcNow().UtcDateTime;
@@ -75,9 +71,7 @@ public sealed class SessionService(
             : null;
     }
 
-    /// <summary>
-    /// Обновляет токены действующей сессии и отзывает ее при повторном использовании refresh-токена
-    /// </summary>
+    /// <inheritdoc/>
     public async Task<SessionTokens?> RefreshAsync(string refreshToken)
     {
         if (string.IsNullOrWhiteSpace(refreshToken))
@@ -134,10 +128,7 @@ public sealed class SessionService(
         return rotated ? new SessionTokens(accessToken, nextRefreshToken, expiresAt) : null;
     }
 
-    /// <summary>
-    /// Завершает текущую сессию по refresh-токену данного клиента
-    /// </summary>
-    /// <param name="refreshToken">Секрет браузерной cookie</param>
+    /// <inheritdoc/>
     public async Task RevokeRefreshAsync(string refreshToken)
     {
         var session = await sessionRepository.GetRefreshSessionAsync(HashRefreshToken(refreshToken));
@@ -149,23 +140,13 @@ public sealed class SessionService(
         }
     }
 
-    /// <summary>
-    /// Завершает только указанную сессию пользователя
-    /// </summary>
+    /// <inheritdoc/>
     public async Task<bool> RevokeAsync(Guid userId, Guid sessionId)
     {
         return await sessionRepository.RevokeAsync(sessionId, userId, clock.GetUtcNow().UtcDateTime, SessionRevokeReasons.Logout);
     }
 
-    /// <summary>
-    /// Проверяет принадлежность и действительность сессии пользователя
-    /// </summary>
-    /// <param name="userId">Пользователь, которому должна принадлежать сессия</param>
-    /// <param name="sessionId">Проверяемая сессия</param>
-    /// <param name="cancellationToken">Отмена проверки сессии</param>
-    /// <param name="accessVersion">Версия доступа из JWT</param>
-    /// <param name="rightCode">Дополнительное право для проверки служебной операции</param>
-    /// <returns>Признак действующей сессии</returns>
+    /// <inheritdoc/>
     public async Task<bool> IsActiveAsync(Guid userId, Guid sessionId, CancellationToken cancellationToken, long accessVersion, string? rightCode = null)
     {
         return await sessionRepository.IsActiveAsync(userId, sessionId, clock.GetUtcNow().UtcDateTime, cancellationToken, accessVersion, rightCode);

@@ -2,7 +2,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Text.Json;
 using Application.Constants;
-using Application.UseCases.Jira;
+using Application.UseCases.Jira.Interfaces;
 using Core.Api.Controllers.ControllerTypes;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -13,7 +13,7 @@ namespace Api.Controllers.Public.Jira;
 /// <param name="useCases">Авторизация и очередь событий</param>
 [AllowAnonymous]
 [Route("jira/webhook")]
-public sealed class JiraWebhookController(JiraUseCaseManager useCases) : BasePublicController
+public sealed class JiraWebhookController(IJiraUseCaseManager useCases) : BasePublicController
 {
     /// <summary>Идентификатор независимой схемы OpenAPI</summary>
     internal const string OpenApiScheme = "jiraWebhookBasic";

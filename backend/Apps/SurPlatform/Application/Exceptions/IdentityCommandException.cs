@@ -1,9 +1,11 @@
+using Core.Abstractions.Exceptions.Base;
+
 namespace Application.Exceptions;
 
 /// <summary>
 /// Ожидаемый отказ при выполнении команды Identity
 /// </summary>
-public sealed class IdentityCommandException(int status, string code, IReadOnlyList<Guid>? dependencyIds = null) : Exception(code)
+public sealed class IdentityCommandException(int status, string code, IReadOnlyList<Guid>? dependencyIds = null) : BaseException(code)
 {
     /// <summary>
     /// Статус отказа

@@ -1,3 +1,7 @@
+using Infrastructure.Services.Jira.Interfaces;
+using Infrastructure.Services.Documents.Interfaces;
+using Infrastructure.Services.Demo.Interfaces;
+using Infrastructure.Services.Identity.Interfaces;
 using Infrastructure.Repositories.Reviews;
 using Infrastructure.Repositories.Documents;
 using Infrastructure.Repositories.Jira;
@@ -65,8 +69,8 @@ public static class InfrastructureProviderBuilderExtensions
                 throw;
             }
         });
-        services.AddSingleton<IdentityBootstrap>();
-        services.AddSingleton<BankingDemoSeeder>();
+        services.AddSingleton<IIdentityBootstrap, IdentityBootstrap>();
+        services.AddSingleton<IBankingDemoSeeder, BankingDemoSeeder>();
         services.AddScoped<IBankingDemoRepository, BankingDemoRepository>();
         services.AddScoped<OrganizationRepository>();
         services.AddScoped<IOrganizationRepository>(provider => provider.GetRequiredService<OrganizationRepository>());
@@ -77,8 +81,8 @@ public static class InfrastructureProviderBuilderExtensions
         services.AddScoped<SessionRepository>();
         services.AddScoped<ISessionRepository>(provider => provider.GetRequiredService<SessionRepository>());
         services.AddScoped<ITransactionalSessionRepository>(provider => provider.GetRequiredService<SessionRepository>());
-        services.AddSingleton<JiraRestClient>();
-        services.AddSingleton<DocumentStorage>();
+        services.AddSingleton<IJiraRestClient, JiraRestClient>();
+        services.AddSingleton<IDocumentStorage, DocumentStorage>();
         services.AddScoped<RiskRepository>();
         services.AddScoped<RiskAssessmentRepository>();
         services.AddScoped<IRiskAssessmentRepository>(provider => provider.GetRequiredService<RiskAssessmentRepository>());

@@ -1,6 +1,6 @@
 using Application.Constants;
 using Infrastructure.Clients;
-using Infrastructure.Services.Identity;
+using Infrastructure.Services.Identity.Interfaces;
 
 namespace Api;
 
@@ -62,7 +62,7 @@ internal static class Program
         try
         {
             await ClientDatabaseInitializer.PrepareAsync(client, CancellationToken.None);
-            var status = await host.Services.GetRequiredService<IdentityBootstrap>().RunAsync(client, true);
+            var status = await host.Services.GetRequiredService<IIdentityBootstrap>().RunAsync(client, true);
             Console.WriteLine(status);
             return status == IdentityAccounts.DevelopmentAccessConfigured ? 0 : 1;
         }

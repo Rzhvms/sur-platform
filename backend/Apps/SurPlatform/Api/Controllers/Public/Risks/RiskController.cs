@@ -3,7 +3,7 @@ using Api.Constants;
 using Api.Extensions;
 using Application.Constants;
 using Application.Models;
-using Application.UseCases.Risks;
+using Application.UseCases.Risks.Interfaces;
 using Application.UseCases.Risks.Dto;
 using Application.UseCases.Risks.Dto.Request;
 using Core.Api.Controllers.ControllerTypes;
@@ -21,7 +21,7 @@ namespace Api.Controllers.Public.Risks;
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
-public sealed class RiskController(RiskUseCaseManager useCases) : BasePublicController
+public sealed class RiskController(IRiskUseCaseManager useCases) : BasePublicController
 {
     /// <summary>Возвращает страницу реестра</summary>
     /// <param name="filter">Отбор и пагинация</param>

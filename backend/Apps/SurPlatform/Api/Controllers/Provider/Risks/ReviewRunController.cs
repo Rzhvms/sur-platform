@@ -1,7 +1,7 @@
 using System.ComponentModel.DataAnnotations;
 using Api.Constants;
 using Api.Extensions;
-using Application.UseCases.Risks;
+using Application.UseCases.Risks.Interfaces;
 using Core.Api.Controllers.ControllerTypes;
 using Domain.DalModels;
 using Domain.DalModels.Reviews;
@@ -15,7 +15,7 @@ namespace Api.Controllers.Provider.Risks;
 [Authorize]
 [Route("review-runs")]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
-public sealed class ReviewRunController(ReviewUseCaseManager useCases) : BaseProviderController
+public sealed class ReviewRunController(IReviewUseCaseManager useCases) : BaseProviderController
 {
     /// <summary>Возвращает результаты первичной обработки</summary>
     /// <param name="offset">Смещение страницы</param>
