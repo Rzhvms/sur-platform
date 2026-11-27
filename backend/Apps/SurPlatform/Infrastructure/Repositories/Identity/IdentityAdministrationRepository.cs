@@ -10,6 +10,10 @@ using Application.UseCases.Users.Dto.Request;
 using Dapper;
 using Infrastructure.Repositories.Organization.Interfaces;
 using Application.UseCases.Organization.Dto.Request;
+using Domain.DalModels.Rights;
+using Domain.DalModels.Roles;
+using Domain.DalModels.Sessions;
+using Domain.DalModels.Users;
 
 namespace Infrastructure.Repositories.Identity;
 

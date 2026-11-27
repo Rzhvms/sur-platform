@@ -1,11 +1,13 @@
+using Infrastructure.Repositories.History.Helpers;
 using System.Data;
 using Application.Constants;
 using Core.Database.DapperExtensions.EntityMapper;
 using Dapper;
 using Domain.DalModels;
+using Domain.DalModels.Organization;
+using Domain.DalModels.Treatments;
 using Infrastructure.Repositories.Demo.Interfaces;
 using Infrastructure.Repositories.Demo.Models;
-using Infrastructure.Repositories.Risks.Helpers;
 
 namespace Infrastructure.Repositories.Demo;
 

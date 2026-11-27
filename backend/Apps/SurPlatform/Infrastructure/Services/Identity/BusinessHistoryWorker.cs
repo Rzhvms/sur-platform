@@ -3,6 +3,7 @@ using Infrastructure.Observability;
 using Core.Database.DapperExtensions.EntityMapper;
 using Dapper;
 using Domain.DalModels;
+using Domain.DalModels.History;
 using Infrastructure.Clients;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -15,7 +16,7 @@ namespace Infrastructure.Services.Identity;
 /// <param name="initializer">Состояние подготовки схемы</param>
 /// <param name="scopes">Отдельные клиентские контексты</param>
 /// <param name="logger">Технический журнал фонового переноса</param>
-public sealed class BusinessHistoryWorker(ClientDatabaseCatalog clients, ClientDatabaseInitializer initializer,
+internal sealed class BusinessHistoryWorker(ClientDatabaseCatalog clients, ClientDatabaseInitializer initializer,
     IServiceScopeFactory scopes, ILogger<BusinessHistoryWorker> logger) : BackgroundService
 {
     /// <summary>Измеряемая очередь переноса истории</summary>

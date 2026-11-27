@@ -1,10 +1,10 @@
-using Api.Constants;
 using Application.UseCases.Organization.Dto.Request;
 using Domain.DalModels;
 using Application.Constants;
-using Application.UseCases.Organization;
+using Application.UseCases.Organization.Interfaces;
 using Core.Api.Controllers.ControllerTypes;
 using Core.Api.Extensions;
+using Domain.DalModels.Organization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Api.Controllers.Provider.Organization;
@@ -13,17 +13,12 @@ namespace Api.Controllers.Provider.Organization;
 /// Административные операции справочника оргструктуры
 /// </summary>
 /// <param name="useCases">Сценарии оргструктуры клиента</param>
-[Route(AssetController.RootRoute)]
+[Route("organization/assets")]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
-public sealed class AssetController(OrganizationUseCaseManager useCases) : BaseProviderController
+public sealed class AssetController(IOrganizationUseCaseManager useCases) : BaseProviderController
 {
-    /// <summary>
-    /// Маршрут справочника после префикса provider
-    /// </summary>
-    internal const string RootRoute = OrganizationRoutes.Root + "assets";
-
     /// <summary>
     /// Читает страницу справочника
     /// </summary>
@@ -33,13 +28,8 @@ public sealed class AssetController(OrganizationUseCaseManager useCases) : BaseP
     /// <param name="search">Фрагмент названия, ФИО, адреса или должности</param>
     /// <returns>Результат операции в текущей клиентской базе</returns>
     [HttpGet]
-    public async Task<ActionResult<AssetDal[]>> ListAssetAsync(Guid after = default, int limit = OrganizationRoutes.DefaultPageSize, bool? active = null, string? search = null)
+    public async Task<ActionResult<AssetDal[]>> ListAssetAsync(Guid after = default, int limit = OrganizationQueryLimits.DefaultPageSize, bool? active = null, string? search = null)
     {
-        if (limit is < 1 or > OrganizationRoutes.MaxPageSize || search?.Length > OrganizationRoutes.MaxSearchLength)
-        {
-            return BadRequest();
-        }
-
         return await useCases.ListAssetAsync(after, limit, active, search);
     }
 
@@ -48,7 +38,7 @@ public sealed class AssetController(OrganizationUseCaseManager useCases) : BaseP
     /// </summary>
     /// <param name="id">Идентификатор записи</param>
     /// <returns>Результат операции в текущей клиентской базе</returns>
-    [HttpGet(OrganizationRoutes.ById)]
+    [HttpGet("{id:guid}")]
     public async Task<ActionResult<AssetDal>> GetAssetAsync(Guid id)
     {
         return await useCases.GetAssetAsync(id);
@@ -73,7 +63,7 @@ public sealed class AssetController(OrganizationUseCaseManager useCases) : BaseP
     /// <param name="request">Данные команды</param>
     /// <param name="version">Ожидаемая версия записи</param>
     /// <returns>Результат операции в текущей клиентской базе</returns>
-    [HttpPut(OrganizationRoutes.ById)]
+    [HttpPut("{id:guid}")]
     public async Task<ActionResult<AssetDal>> UpdateAssetAsync(Guid id, AssetRequest request, [FromQuery] Guid version)
     {
         return await useCases.UpdateAssetAsync(User.GetUserId(), SessionId, id, request, version);
@@ -85,7 +75,7 @@ public sealed class AssetController(OrganizationUseCaseManager useCases) : BaseP
     /// <param name="id">Идентификатор записи</param>
     /// <param name="request">Данные команды</param>
     /// <returns>Результат операции в текущей клиентской базе</returns>
-    [HttpPut(OrganizationRoutes.State)]
+    [HttpPut("{id:guid}/state")]
     public async Task<ActionResult<AssetDal>> SetAssetStateAsync(Guid id, OrgStateRequest request)
     {
         return await useCases.SetAssetStateAsync(User.GetUserId(), SessionId, id, request);

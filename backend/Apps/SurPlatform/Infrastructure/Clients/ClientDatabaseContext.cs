@@ -23,10 +23,7 @@ public sealed class ClientDatabaseContext
     /// <summary>
     /// Клиент, назначенный входной точкой или обработчиком
     /// </summary>
-    public ClientDatabase Client
-    {
-        get { return _client ?? throw new InvalidOperationException(UnselectedDatabase); }
-    }
+    public ClientDatabase Client => _client ?? throw new InvalidOperationException(UnselectedDatabase);
 
     /// <summary>
     /// Фиксирует базу на всё время жизни scope

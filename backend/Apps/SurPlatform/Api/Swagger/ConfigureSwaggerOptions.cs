@@ -6,7 +6,7 @@ using Swashbuckle.AspNetCore.SwaggerGen;
 namespace Api.Swagger;
 
 /// <summary>
-/// Создает отдельный документ Swagger для каждой объявленной версии API
+/// Конфигурация настроек сваггера
 /// </summary>
 public sealed class ConfigureSwaggerOptions : IConfigureOptions<SwaggerGenOptions>
 {
@@ -14,10 +14,7 @@ public sealed class ConfigureSwaggerOptions : IConfigureOptions<SwaggerGenOption
 
     private readonly IApiVersionDescriptionProvider _versionProvider;
 
-    /// <summary>
-    /// Создает настройку документов Swagger
-    /// </summary>
-    /// <param name="versionProvider">Источник объявленных версий API</param>
+    ///
     public ConfigureSwaggerOptions(IApiVersionDescriptionProvider versionProvider)
     {
         _versionProvider = versionProvider;

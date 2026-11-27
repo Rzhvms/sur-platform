@@ -1,32 +1,39 @@
 using Api.Constants;
 using Asp.Versioning;
-using Api.UseCases;
+using Application.UseCases.System.Interfaces;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Api.Controllers.Health;
 
 /// <summary>
-/// Проверка рабочей схемы выбранного клиента
+/// Проверка состояния сервиса
 /// </summary>
-/// <param name="useCases">Проверка готовности клиентской базы</param>
 [ApiController]
 [ApiVersionNeutral]
 [AllowAnonymous]
-[Route(IdentityRoutes.Health)]
-public sealed class HealthController(SystemUseCaseManager useCases) : ControllerBase
+[Route("health")]
+public sealed class HealthController(ISystemUseCaseManager useCaseManager) : ControllerBase
 {
+    /// <summary>
+    /// Подтверждает, что веб-хост принимает запросы
+    /// </summary>
+    [HttpGet("live")]
+    [ProducesResponseType(StatusCodes.Status200OK)]
+    public IActionResult CheckServiceHealth()
+    {
+        return Ok();
+    }
+    
     /// <summary>
     /// Проверяет готовность базы для указанного HTTPS-хоста
     /// </summary>
-    /// <param name="cancellationToken">Отмена HTTP-запроса</param>
-    /// <returns>200 для готовой базы или 503, если запросы обслуживать рано</returns>
-    [HttpGet(IdentityRoutes.Ready)]
+    [HttpGet("ready")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status503ServiceUnavailable)]
-    public async Task<IActionResult> ReadyAsync(CancellationToken cancellationToken)
+    public async Task<IActionResult> CheckDatabaseAsync(CancellationToken cancellationToken)
     {
-        if (await useCases.IsDatabaseReadyAsync(cancellationToken))
+        if (await useCaseManager.IsDatabaseReadyAsync(cancellationToken))
         {
             return Ok();
         }

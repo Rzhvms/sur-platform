@@ -1,12 +1,12 @@
 using System.ComponentModel.DataAnnotations;
-using Api.Constants;
 using Api.Extensions;
 using Application.Constants;
 using Application.Models;
-using Application.UseCases.Treatments;
+using Application.UseCases.Treatments.Interfaces;
 using Application.UseCases.Treatments.Dto.Request;
 using Core.Api.Controllers.ControllerTypes;
 using Domain.DalModels;
+using Domain.DalModels.Treatments;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -15,16 +15,13 @@ namespace Api.Controllers.Provider.Treatments;
 /// <summary>HTTP-контракт операций с мерами</summary>
 /// <param name="useCases">Операции текущего клиента</param>
 [Authorize]
-[Route(TreatmentRoute)]
+[Route("treatment-approval-settings")]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
-public sealed class TreatmentApprovalSettingsController(TreatmentUseCaseManager useCases) : BaseProviderController
+public sealed class TreatmentApprovalSettingsController(ITreatmentUseCaseManager useCases) : BaseProviderController
 {
-    /// <summary>Базовый маршрут контроллера</summary>
-    private const string TreatmentRoute = "treatment-approval-settings";
-
     /// <summary>Читает пороги согласования</summary>
     /// <returns>Результат операции</returns>
     [HttpGet]

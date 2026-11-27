@@ -1,4 +1,4 @@
-using Api.UseCases;
+using Application.UseCases.System.Interfaces;
 using Core.Api.Controllers.ControllerTypes;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -20,49 +20,9 @@ namespace Api.Controllers.Internal.System;
 /// </remarks>
 /// <param name="useCases">Чтение публичных метаданных JWT</param>
 [AllowAnonymous]
-[Route(WellKnownController.WellKnownRoute)]
-public class WellKnownController(SystemUseCaseManager useCases) : BaseInternalController
+[Route(".well-known")]
+public class WellKnownController(ISystemUseCaseManager useCases) : BaseInternalController
 {
-    /// <summary>
-    /// Well known route
-    /// </summary>
-    internal const string WellKnownRoute = ".well-known";
-
-    /// <summary>
-    /// Jwks route
-    /// </summary>
-    private const string JwksRoute = "jwks.json";
-
-    /// <summary>
-    /// Rsa key type
-    /// </summary>
-    private const string RsaKeyType = "RSA";
-
-    /// <summary>
-    /// Signature use
-    /// </summary>
-    private const string SignatureUse = "sig";
-
-    /// <summary>
-    /// Rsa sha256
-    /// </summary>
-    private const string RsaSha256 = "RS256";
-
-    /// <summary>
-    /// Main key id
-    /// </summary>
-    private const string MainKeyId = "main-key";
-
-    /// <summary>
-    /// Discovery route
-    /// </summary>
-    private const string DiscoveryRoute = "openid-configuration";
-
-    /// <summary>
-    /// Jwks address unavailable
-    /// </summary>
-    private const string JwksAddressUnavailable = "Не удалось сформировать адрес JWKS";
-
     /// <summary>
     /// Возвращает JSON Web Key Set — публичные ключи для проверки JWT.
     /// </summary>
@@ -70,7 +30,7 @@ public class WellKnownController(SystemUseCaseManager useCases) : BaseInternalCo
     /// Используется внешними сервисами (API Gateway) для валидации подписи JWT токенов без доступа к приватному ключу.
     /// </remarks>
     /// <returns>Набор RSA публичных ключей в формате JWKS</returns>
-    [HttpGet(JwksRoute)]
+    [HttpGet("jwks.json")]
     public IActionResult GetJwks()
     {
         var key = useCases.GetSigningKey();
@@ -81,12 +41,12 @@ public class WellKnownController(SystemUseCaseManager useCases) : BaseInternalCo
             {
                 new
                 {
-                    kty = RsaKeyType,
-                    use = SignatureUse,
-                    alg = RsaSha256,
-                    n = key.Modulus,
+                    kty = "RSA",
+                    use = "sig",
+                    alg = "RS256",
+                    n = key.Module,
                     e = key.Exponent,
-                    kid = MainKeyId
+                    kid = "main-key"
                 }
             }
         });
@@ -102,17 +62,15 @@ public class WellKnownController(SystemUseCaseManager useCases) : BaseInternalCo
     /// - будущие OAuth/OIDC endpoints
     /// </remarks>
     /// <returns>OpenID configuration документ</returns>
-    [HttpGet(DiscoveryRoute)]
+    [HttpGet("openid-configuration")]
     public IActionResult GetConfig()
     {
         var issuer = useCases.GetIssuer();
-        var jwksUri = Url.ActionLink(nameof(GetJwks))
-            ?? throw new InvalidOperationException(JwksAddressUnavailable);
+        var jwksUri = Url.ActionLink(nameof(GetJwks)) ?? throw new InvalidOperationException("Не удалось сформировать адрес JWKS");
 
         return Ok(new
         {
-            issuer = issuer,
-            jwks_uri = jwksUri
+            issuer, jwks_uri = jwksUri
         });
     }
 }

@@ -1,6 +1,8 @@
 using Application.Models;
 using Application.UseCases.Risks.Dto.Request;
 using Domain.DalModels;
+using Domain.DalModels.Reviews;
+using Domain.DalModels.Risks;
 
 namespace Application.Ports.Repositories;
 
@@ -87,4 +89,19 @@ public interface IReviewRepository
     /// <param name="limit">Размер страницы</param>
     /// <returns>Запуски без исходных тел</returns>
     Task<ReviewRunDal[]> ListReviewRunsAsync(RiskActor actor, int offset, int limit);
+
+    /// <summary>Передаёт риск новому основному процессу и открывает пересмотр</summary>
+    /// <param name="actor">Текущий пользователь</param>
+    /// <param name="id">Риск</param>
+    /// <param name="request">Целевой процесс и версия</param>
+    /// <returns>Обновлённый риск</returns>
+    Task<RiskDal> TransferRiskAsync(RiskActor actor, Guid id, TransferRiskRequest request);
+
+    /// <summary>Читает страницу истории пересмотра</summary>
+    /// <param name="actor">Текущий пользователь</param>
+    /// <param name="id">Риск</param>
+    /// <param name="offset">Смещение страницы</param>
+    /// <param name="limit">Размер страницы</param>
+    /// <returns>История с контекстом запуска</returns>
+    Task<RiskReviewView[]> ListRiskReviewsAsync(RiskActor actor, Guid id, int offset, int limit);
 }

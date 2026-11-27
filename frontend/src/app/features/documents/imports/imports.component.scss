@@ -1,18 +1,63 @@
 .imports {
-  &__scroll {
-    overflow: auto;
-    max-width: 100%;
-  }
+  --import-accent: #334bb5;
+  min-width: 0;
 
-  &__preview {
-    width: max-content;
-    min-width: 100%;
+  .page-heading { justify-content: space-between; gap: 1rem; }
+  .panel { border-radius: 16px; }
+  h2 { font-size: 1.15rem; }
+  button, select, input { border-radius: 10px; }
 
-    td,
-    th {
-      max-width: 16rem;
-      white-space: pre-wrap;
-      overflow-wrap: anywhere;
-    }
-  }
+  &__format { padding: 0.35rem 0.7rem; border-radius: 8px; background: #eef1fa; color: var(--import-accent); font-size: 0.85rem; font-weight: 550; }
+  &__intro { max-width: 70ch; margin: -0.2rem 0 1.5rem; color: var(--muted); line-height: 1.7; }
+  &__steps { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 1rem; list-style: none; margin: 0 0 1.5rem; padding: 0; }
+  &__steps li { display: flex; align-items: flex-start; gap: 0.75rem; padding: 0.4rem 0; min-width: 0; }
+  &__steps strong { font-size: 0.95rem; font-weight: 600; }
+  &__steps p { margin-top: 0.25rem; font-size: 0.85rem; color: var(--muted); }
+  &__step-number { display: inline-grid; place-items: center; flex: 0 0 30px; height: 30px; border: 1px solid var(--edge); border-radius: 9px; background: var(--canvas); font-size: 0.9rem; color: var(--import-accent); font-weight: 600; }
+  &__workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(240px, 290px); gap: 1.25rem; align-items: start; }
+  &__main, &__sidebar { min-width: 0; }
+  &__main .form-stack { margin: 0; gap: 1rem; }
+  &__section-heading { margin-bottom: 0.25rem; }
+  &__section-heading h2 { margin: 0; }
+  &__section-heading p { margin-top: 0.5rem; color: var(--muted); line-height: 1.65; max-width: 65ch; }
+  &__file-picker { display: grid; gap: 0.85rem; padding: 1.5rem; border: 1px dashed #adb7d7; border-radius: 12px; background: #f8f9fd; }
+  &__file-picker:focus-within { border-color: var(--import-accent); }
+  &__file-label { font-weight: 550; }
+  &__file-picker input { width: 100%; min-width: 0; padding: 0; border: 0; background: transparent; font-size: 0.9rem; }
+  &__file-picker input::file-selector-button { margin-inline-end: 0.85rem; padding: 0.6rem 0.9rem; border: 1px solid var(--edge); border-radius: 9px; background: var(--canvas); color: var(--ink); font: inherit; font-weight: 550; cursor: pointer; }
+  &__file-picker input::file-selector-button:hover { background: var(--wash); }
+  &__file-help { color: var(--muted); font-size: 0.85rem; }
+  &__file-facts { margin: 0; padding: 1rem; border: 1px solid var(--edge); border-radius: 12px; }
+  &__file-facts > div { min-width: 0; border: 0; padding: 0; }
+  &__file-facts > div:last-child { grid-column: 1 / -1; }
+  &__file-facts code { display: block; margin-top: 0.3rem; font-size: 0.8rem; overflow-wrap: anywhere; }
+  &__guide { background: var(--canvas); }
+  &__guide h2 { margin: 0 0 0.75rem; }
+  &__guide p { color: var(--muted); font-size: 0.9rem; line-height: 1.65; }
+  &__guide button { margin-top: 1rem; width: 100%; }
+  &__guide ul { padding-left: 1.2rem; margin: 1.25rem 0; color: var(--muted); font-size: 0.85rem; line-height: 1.7; }
+  &__guide li + li { margin-top: 0.5rem; }
+  &__requirements { border-top: 1px solid var(--edge); padding-top: 0.85rem; }
+  &__requirements summary { font-size: 0.9rem; cursor: pointer; }
+  &__requirements p { margin-top: 0.75rem; overflow-wrap: anywhere; }
+  .form-fields &__header-control { display: flex; align-items: center; gap: 0.65rem; }
+  &__header-control input { flex: 0 0 auto; width: 17px; height: 17px; min-height: 0; margin: 0; padding: 0; accent-color: var(--import-accent); }
+  &__preview-heading { margin-top: 1.5rem; padding-top: 1.25rem; border-top: 1px solid var(--edge); }
+  &__preview-heading p { margin: 0.5rem 0 1rem; color: var(--muted); font-size: 0.9rem; }
+  &__scroll { overflow: auto; max-width: 100%; border: 1px solid var(--edge); border-radius: 10px; max-height: 360px; }
+  &__preview { width: max-content; min-width: 100%; }
+  &__preview td, &__preview th { max-width: 16rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+  &__preview th { position: sticky; top: 0; background: var(--wash); }
+  &__progress { margin-top: 1rem; color: var(--muted); }
+  &__workspace--mapping { grid-template-columns: minmax(0, 1fr); }
+  &__workspace--mapping .imports__sidebar { max-width: none; }
+}
+
+@media (max-width: 900px) {
+  .imports__workspace { grid-template-columns: minmax(0, 1fr); }
+}
+
+@media (max-width: 600px) {
+  .imports__steps { grid-template-columns: minmax(0, 1fr); gap: 0.4rem; }
+  .imports__file-picker { padding: 1rem; }
 }

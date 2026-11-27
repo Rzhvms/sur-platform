@@ -1,3 +1,4 @@
+using Infrastructure.Repositories.History.Helpers;
 using System.Data;
 using System.Text.Json;
 using Application.Constants;
@@ -5,10 +6,13 @@ using Application.Helpers.Encryption;
 using Core.Database.DapperExtensions.EntityMapper;
 using Dapper;
 using Domain.DalModels;
+using Domain.DalModels.Demo;
+using Domain.DalModels.Organization;
+using Domain.DalModels.Roles;
+using Domain.DalModels.Users;
 using Infrastructure.Repositories.Demo.Interfaces;
 using Infrastructure.Repositories.Demo.Models;
 using Infrastructure.Repositories.Identity;
-using Infrastructure.Repositories.Risks.Helpers;
 
 namespace Infrastructure.Repositories.Demo;
 

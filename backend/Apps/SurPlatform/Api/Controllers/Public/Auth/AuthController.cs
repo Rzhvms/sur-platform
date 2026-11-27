@@ -16,7 +16,7 @@ namespace Api.Controllers.Public.Auth;
 /// <summary>
 /// Клиентские операции авторизации и управления токенами
 /// </summary>
-[Route(IdentityRoutes.Connect)]
+[Route("connect")]
 public class AuthController(IAuthUseCaseManager authUseCaseManager) : BasePublicController
 {
     /// <summary>
@@ -28,7 +28,7 @@ public class AuthController(IAuthUseCaseManager authUseCaseManager) : BasePublic
     /// Авторизация пользователя
     /// </summary>
     [AllowAnonymous]
-    [HttpPost(IdentityRoutes.Token)]
+    [HttpPost("token")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> ConnectTokenAsync(ConnectTokenRequest request)
@@ -42,8 +42,8 @@ public class AuthController(IAuthUseCaseManager authUseCaseManager) : BasePublic
     /// Выход пользователя из системы. Отзыв refresh токена
     /// </summary>
     [Authorize]
-    [HttpPost(IdentityRoutes.RevokeToken)]
-    [AllowPasswordChangeSession]
+    [HttpPost("token/revoke")]
+    [AllowAccessBeforePasswordChange]
     [ProducesResponseType(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status400BadRequest)]
     public async Task<IActionResult> RevocateRefreshTokenAsync()
@@ -63,7 +63,7 @@ public class AuthController(IAuthUseCaseManager authUseCaseManager) : BasePublic
     /// Обновление Refresh токена
     /// </summary>
     [AllowAnonymous]
-    [HttpPost(IdentityRoutes.RefreshToken)]
+    [HttpPost("token/refresh")]
     [ProducesResponseType(StatusCodes.Status200OK)]
     public async Task<IActionResult> RefreshTokenAsync(RefreshTokenRequest request)
     {
@@ -77,7 +77,7 @@ public class AuthController(IAuthUseCaseManager authUseCaseManager) : BasePublic
     /// </summary>
     /// <returns>Сообщение с актуальным маршрутом</returns>
     [Authorize]
-    [HttpPost(IdentityRoutes.ChangePassword)]
+    [HttpPost("change-password")]
     [ProducesResponseType(StatusCodes.Status410Gone)]
     public IActionResult ChangePassword()
     {

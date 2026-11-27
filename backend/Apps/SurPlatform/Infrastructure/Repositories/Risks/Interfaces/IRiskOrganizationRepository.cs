@@ -1,5 +1,6 @@
 using System.Data;
 using Domain.DalModels;
+using Domain.DalModels.Organization;
 
 namespace Infrastructure.Repositories.Risks.Interfaces;
 

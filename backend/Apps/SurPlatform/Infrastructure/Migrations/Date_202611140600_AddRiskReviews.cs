@@ -1,6 +1,9 @@
 using Application.Constants;
 using Core.Database.DapperExtensions.EntityMapper;
 using Domain.DalModels;
+using Domain.DalModels.Assessments;
+using Domain.DalModels.Reviews;
+using Domain.DalModels.Risks;
 using FluentMigrator;
 
 namespace Infrastructure.Migrations;

@@ -3,11 +3,12 @@ using Api.Constants;
 using Api.Extensions;
 using Application.Constants;
 using Application.Models;
-using Application.UseCases.Risks;
+using Application.UseCases.Risks.Interfaces;
 using Application.UseCases.Risks.Dto;
 using Application.UseCases.Risks.Dto.Request;
 using Core.Api.Controllers.ControllerTypes;
 using Domain.DalModels;
+using Domain.DalModels.Risks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -16,24 +17,12 @@ namespace Api.Controllers.Public.Risks;
 /// <summary>HTTP-контракт RiskController</summary>
 /// <param name="useCases">Прикладные операции выбранного клиента</param>
 [Authorize]
-[Route(RiskRoutes.Risks)]
+[Route("risks")]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
-public sealed class RiskController(RiskUseCaseManager useCases) : BasePublicController
+public sealed class RiskController(IRiskUseCaseManager useCases) : BasePublicController
 {
-    /// <summary>Относительный маршрут операции BoardRoute</summary>
-    private const string BoardRoute = "board";
-
-    /// <summary>Маршрут одной колонки для независимой пагинации</summary>
-    private const string BoardColumnRoute = BoardRoute + "/{columnStatus}";
-
-    /// <summary>Относительный маршрут операции CloseRoute</summary>
-    private const string CloseRoute = RiskRoutes.ById + "/close";
-
-    /// <summary>Относительный маршрут операции ReopenRoute</summary>
-    private const string ReopenRoute = RiskRoutes.ById + "/reopen";
-
     /// <summary>Возвращает страницу реестра</summary>
     /// <param name="filter">Отбор и пагинация</param>
     /// <returns>Данные операции текущего клиента</returns>
@@ -46,7 +35,7 @@ public sealed class RiskController(RiskUseCaseManager useCases) : BasePublicCont
     /// <summary>Возвращает шесть статусных колонок</summary>
     /// <param name="filter">Отбор и пагинация</param>
     /// <returns>Данные операции текущего клиента</returns>
-    [HttpGet(BoardRoute)]
+    [HttpGet("board")]
     [ProducesResponseType<RiskColumn[]>(StatusCodes.Status200OK)]
     public Task<RiskColumn[]> BoardAsync([FromQuery] RiskListQuery filter)
     {
@@ -57,7 +46,7 @@ public sealed class RiskController(RiskUseCaseManager useCases) : BasePublicCont
     /// <param name="columnStatus">Статус колонки из справочника состояний риска</param>
     /// <param name="filter">Отбор и пагинация выбранной колонки</param>
     /// <returns>Страница карточек и общий итог колонки</returns>
-    [HttpGet(BoardColumnRoute)]
+    [HttpGet("board/{columnStatus}")]
     [ProducesResponseType<RiskColumn>(StatusCodes.Status200OK)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
     public Task<RiskColumn> BoardColumnAsync(string columnStatus, [FromQuery] RiskListQuery filter)
@@ -68,7 +57,7 @@ public sealed class RiskController(RiskUseCaseManager useCases) : BasePublicCont
     /// <summary>Возвращает карточку риска</summary>
     /// <param name="id">Идентификатор записи</param>
     /// <returns>Данные операции текущего клиента</returns>
-    [HttpGet(RiskRoutes.ById)]
+    [HttpGet("{id:guid}")]
     [ProducesResponseType<RiskCard>(StatusCodes.Status200OK)]
     public Task<RiskCard> GetAsync(Guid id)
     {
@@ -89,7 +78,7 @@ public sealed class RiskController(RiskUseCaseManager useCases) : BasePublicCont
     /// <param name="id">Идентификатор записи</param>
     /// <param name="request">Поля команды</param>
     /// <returns>Данные операции текущего клиента</returns>
-    [HttpPut(RiskRoutes.ById)]
+    [HttpPut("{id:guid}")]
     public Task<RiskDal> UpdateAsync(Guid id, RiskPassportRequest request)
     {
         return useCases.UpdateAsync(User.GetRiskActor(), id, request);
@@ -99,7 +88,7 @@ public sealed class RiskController(RiskUseCaseManager useCases) : BasePublicCont
     /// <param name="id">Идентификатор записи</param>
     /// <param name="request">Поля команды</param>
     /// <returns>Данные операции текущего клиента</returns>
-    [HttpPost(CloseRoute)]
+    [HttpPost("{id:guid}/close")]
     [ProducesResponseType<RiskDal>(StatusCodes.Status200OK)]
     public Task<RiskDal> CloseAsync(Guid id, RiskTransitionRequest request)
     {
@@ -110,27 +99,18 @@ public sealed class RiskController(RiskUseCaseManager useCases) : BasePublicCont
     /// <param name="id">Идентификатор записи</param>
     /// <param name="request">Поля команды</param>
     /// <returns>Данные операции текущего клиента</returns>
-    [HttpPost(ReopenRoute)]
+    [HttpPost("{id:guid}/reopen")]
     [ProducesResponseType<RiskDal>(StatusCodes.Status200OK)]
     public Task<RiskDal> ReopenAsync(Guid id, RiskTransitionRequest request)
     {
         return useCases.TransitionAsync(User.GetRiskActor(), id, request, close: false);
     }
 
-    /// <summary>Относительный адрес передачи риска</summary>
-    private const string TransferRoute = RiskRoutes.ById + "/transfer";
-
-    /// <summary>Относительный адрес выбора процесса передачи</summary>
-    private const string TransferProcessesRoute = TransferRoute + "/processes";
-
-    /// <summary>Относительный адрес истории пересмотров</summary>
-    private const string ReviewsRoute = RiskRoutes.ById + "/reviews";
-
     /// <summary>Передаёт риск новому основному процессу</summary>
     /// <param name="id">Риск</param>
     /// <param name="request">Версия и целевой процесс</param>
     /// <returns>Риск в ожидании переоценки</returns>
-    [HttpPost(TransferRoute)]
+    [HttpPost("{id:guid}/transfer")]
     [ProducesResponseType<RiskDal>(StatusCodes.Status200OK)]
     public Task<RiskDal> TransferAsync(Guid id, TransferRiskRequest request)
     {
@@ -142,7 +122,7 @@ public sealed class RiskController(RiskUseCaseManager useCases) : BasePublicCont
     /// <param name="offset">Смещение страницы</param>
     /// <param name="limit">Размер страницы</param>
     /// <returns>Доступные новые процессы</returns>
-    [HttpGet(TransferProcessesRoute)]
+    [HttpGet("{id:guid}/transfer/processes")]
     [ProducesResponseType<RiskProcessOption[]>(StatusCodes.Status200OK)]
     public Task<RiskProcessOption[]> TransferProcessesAsync(Guid id, [Range(0, int.MaxValue)] int offset = 0,
         [Range(1, RiskRoutes.MaxPage)] int limit = RiskRoutes.DefaultPage)
@@ -155,7 +135,7 @@ public sealed class RiskController(RiskUseCaseManager useCases) : BasePublicCont
     /// <param name="offset">Смещение страницы</param>
     /// <param name="limit">Размер страницы</param>
     /// <returns>Страница истории пересмотра</returns>
-    [HttpGet(ReviewsRoute)]
+    [HttpGet("{id:guid}/reviews")]
     [ProducesResponseType<RiskReviewView[]>(StatusCodes.Status200OK)]
     public Task<RiskReviewView[]> ReviewsAsync(Guid id, [Range(0, int.MaxValue)] int offset = 0,
         [Range(1, RiskRoutes.MaxPage)] int limit = RiskRoutes.DefaultPage)

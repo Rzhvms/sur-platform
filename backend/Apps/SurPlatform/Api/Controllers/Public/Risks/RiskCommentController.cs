@@ -3,10 +3,11 @@ using Api.Constants;
 using Api.Extensions;
 using Application.Constants;
 using Application.Models;
-using Application.UseCases.Risks;
+using Application.UseCases.Risks.Interfaces;
 using Application.UseCases.Risks.Dto;
 using Core.Api.Controllers.ControllerTypes;
 using Domain.DalModels;
+using Domain.DalModels.Risks;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -15,24 +16,18 @@ namespace Api.Controllers.Public.Risks;
 /// <summary>HTTP-контракт RiskCommentController</summary>
 /// <param name="useCases">Прикладные операции выбранного клиента</param>
 [Authorize]
-[Route(RiskRoutes.Risks)]
+[Route("risks")]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
-public sealed class RiskCommentController(RiskUseCaseManager useCases) : BasePublicController
+public sealed class RiskCommentController(IRiskUseCaseManager useCases) : BasePublicController
 {
-    /// <summary>Относительный маршрут операции CommentsRoute</summary>
-    private const string CommentsRoute = "{riskId:guid}/comments";
-
-    /// <summary>Относительный маршрут операции CommentRoute</summary>
-    private const string CommentRoute = CommentsRoute + "/" + RiskRoutes.ById;
-
     /// <summary>Возвращает видимые комментарии</summary>
     /// <param name="riskId">Родительский риск</param>
     /// <param name="offset">Смещение</param>
     /// <param name="limit">Размер страницы</param>
     /// <returns>Данные операции текущего клиента</returns>
-    [HttpGet(CommentsRoute)]
+    [HttpGet("{riskId:guid}/comments")]
     public Task<RiskCommentDal[]> ListAsync(Guid riskId, [Range(0, int.MaxValue)] int offset = 0, [Range(1, RiskRoutes.MaxPage)] int limit = RiskRoutes.DefaultPage)
     {
         return useCases.ListCommentsAsync(User.GetRiskActor(), riskId, offset, limit);
@@ -42,7 +37,7 @@ public sealed class RiskCommentController(RiskUseCaseManager useCases) : BasePub
     /// <param name="riskId">Родительский риск</param>
     /// <param name="request">Поля команды</param>
     /// <returns>Данные операции текущего клиента</returns>
-    [HttpPost(CommentsRoute)]
+    [HttpPost("{riskId:guid}/comments")]
     [ProducesResponseType<RiskCommentDal>(StatusCodes.Status201Created)]
     public async Task<ActionResult<RiskCommentDal>> CreateAsync(Guid riskId, RiskCommentRequest request)
     {
@@ -54,7 +49,7 @@ public sealed class RiskCommentController(RiskUseCaseManager useCases) : BasePub
     /// <param name="id">Идентификатор записи</param>
     /// <param name="request">Поля команды</param>
     /// <returns>Данные операции текущего клиента</returns>
-    [HttpPut(CommentRoute)]
+    [HttpPut("{riskId:guid}/comments/{id:guid}")]
     public Task<RiskCommentDal> EditAsync(Guid riskId, Guid id, RiskCommentRequest request)
     {
         return useCases.SaveCommentAsync(User.GetRiskActor(), riskId, id, request);
@@ -65,7 +60,7 @@ public sealed class RiskCommentController(RiskUseCaseManager useCases) : BasePub
     /// <param name="id">Идентификатор записи</param>
     /// <param name="version">Ожидаемая версия</param>
     /// <returns>Данные операции текущего клиента</returns>
-    [HttpDelete(CommentRoute)]
+    [HttpDelete("{riskId:guid}/comments/{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> DeleteAsync(Guid riskId, Guid id, [FromQuery] Guid version)
     {

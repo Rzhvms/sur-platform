@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using Api.Constants;
 using Api.Extensions;
 using Api.Controllers.Provider.Risks.Dto.Response;
-using Application.UseCases.Risks;
+using Application.UseCases.Risks.Interfaces;
 using Application.UseCases.Risks.Dto.Request;
 using Core.Api.Controllers.ControllerTypes;
 using Microsoft.AspNetCore.Authorization;
@@ -12,25 +12,15 @@ namespace Api.Controllers.Provider.Risks;
 
 /// <summary>Административные команды календарного пересмотра</summary>
 /// <param name="useCases">Прикладные операции выбранной базы</param>
-/// <param name="configuration">Календарная зона для новых расписаний</param>
 [Authorize]
-[Route(SettingsRoute)]
+[Route("review-schedules")]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
-public sealed class ReviewScheduleController(ReviewUseCaseManager useCases, IConfiguration configuration) : BaseProviderController
+public sealed class ReviewScheduleController(IReviewUseCaseManager useCases) : BaseProviderController
 {
-    /// <summary>Маршрут источников пересмотра</summary>
-    private const string SettingsRoute = "review-schedules";
-
-    /// <summary>Ключ зоны для новых календарных правил</summary>
-    private const string TimeZoneKey = "Application:TimeZone";
-
-    /// <summary>Явная зона при отсутствии настройки окружения</summary>
-    private const string DefaultTimeZone = "UTC";
-
     /// <summary>Читает календарные правила</summary>
     /// <param name="offset">Смещение страницы</param>
     /// <param name="limit">Размер страницы</param>
@@ -50,7 +40,7 @@ public sealed class ReviewScheduleController(ReviewUseCaseManager useCases, ICon
     [ProducesResponseType<ReviewScheduleResponse>(StatusCodes.Status200OK)]
     public async Task<ReviewScheduleResponse> CreateAsync(ReviewScheduleRequest request)
     {
-        var schedule = await useCases.SaveReviewScheduleAsync(User.GetRiskActor(), null, request, configuration[TimeZoneKey] ?? DefaultTimeZone);
+        var schedule = await useCases.SaveReviewScheduleAsync(User.GetRiskActor(), null, request);
         return ReviewScheduleResponse.FromDal(schedule);
     }
 
@@ -58,11 +48,11 @@ public sealed class ReviewScheduleController(ReviewUseCaseManager useCases, ICon
     /// <param name="id">Идентификатор настройки</param>
     /// <param name="request">Поля формы</param>
     /// <returns>Результат операции выбранного клиента</returns>
-    [HttpPut(RiskRoutes.ById)]
+    [HttpPut("{id:guid}")]
     [ProducesResponseType<ReviewScheduleResponse>(StatusCodes.Status200OK)]
     public async Task<ReviewScheduleResponse> UpdateAsync(Guid id, ReviewScheduleRequest request)
     {
-        var schedule = await useCases.SaveReviewScheduleAsync(User.GetRiskActor(), id, request, configuration[TimeZoneKey] ?? DefaultTimeZone);
+        var schedule = await useCases.SaveReviewScheduleAsync(User.GetRiskActor(), id, request);
         return ReviewScheduleResponse.FromDal(schedule);
     }
 
@@ -70,7 +60,7 @@ public sealed class ReviewScheduleController(ReviewUseCaseManager useCases, ICon
     /// <param name="id">Идентификатор настройки</param>
     /// <param name="version">Ожидаемая версия</param>
     /// <returns>Результат операции выбранного клиента</returns>
-    [HttpDelete(RiskRoutes.ById)]
+    [HttpDelete("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> DeleteAsync(Guid id, [FromQuery] Guid version)
     {

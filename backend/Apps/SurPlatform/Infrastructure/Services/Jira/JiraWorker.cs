@@ -1,3 +1,4 @@
+using Infrastructure.Repositories.Jira.Interfaces;
 using Infrastructure.Repositories.Risks.Interfaces;
 using Infrastructure.Clients;
 using Microsoft.Extensions.DependencyInjection;
@@ -11,7 +12,7 @@ namespace Infrastructure.Services.Jira;
 /// <param name="initializer">Состояние подготовки схемы</param>
 /// <param name="scopes">Отдельные клиентские контексты</param>
 /// <param name="logger">Технический журнал фоновых запусков</param>
-public sealed class JiraWorker(ClientDatabaseCatalog clients, ClientDatabaseInitializer initializer,
+internal sealed class JiraWorker(ClientDatabaseCatalog clients, ClientDatabaseInitializer initializer,
     IServiceScopeFactory scopes, ILogger<JiraWorker> logger) : BackgroundService
 {
     /// <summary>Пауза между попытками переноса</summary>

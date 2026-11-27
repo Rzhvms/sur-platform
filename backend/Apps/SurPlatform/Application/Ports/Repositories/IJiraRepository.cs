@@ -2,6 +2,7 @@ using System.Text.Json;
 using Application.Models;
 using Application.UseCases.Jira.Dto.Request;
 using Domain.DalModels;
+using Domain.DalModels.Jira;
 
 namespace Application.Ports.Repositories;
 

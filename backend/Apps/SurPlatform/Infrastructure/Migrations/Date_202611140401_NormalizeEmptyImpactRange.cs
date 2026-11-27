@@ -1,5 +1,6 @@
 using Core.Database.DapperExtensions.EntityMapper;
 using Domain.DalModels;
+using Domain.DalModels.Assessments;
 using FluentMigrator;
 
 namespace Infrastructure.Migrations;

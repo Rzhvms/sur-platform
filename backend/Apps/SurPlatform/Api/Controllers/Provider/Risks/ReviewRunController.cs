@@ -1,9 +1,10 @@
 using System.ComponentModel.DataAnnotations;
 using Api.Constants;
 using Api.Extensions;
-using Application.UseCases.Risks;
+using Application.UseCases.Risks.Interfaces;
 using Core.Api.Controllers.ControllerTypes;
 using Domain.DalModels;
+using Domain.DalModels.Reviews;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -12,13 +13,10 @@ namespace Api.Controllers.Provider.Risks;
 /// <summary>Административная история запусков, включая пустые срабатывания</summary>
 /// <param name="useCases">Операции выбранной клиентской базы</param>
 [Authorize]
-[Route(RunsRoute)]
+[Route("review-runs")]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
-public sealed class ReviewRunController(ReviewUseCaseManager useCases) : BaseProviderController
+public sealed class ReviewRunController(IReviewUseCaseManager useCases) : BaseProviderController
 {
-    /// <summary>Относительный маршрут истории запусков</summary>
-    private const string RunsRoute = "review-runs";
-
     /// <summary>Возвращает результаты первичной обработки</summary>
     /// <param name="offset">Смещение страницы</param>
     /// <param name="limit">Размер страницы</param>

@@ -1,9 +1,7 @@
-using Application.UseCases.Organization;
-using Api.Constants;
 using Application.Constants;
 using Application.Models;
 using Application.UseCases.Users.Dto.Response;
-using Application.UseCases.Users;
+using Application.UseCases.Users.Interfaces;
 using Application.UseCases.Users.Dto.Request;
 using Core.Api.Controllers.ControllerTypes;
 using Core.Api.Extensions;
@@ -14,50 +12,13 @@ namespace Api.Controllers.Provider.Users;
 /// <summary>
 /// Административные операции с интерактивными пользователями
 /// </summary>
-/// <param name="organization">Чтение организационных зависимостей пользователя</param>
 /// <param name="useCases">Запросы и команды учётных записей</param>
-[Route(IdentityRoutes.Users)]
+[Route("users")]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
-public sealed class ProviderUserController(IdentityAdministrationUseCaseManager useCases, OrganizationUseCaseManager organization)
+public sealed class ProviderUserController(IIdentityAdministrationUseCaseManager useCases)
     : BaseProviderController
 {
-    /// <summary>
-    /// List route
-    /// </summary>
-    private const string ListRoute = "list";
-
-    /// <summary>
-    /// User by id
-    /// </summary>
-    private const string UserById = "{userId:guid}";
-
-    /// <summary>
-    /// Activate route
-    /// </summary>
-    private const string ActivateRoute = "{userId:guid}/activate";
-
-    /// <summary>
-    /// Reissue route
-    /// </summary>
-    private const string ReissueRoute = "{userId:guid}/reissue-access";
-
-    /// <summary>Маршрут мягкой деактивации учётной записи</summary>
-    private const string DeactivateRoute = "{userId:guid}/deactivate";
-
-    /// <summary>Маршрут чтения действующей оргструктуры пользователя</summary>
-    private const string OrganizationRoute = "{userId:guid}/organization";
-
-    /// <summary>
-    /// Размер страницы по умолчанию
-    /// </summary>
-    private const int DefaultPageSize = 50;
-
-    /// <summary>
-    /// Верхняя граница страницы административного списка
-    /// </summary>
-    private const int MaxPageSize = 100;
-
     /// <summary>
     /// Возвращает страницу пользователей в порядке ID
     /// </summary>
@@ -65,13 +26,8 @@ public sealed class ProviderUserController(IdentityAdministrationUseCaseManager 
     /// <param name="limit">Размер запрашиваемой страницы</param>
     /// <returns>Страница пользователей</returns>
     [HttpGet]
-    public async Task<ActionResult<IdentityUser[]>> ListAsync(Guid after, int limit = DefaultPageSize)
+    public async Task<ActionResult<IdentityUser[]>> ListAsync(Guid after, int limit = IdentityQueryLimits.DefaultPageSize)
     {
-        if (limit is < 1 or > MaxPageSize)
-        {
-            return BadRequest();
-        }
-
         return await useCases.ListAsync(after, limit);
     }
 
@@ -81,23 +37,10 @@ public sealed class ProviderUserController(IdentityAdministrationUseCaseManager 
     /// <param name="after">Последний идентификатор предыдущей страницы</param>
     /// <param name="limit">Размер страницы</param>
     /// <returns>Список пользователей с прежней формой ответа</returns>
-    [HttpGet(ListRoute)]
-    public async Task<ActionResult<GetUserListResponse>> LegacyListAsync(Guid after, int limit = DefaultPageSize)
+    [HttpGet("list")]
+    public async Task<ActionResult<GetUserListResponse>> LegacyListAsync(Guid after, int limit = IdentityQueryLimits.DefaultPageSize)
     {
-        if (limit is < 1 or > MaxPageSize)
-        {
-            return BadRequest();
-        }
-
-        var users = await useCases.ListAsync(after, limit);
-        return new GetUserListResponse
-        {
-            UserList = users.Select(user => new GetUserResponse
-            {
-                Id = user.Id, Email = user.Email ?? string.Empty, RoleId = user.RoleId, FullName = user.FullName, IsActive = user.IsActive,
-                FirstName = user.FirstName, LastName = user.LastName, Patronymic = user.Patronymic
-            }).ToList()
-        };
+        return await useCases.GetUserListAsync(after, limit);
     }
 
     /// <summary>
@@ -105,7 +48,7 @@ public sealed class ProviderUserController(IdentityAdministrationUseCaseManager 
     /// </summary>
     /// <param name="userId">Идентификатор пользователя</param>
     /// <returns>Карточка или 404</returns>
-    [HttpGet(UserById)]
+    [HttpGet("{userId:guid}")]
     public async Task<ActionResult<IdentityUser>> GetAsync(Guid userId)
     {
         var user = await useCases.FindAsync(userId);
@@ -130,7 +73,7 @@ public sealed class ProviderUserController(IdentityAdministrationUseCaseManager 
     /// <param name="userId">Изменяемая запись</param>
     /// <param name="request">Поля и версия карточки</param>
     /// <returns>Обновлённая запись</returns>
-    [HttpPatch(UserById)]
+    [HttpPatch("{userId:guid}")]
     public Task<IdentityUser> UpdateAsync(Guid userId, UpdateIdentityUserRequest request)
     {
         return useCases.UpdateAsync(User.GetUserId(), SessionId, userId, request);
@@ -142,7 +85,7 @@ public sealed class ProviderUserController(IdentityAdministrationUseCaseManager 
     /// <param name="userId">Активируемая запись</param>
     /// <param name="request">Версия карточки и при необходимости набор ролей</param>
     /// <returns>Обновлённая учётная запись</returns>
-    [HttpPost(ActivateRoute)]
+    [HttpPost("{userId:guid}/activate")]
     public Task<IdentityUser> ActivateAsync(Guid userId, ActivateIdentityUserRequest request)
     {
         return useCases.ReissueAsync(User.GetUserId(), SessionId, userId, request, request.Version, request.TemporaryPassword);
@@ -154,7 +97,7 @@ public sealed class ProviderUserController(IdentityAdministrationUseCaseManager 
     /// <param name="userId">Получатель доступа</param>
     /// <param name="request">Версия карточки и новый временный пароль</param>
     /// <returns>Обновлённая учётная запись</returns>
-    [HttpPost(ReissueRoute)]
+    [HttpPost("{userId:guid}/reissue-access")]
     public Task<IdentityUser> ReissueAsync(Guid userId, IssueIdentityAccessRequest request)
     {
         return useCases.ReissueAsync(User.GetUserId(), SessionId, userId, null, request.Version, request.TemporaryPassword);
@@ -163,23 +106,18 @@ public sealed class ProviderUserController(IdentityAdministrationUseCaseManager 
     /// <summary>Читает организационные зависимости для подтверждения деактивации</summary>
     /// <param name="userId">Учётная запись</param>
     /// <returns>Действующий сотрудник, владение и назначения</returns>
-    [HttpGet(OrganizationRoute)]
+    [HttpGet("{userId:guid}/organization")]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<OrganizationUserContext>> GetOrganizationAsync(Guid userId)
     {
-        if (await useCases.FindAsync(userId) is null)
-        {
-            return NotFound();
-        }
-
-        return await organization.GetUserContextAsync(userId);
+        return await useCases.GetOrganizationAsync(userId);
     }
 
     /// <summary>Отключает вход и активную запись сотрудника после проверки зависимостей</summary>
     /// <param name="userId">Отключаемый пользователь</param>
     /// <param name="request">Версия карточки</param>
     /// <returns>Деактивированная учётная запись</returns>
-    [HttpPost(DeactivateRoute)]
+    [HttpPost("{userId:guid}/deactivate")]
     public Task<IdentityUser> DeactivateAsync(Guid userId, DeactivateIdentityUserRequest request)
     {
         return useCases.DeactivateAsync(User.GetUserId(), SessionId, userId, request.Version);
@@ -189,7 +127,7 @@ public sealed class ProviderUserController(IdentityAdministrationUseCaseManager 
     /// Возвращает 410 для снятого маршрута физического удаления
     /// </summary>
     /// <returns>Сообщение о закрытом контракте</returns>
-    [HttpDelete(UserById)]
+    [HttpDelete("{userId:guid}")]
     [ProducesResponseType(StatusCodes.Status410Gone)]
     public IActionResult Delete()
     {
@@ -199,5 +137,11 @@ public sealed class ProviderUserController(IdentityAdministrationUseCaseManager 
     /// <summary>
     /// Идентификатор сессии из проверенного access-токена
     /// </summary>
-    private Guid SessionId => Guid.Parse(User.FindFirst(AccessTokenClaimTypes.SessionId)?.Value ?? string.Empty);
+    private Guid SessionId
+    {
+        get
+        {
+            return Guid.Parse(User.FindFirst(AccessTokenClaimTypes.SessionId)?.Value ?? string.Empty);
+        }
+    }
 }

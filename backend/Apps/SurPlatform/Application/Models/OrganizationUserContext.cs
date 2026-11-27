@@ -1,4 +1,6 @@
 using Domain.DalModels;
+using Domain.DalModels.Organization;
+using Domain.DalModels.Treatments;
 
 namespace Application.Models;
 

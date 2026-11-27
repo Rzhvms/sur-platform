@@ -1,4 +1,5 @@
 using Domain.DalModels;
+using Domain.DalModels.Users;
 
 namespace Infrastructure.Repositories.Demo.Models;
 

@@ -1,11 +1,11 @@
-using Api.Constants;
 using Application.Models;
 using Application.UseCases.Organization.Dto.Request;
 using Domain.DalModels;
 using Application.Constants;
-using Application.UseCases.Organization;
+using Application.UseCases.Organization.Interfaces;
 using Core.Api.Controllers.ControllerTypes;
 using Core.Api.Extensions;
+using Domain.DalModels.Organization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Api.Controllers.Provider.Organization;
@@ -14,17 +14,12 @@ namespace Api.Controllers.Provider.Organization;
 /// Административные операции справочника оргструктуры
 /// </summary>
 /// <param name="useCases">Сценарии оргструктуры клиента</param>
-[Route(ResponsibilityController.RootRoute)]
+[Route("organization/responsibilities")]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
-public sealed class ResponsibilityController(OrganizationUseCaseManager useCases) : BaseProviderController
+public sealed class ResponsibilityController(IOrganizationUseCaseManager useCases) : BaseProviderController
 {
-    /// <summary>
-    /// Маршрут справочника после префикса provider
-    /// </summary>
-    internal const string RootRoute = OrganizationRoutes.Root + "responsibilities";
-
     /// <summary>
     /// Читает страницу справочника
     /// </summary>
@@ -36,13 +31,8 @@ public sealed class ResponsibilityController(OrganizationUseCaseManager useCases
     /// <param name="responsibilityType">Фильтр по точному коду ответственности</param>
     /// <returns>Результат операции в текущей клиентской базе</returns>
     [HttpGet]
-    public async Task<ActionResult<ResponsibilityDal[]>> ListResponsibilityAsync(Guid after = default, int limit = OrganizationRoutes.DefaultPageSize, bool? active = null, string? search = null, Guid? directorateId = null, string? responsibilityType = null)
+    public async Task<ActionResult<ResponsibilityDal[]>> ListResponsibilityAsync(Guid after = default, int limit = OrganizationQueryLimits.DefaultPageSize, bool? active = null, string? search = null, Guid? directorateId = null, string? responsibilityType = null)
     {
-        if (limit is < 1 or > OrganizationRoutes.MaxPageSize || search?.Length > OrganizationRoutes.MaxSearchLength)
-        {
-            return BadRequest();
-        }
-
         return await useCases.ListResponsibilityAsync(after, limit, active, search, directorateId, responsibilityType);
     }
 
@@ -51,7 +41,7 @@ public sealed class ResponsibilityController(OrganizationUseCaseManager useCases
     /// </summary>
     /// <param name="id">Идентификатор записи</param>
     /// <returns>Результат операции в текущей клиентской базе</returns>
-    [HttpGet(OrganizationRoutes.ById)]
+    [HttpGet("{id:guid}")]
     public async Task<ActionResult<ResponsibilityDal>> GetResponsibilityAsync(Guid id)
     {
         return await useCases.GetResponsibilityAsync(id);
@@ -75,16 +65,11 @@ public sealed class ResponsibilityController(OrganizationUseCaseManager useCases
     /// <param name="id">Идентификатор записи</param>
     /// <param name="request">Данные команды</param>
     /// <returns>Результат операции в текущей клиентской базе</returns>
-    [HttpPut(OrganizationRoutes.State)]
+    [HttpPut("{id:guid}/state")]
     public async Task<ActionResult<ResponsibilityDal>> SetResponsibilityStateAsync(Guid id, OrgStateRequest request)
     {
         return await useCases.SetResponsibilityStateAsync(User.GetUserId(), SessionId, id, request);
     }
-
-    /// <summary>
-    /// Относительный маршрут операции
-    /// </summary>
-    private const string GetSlotRoute = "slot";
 
     /// <summary>
     /// Проверяет занятость позиции перед выбором
@@ -92,7 +77,7 @@ public sealed class ResponsibilityController(OrganizationUseCaseManager useCases
     /// <param name="responsibilityType">Код ответственности</param>
     /// <param name="directorateId">Область дирекции</param>
     /// <returns>Результат операции в текущей клиентской базе</returns>
-    [HttpGet(GetSlotRoute)]
+    [HttpGet("slot")]
     public async Task<ActionResult<OrganizationSlot>> GetSlotAsync(string responsibilityType, Guid? directorateId = null)
     {
         return await useCases.GetSlotAsync(responsibilityType, directorateId);

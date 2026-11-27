@@ -9,18 +9,20 @@ cd frontend
 nvm use
 npm ci
 npm test
-npm start
+npm run test:proxy
 ```
 
-Откройте `http://localhost:4200/demo/risks` для просмотра с синтетическими данными. Для работы с клиентской базой используйте HTTPS и зарегистрированный адрес API.
+Локальный запуск приложения выполняется по HTTPS. Для режима без API с синтетическими данными можно отдельно запустить `npm run ng -- serve` и открыть `http://localhost:4200/demo/risks`.
 
 ```sh
-SUR_API_ORIGIN=https://alpha.sur.test \
-SUR_API_CA=/absolute/path/to/test-ca.pem \
-SUR_TLS_CERT=/absolute/path/to/localhost-cert.pem \
-SUR_TLS_KEY=/absolute/path/to/localhost-key.pem \
+SUR_API_ORIGIN=https://localhost:7224 \
+SUR_API_CA="$PWD/.certs/localhost.pem" \
+SUR_TLS_CERT="$PWD/.certs/localhost.pem" \
+SUR_TLS_KEY="$PWD/.certs/localhost.key" \
 npm start
 ```
+
+Если dev-сервер уже работал по HTTP, остановите его через `Ctrl+C` и запустите заново этой командой. Переменные окружения, переданные обычному `ng serve`, сами по себе не включают HTTPS.
 
 UI открыт на `https://localhost:4200`. Сертификат UI должен содержать `localhost` и быть доверенным браузером. Имя upstream должно разрешаться локально и совпадать с сертификатом API и зарегистрированным клиентом. Для прямого локального Kestrel можно указать `https://localhost:7224`, если `localhost` зарегистрирован у клиента. `SUR_API_CA` нужен для выделенного тестового УЦ. Проверка цепочки и имени upstream включена. Для локального запуска браузерные запросы используют относительные пути; прокси берёт upstream из конфигурации, подставляет его Host и очищает клиентские forwarding-заголовки. После смены клиента остановите процесс и очистите cookies локального UI или используйте отдельный профиль браузера.
 

@@ -1,5 +1,5 @@
 using Application.Constants;
-using Application.Services.Authentication;
+using Application.Services.Authentication.Interfaces;
 using Application.UseCases.Auth.Dto.Request;
 using Application.UseCases.Auth.Dto.Response.ConnectToken;
 using Application.UseCases.Auth.Dto.Response.CreateUser;
@@ -11,13 +11,8 @@ using Codes = Application.ErrorCodes.ErrorCodes;
 namespace Application.UseCases.Auth;
 
 /// <inheritdoc />
-public sealed class AuthUseCaseManager(AccountService accountService, SessionService sessionService) : IAuthUseCaseManager
+internal sealed class AuthUseCaseManager(IAccountService accountService, ISessionService sessionService) : IAuthUseCaseManager
 {
-    /// <summary>
-    /// Invalid credentials
-    /// </summary>
-    private const string InvalidCredentials = "Неверная почта или пароль";
-
     /// <summary>
     /// Session revoked
     /// </summary>
@@ -39,7 +34,7 @@ public sealed class AuthUseCaseManager(AccountService accountService, SessionSer
             return new ConnectTokenErrorResponse
             {
                 Code = InvalidCredentialsCode,
-                Message = InvalidCredentials
+                Message = IdentityMessages.InvalidCredentials
             };
         }
 
@@ -91,26 +86,8 @@ public sealed class AuthUseCaseManager(AccountService accountService, SessionSer
     }
 
     /// <inheritdoc/>
-    public Task<bool> IsSessionActiveAsync(Guid userId, Guid sessionId, CancellationToken cancellationToken, long accessVersion)
-    {
-        return sessionService.IsActiveAsync(userId, sessionId, cancellationToken, accessVersion);
-    }
-
-    /// <inheritdoc/>
     public Task RevokeBrowserSessionAsync(string refreshToken)
     {
         return sessionService.RevokeRefreshAsync(refreshToken);
-    }
-
-    /// <inheritdoc/>
-    public Task<bool> CheckSessionRightAsync(Guid userId, Guid sessionId, long accessVersion, string rightCode,
-        CancellationToken cancellationToken)
-    {
-        if (userId == Guid.Empty || sessionId == Guid.Empty || accessVersion < 1 || string.IsNullOrWhiteSpace(rightCode))
-        {
-            return Task.FromResult(false);
-        }
-
-        return sessionService.IsActiveAsync(userId, sessionId, cancellationToken, accessVersion, rightCode);
     }
 }

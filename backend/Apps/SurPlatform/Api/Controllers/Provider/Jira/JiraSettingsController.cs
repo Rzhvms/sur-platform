@@ -4,10 +4,11 @@ using Api.Constants;
 using Api.Controllers.Provider.Jira.Dto.Response;
 using Api.Extensions;
 using Application.Models;
-using Application.UseCases.Jira;
+using Application.UseCases.Jira.Interfaces;
 using Application.UseCases.Jira.Dto.Request;
 using Core.Api.Controllers.ControllerTypes;
 using Domain.DalModels;
+using Domain.DalModels.Jira;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -16,24 +17,12 @@ namespace Api.Controllers.Provider.Jira;
 /// <summary>Администрирование Jira выбранного клиента</summary>
 /// <param name="useCases">Прикладные операции Jira</param>
 [Authorize]
-[Route(SettingsRoute)]
+[Route("jira")]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
-public sealed class JiraSettingsController(JiraUseCaseManager useCases) : BaseProviderController
+public sealed class JiraSettingsController(IJiraUseCaseManager useCases) : BaseProviderController
 {
-    /// <summary>Корень настроек клиента</summary>
-    private const string SettingsRoute = "jira";
-
-    /// <summary>Получение каталогов для формы подключения</summary>
-    private const string MetadataRoute = "metadata";
-
-    /// <summary>Путь журнала обмена</summary>
-    private const string ErrorsRoute = "errors";
-
-    /// <summary>Путь административной сверки</summary>
-    private const string ResolveRoute = "treatments/{id:guid}/resolve";
-
     /// <summary>Читает настройку без секретов</summary>
     /// <returns>Текущее подключение клиента</returns>
     [HttpGet]
@@ -63,7 +52,7 @@ public sealed class JiraSettingsController(JiraUseCaseManager useCases) : BasePr
     /// <param name="request">Настройки доступа и выбранный проект</param>
     /// <param name="cancellation">Отмена запроса Jira</param>
     /// <returns>Каталоги для формы подключения</returns>
-    [HttpPost(MetadataRoute)]
+    [HttpPost("metadata")]
     [ProducesResponseType<JsonElement>(StatusCodes.Status200OK)]
     public Task<JsonElement> DiscoverAsync(JiraDiscoveryRequest request, CancellationToken cancellation)
     {
@@ -75,7 +64,7 @@ public sealed class JiraSettingsController(JiraUseCaseManager useCases) : BasePr
     /// <param name="offset">Смещение</param>
     /// <param name="limit">Размер страницы</param>
     /// <returns>Безопасные сведения об ошибках</returns>
-    [HttpGet(ErrorsRoute)]
+    [HttpGet("errors")]
     [ProducesResponseType<JiraErrorDal[]>(StatusCodes.Status200OK)]
     public Task<JiraErrorDal[]> ErrorsAsync([Range(0, int.MaxValue)] int offset = 0,
         [Range(1, RiskRoutes.MaxPage)] int limit = RiskRoutes.DefaultPage)
@@ -89,7 +78,7 @@ public sealed class JiraSettingsController(JiraUseCaseManager useCases) : BasePr
     /// <param name="request">Найденная задача или подтверждение отсутствия</param>
     /// <param name="cancellation">Отмена проверки Jira</param>
     /// <returns>Состояние доставки</returns>
-    [HttpPost(ResolveRoute)]
+    [HttpPost("treatments/{id:guid}/resolve")]
     [ProducesResponseType<JiraTreatmentView>(StatusCodes.Status200OK)]
     public Task<JiraTreatmentView> ResolveAsync(Guid id, JiraResolveRequest request, CancellationToken cancellation)
     {

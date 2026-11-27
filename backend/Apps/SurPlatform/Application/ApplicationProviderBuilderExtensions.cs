@@ -1,3 +1,9 @@
+using Application.Services.Authentication.Interfaces;
+using Application.UseCases.Treatments.Interfaces;
+using Application.UseCases.Documents.Interfaces;
+using Application.UseCases.Jira.Interfaces;
+using Application.UseCases.Risks.Interfaces;
+using Application.UseCases.Organization.Interfaces;
 using Application.UseCases.Treatments;
 using Application.UseCases.Jira;
 using Application.UseCases.Documents;
@@ -8,6 +14,8 @@ using Application.UseCases.Auth.interfaces;
 using Application.UseCases.Users;
 using Application.UseCases.Users.Interfaces;
 using Application.Services.Authentication;
+using Application.UseCases.System;
+using Application.UseCases.System.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Application;
@@ -22,18 +30,19 @@ public static class ApplicationProviderBuilderExtensions
     /// </summary>
     public static void AddApplication(this IServiceCollection services)
     {
-        services.AddScoped<AccountService>();
-        services.AddScoped<IdentityAccessService>();
-        services.AddScoped<SessionService>();
+        services.AddScoped<IAccountService, AccountService>();
+        services.AddScoped<IIdentityAccessService, IdentityAccessService>();
+        services.AddScoped<ISessionService, SessionService>();
 
         services.AddScoped<IAuthUseCaseManager, AuthUseCaseManager>();
-        services.AddScoped<IdentityAdministrationUseCaseManager>();
-        services.AddScoped<OrganizationUseCaseManager>();
-        services.AddScoped<RiskUseCaseManager>();
-        services.AddScoped<JiraUseCaseManager>();
-        services.AddScoped<DocumentUseCaseManager>();
-        services.AddScoped<ReviewUseCaseManager>();
-        services.AddScoped<TreatmentUseCaseManager>();
+        services.AddScoped<IIdentityAdministrationUseCaseManager, IdentityAdministrationUseCaseManager>();
+        services.AddScoped<IOrganizationUseCaseManager, OrganizationUseCaseManager>();
+        services.AddScoped<IRiskUseCaseManager, RiskUseCaseManager>();
+        services.AddScoped<IJiraUseCaseManager, JiraUseCaseManager>();
+        services.AddScoped<IDocumentUseCaseManager, DocumentUseCaseManager>();
+        services.AddScoped<IReviewUseCaseManager, ReviewUseCaseManager>();
+        services.AddScoped<ITreatmentUseCaseManager, TreatmentUseCaseManager>();
         services.AddScoped<IUserUseCaseManager, UserUseCaseManager>();
+        services.AddScoped<ISystemUseCaseManager, SystemUseCaseManager>();
     }
 }

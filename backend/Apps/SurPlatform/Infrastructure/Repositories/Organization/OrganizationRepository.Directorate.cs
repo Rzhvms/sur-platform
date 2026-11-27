@@ -4,6 +4,7 @@ using Application.UseCases.Organization.Dto.Request;
 using Core.Database.DapperExtensions.EntityMapper;
 using Dapper;
 using Domain.DalModels;
+using Domain.DalModels.Organization;
 
 namespace Infrastructure.Repositories.Organization;
 

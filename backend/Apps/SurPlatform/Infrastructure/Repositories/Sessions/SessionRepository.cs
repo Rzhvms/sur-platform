@@ -7,6 +7,10 @@ using Application.Models;
 using Application.Ports.Repositories;
 using Dapper;
 using Domain.DalModels;
+using Domain.DalModels.Rights;
+using Domain.DalModels.Roles;
+using Domain.DalModels.Sessions;
+using Domain.DalModels.Users;
 
 namespace Infrastructure.Repositories.Sessions;
 

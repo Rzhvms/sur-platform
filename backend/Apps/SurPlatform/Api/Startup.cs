@@ -1,4 +1,3 @@
-using Api.UseCases;
 using Api.Constants;
 using Microsoft.Net.Http.Headers;
 using Api.Authentication;
@@ -17,7 +16,6 @@ using System.Net;
 using Npgsql;
 using System.Security.Claims;
 using Application.Constants;
-using Application.UseCases.Auth.interfaces;
 using Asp.Versioning.ApiExplorer;
 using Microsoft.Extensions.Options;
 using Swashbuckle.AspNetCore.SwaggerGen;
@@ -161,7 +159,10 @@ public sealed class Startup(IWebHostEnvironment env, IConfiguration configuratio
                 typeof(ProblemDetails), StatusCodes.Status503ServiceUnavailable));
         });
         services.AddApplication();
-        services.AddScoped<SystemUseCaseManager>();
+        services.AddScoped(_ => new ReviewCalendarSettings
+        {
+            TimeZone = Configuration[ReviewCalendarSettings.TimeZoneKey] ?? ReviewCalendarSettings.DefaultTimeZone
+        });
         services.AddInfrastructure();
         services.AddSingleton(new ClientDatabaseCatalog(Configuration));
         services.AddSingleton<ClientDatabaseInitializer>();
@@ -241,16 +242,6 @@ public sealed class Startup(IWebHostEnvironment env, IConfiguration configuratio
                         if (!long.TryParse(version, out var accessVersion) || accessVersion < 1)
                         {
                             context.Fail(StaleAccessToken);
-                            return;
-                        }
-
-                        var authUseCaseManager = context.HttpContext.RequestServices.GetRequiredService<IAuthUseCaseManager>();
-                        var isActive = await authUseCaseManager.IsSessionActiveAsync(
-                            userId, sessionId, context.HttpContext.RequestAborted, accessVersion);
-
-                        if (!isActive)
-                        {
-                            context.Fail(IdentityMessages.InvalidSession);
                         }
                     }
                 };
@@ -412,7 +403,7 @@ public sealed class Startup(IWebHostEnvironment env, IConfiguration configuratio
             if (context.User.HasClaim(AccessTokenClaimTypes.PasswordChangeRequired, IdentityClaimValues.True) &&
                 endpoint is not null &&
                 endpoint.Metadata.GetMetadata<IAllowAnonymous>() is null &&
-                endpoint.Metadata.GetMetadata<AllowPasswordChangeSessionAttribute>() is null)
+                endpoint.Metadata.GetMetadata<AllowAccessBeforePasswordChangeAttribute>() is null)
             {
                 await Results.Problem(statusCode: StatusCodes.Status403Forbidden,
                     title: PasswordChangeRequired, extensions: new Dictionary<string, object?>

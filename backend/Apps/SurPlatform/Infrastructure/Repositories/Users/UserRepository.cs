@@ -7,6 +7,8 @@ using Application.Ports.Repositories;
 using Core.Abstractions.Exceptions;
 using Dapper;
 using Domain.DalModels;
+using Domain.DalModels.Sessions;
+using Domain.DalModels.Users;
 
 namespace Infrastructure.Repositories.Users;
 
