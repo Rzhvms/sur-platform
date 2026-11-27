@@ -1,0 +1,30 @@
+
+    <section class="panel">
+      <h2>Jira</h2>
+      <p>{{ jira().manualControl ? w.manual : w.external }}</p>
+      @if (jira().jiraRetryPending) { <p class="notice" role="status">{{ w.measureRetry }}</p> }
+      @else if (stateMessage()) { <p class="notice" role="status">{{ stateMessage() }}</p> }
+      @if (issueLink(); as url) {
+        <a [href]="url" target="_blank" rel="noopener noreferrer">{{ jira().issueKey }}</a>
+      } @else if (jira().issueKey) {
+        <p>{{ jira().issueKey }}</p>
+      }
+      @if (jira().state === 'UNKNOWN' && jira().attemptStartedAt; as attempt) {
+        <p>{{ w.attempt }}: {{ time(attempt) }}</p>
+        @if (session.hasRight('admin')) {
+          @if (reviewed() !== attempt) {
+            <button type="button" (click)="begin(attempt)">{{ w.reviewAttempt }}</button>
+          } @else {
+            <form class="form-stack" (ngSubmit)="resolve(false)">
+              <label>{{ w.issue }} <input [formControl]="issue" required autocomplete="off" /></label>
+              <button type="submit" [disabled]="busy()">{{ w.linkIssue }}</button>
+            </form>
+            <form class="form-stack" (ngSubmit)="resolve(true)">
+              <label><input type="checkbox" [formControl]="absent" /> {{ w.confirmAbsent }}</label>
+              <button type="submit" [disabled]="busy()">{{ w.resolveAbsent }}</button>
+            </form>
+          }
+        }
+      }
+      @if (notice()) { <p role="status">{{ notice() }}</p> }
+    </section>

@@ -1,0 +1,44 @@
+<h1>{{ w.history }}</h1>
+<section class="panel">
+  <form class="form-stack" [formGroup]="form" (ngSubmit)="view()">
+    <fieldset class="form-fields" [disabled]="request.busy() || !!request.attempt()">
+      <label>{{ w.from }} <input type="date" formControlName="from" required /></label>
+      <label>{{ w.to }} <input type="date" formControlName="to" required /></label>
+    </fieldset>
+    <div class="action-row">
+      <button type="submit" class="button--primary" [disabled]="request.busy() || !!request.attempt()">{{ t.apply }}</button>
+      @if (request.attempt()) {
+        <button type="button" [disabled]="request.busy()" (click)="export()">{{ t.retry }}</button>
+        <button type="button" [disabled]="request.busy()" (click)="request.reset()">{{ t.cancel }}</button>
+      } @else {
+        <button type="button" [disabled]="request.busy() || !!request.id()" (click)="export()">{{ w.json }}</button>
+      }
+    </div>
+    @if (request.error()) { <p class="notice" role="alert">{{ request.error() }}</p> }
+  </form>
+  @if (events(); as page) {
+    @if (page.kind === 'loading') { <sur-data-state kind="loading" /> }
+    @else if (page.kind === 'error') { <sur-data-state kind="error" [message]="page.message" (retry)="reload()" /> }
+    @else {
+      <ul class="related-list">
+        @for (event of page.value; track $index) {
+          <li>
+            <strong>{{ event['entityType'] }} · {{ event['operation'] }}</strong>
+            <p class="muted">{{ time(event) }}</p>
+            <details><summary>{{ w.details }}</summary><pre class="document-json">{{ event | json }}</pre></details>
+          </li>
+        } @empty { <li class="muted">{{ w.noRows }}</li> }
+      </ul>
+      @if (offset() || page.value.length === pageSize) {
+        <div class="pagination">
+          <button type="button" [disabled]="offset() === 0" (click)="turnPage(-1)">{{ t.previous }}</button>
+          <button type="button" [disabled]="page.value.length < pageSize" (click)="turnPage(1)">{{ t.next }}</button>
+        </div>
+      }
+    }
+  }
+</section>
+@if (request.id(); as id) {
+  <div class="action-row"><button type="button" (click)="request.reset()">{{ w.createNew }}</button></div>
+  @for (jobId of [id]; track jobId) { <sur-document-job [id]="jobId" kind="HISTORY" /> }
+}

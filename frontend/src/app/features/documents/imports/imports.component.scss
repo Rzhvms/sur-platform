@@ -1,0 +1,18 @@
+.imports {
+  &__scroll {
+    overflow: auto;
+    max-width: 100%;
+  }
+
+  &__preview {
+    width: max-content;
+    min-width: 100%;
+
+    td,
+    th {
+      max-width: 16rem;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+  }
+}

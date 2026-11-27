@@ -1,0 +1,15 @@
+# Angular / build output
+/node_modules/
+/.angular/cache/
+/dist/
+/out-tsc/
+/bazel-out/
+.sass-cache/
+__screenshots__/
+
+# Local environment and generated release metadata
+/.certs/
+/.env
+/.env.*
+!/.env.example
+/public/release.json

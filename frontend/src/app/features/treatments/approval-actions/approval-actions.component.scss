@@ -1,0 +1,39 @@
+.approval-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+  margin-top: 1rem;
+
+  button {
+    border-radius: 9px;
+    padding-inline: 1rem;
+  }
+
+  &__negative {
+    color: #942e2e;
+    border-color: #ecd2d2;
+  }
+
+  &__confirmation {
+    margin-top: 1rem;
+    padding: 1.1rem;
+    border: 1px solid #b6c1e7;
+    border-radius: 12px;
+    background: #f5f7ff;
+
+    h3 {
+      font-size: 1.1rem;
+    }
+
+    p {
+      line-height: 1.65;
+    }
+
+    textarea {
+      width: 100%;
+      min-height: 90px;
+      border-radius: 9px;
+      resize: vertical;
+    }
+  }
+}

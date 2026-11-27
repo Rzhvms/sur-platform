@@ -1,0 +1,17 @@
+
+    <form class="form-stack" [formGroup]="form" (ngSubmit)="submit()">
+      @if (processes().length) {
+        <label>{{ t.process }}
+          <select formControlName="process">
+            @for (process of processes(); track process.id) { <option [value]="process.id">{{ process.name }}</option> }
+          </select>
+        </label>
+      }
+      <label>{{ t.title }} <input formControlName="title" required /></label>
+      <label>{{ t.description }} <textarea formControlName="description" rows="3"></textarea></label>
+      <label>{{ t.due }} <input type="date" formControlName="dueDate" required /></label>
+      <label>{{ w.plan }} <input type="number" min="0" step="0.01" formControlName="costPlanned" required /></label>
+      <label>{{ w.actual }} <input type="number" min="0" step="0.01" formControlName="costActual" /></label>
+      @if (invalid) { <p role="alert">{{ t.invalid }}</p> }
+      <button class="button--primary" type="submit" [disabled]="blocked() || form.invalid">{{ t.save }}</button>
+    </form>

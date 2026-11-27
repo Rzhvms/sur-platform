@@ -1,0 +1,105 @@
+<a class="back-link" routerLink="/admin/users">← {{ w.users }}</a>
+@let result = data();
+@if (write.notice()) { <p role="status" class="notice">{{ write.notice() }}</p> }
+@if (write.dependencyIds().length) {
+  <p>{{ w.blockers }}: {{ write.dependencyIds().join(', ') }}</p>
+}
+@if (result.kind === 'loading') { <sur-data-state kind="loading" /> }
+@else if (result.kind === 'error') { <sur-data-state kind="error" [message]="result.message" (retry)="reload()" /> }
+@else {
+  @let detail = result.value;
+  @let user = detail.user;
+  <h1>{{ user ? (user.fullName || user.email) : w.create }}</h1>
+  <section class="panel">
+    @if (user) {
+      <dl class="fields">
+        <div><dt>{{ t.email }}</dt><dd>{{ user.email || t.unknown }}</dd></div>
+        <div><dt>{{ t.filterStatus }}</dt><dd>{{ user.isActive ? w.active : w.inactive }}</dd></div>
+
+      </dl>
+    }
+    <form class="form-stack" [formGroup]="form" (ngSubmit)="submit(detail)">
+      <fieldset class="form-fields" [disabled]="write.busy()">
+        @if (!user || user.isActive) { <label>{{ w.fullName }} <input formControlName="fullName" required /></label> }
+        @if (!user || !user.isActive) { <label>{{ t.email }} <input type="email" formControlName="email" required /></label> }
+        @if (!user || user.isActive || selectedAction() === 'activate') {
+          <fieldset class="form-stack form-fields__full">
+            <legend>{{ w.roles }}</legend>
+            @for (role of detail.roles; track role.id) {
+              <label class="inline-check">
+                <input type="checkbox" [checked]="roleIds().includes(role.id)" [disabled]="!role.isActive && !roleIds().includes(role.id)" (change)="toggleRole(role.id)" />
+                {{ role.name || role.code }} @if (!role.isActive) { ({{ w.inactive }}) }
+              </label>
+            }
+          </fieldset>
+        }
+        @if (!user) {
+          <label>{{ w.temporaryPassword }} <input type="password" autocomplete="new-password" formControlName="temporaryPassword" minlength="8" maxlength="256" required /></label>
+          <label>{{ w.repeatTemporaryPassword }} <input type="password" autocomplete="new-password" formControlName="repeatTemporaryPassword" minlength="8" maxlength="256" required /></label>
+          <p class="muted form-fields__full">{{ w.temporaryPasswordHint }}</p>
+          <label class="inline-check form-fields__full"><input type="checkbox" formControlName="employee" /> {{ w.employee }}</label>
+          @if (form.controls.employee.value) {
+            <label>{{ t.directorate }}
+              <select formControlName="directorateId">
+                <option value="">{{ w.noDirectorate }}</option>
+                @for (item of detail.directorates; track item.id) { <option [value]="item.id">{{ item.name }}</option> }
+              </select>
+            </label>
+            <label>{{ w.position }} <input formControlName="positionName" /></label>
+            <label>{{ w.responsibilities }}
+              <select [formControl]="roleChoice">
+                <option value="">{{ t.selectValue }}</option>
+                @for (type of types; track type) { <option [value]="type">{{ labels[type] }}</option> }
+              </select>
+            </label>
+            <button type="button" [disabled]="checking() || !roleChoice.value || (roleChoice.value !== 'CEO' && !form.controls.directorateId.value)" (click)="inspectSlot()">{{ w.slot }}</button>
+            <ul class="related-list form-fields__full">
+              @for (item of observations(); track item.type) {
+                <li>{{ labels[item.type] }} · {{ item.slot.assignmentId ? w.occupied : w.free }}
+                  <button type="button" (click)="removeObservation(item.type)">{{ t.remove }}</button>
+                </li>
+              }
+            </ul>
+          }
+        }
+      </fieldset>
+      <button class="button--primary" type="submit" [disabled]="write.busy() || checking()">{{ t.save }}</button>
+    </form>
+    @if (user && user.userId !== me()) {
+      <div class="action-row">
+        @if (user.isActive) {
+          <button type="button" [disabled]="write.busy() || loadingContext()" (click)="prepare('deactivate', user)">{{ w.deactivate }}</button>
+          <button type="button" [disabled]="write.busy() || loadingContext()" (click)="prepare('reissue', user)">{{ w.reissue }}</button>
+        } @else {
+          <button type="button" [disabled]="write.busy()" (click)="prepare('activate', user)">{{ w.activate }}</button>
+        }
+      </div>
+      @if (selectedAction(); as action) {
+        <div class="notice">
+          <p>{{ action === 'deactivate' ? w.confirmDeactivate : w.confirmReissue }}</p>
+          @if (action !== 'deactivate') {
+            <label>{{ w.temporaryPassword }} <input type="password" autocomplete="new-password" [formControl]="form.controls.temporaryPassword" minlength="8" maxlength="256" required /></label>
+            <label>{{ w.repeatTemporaryPassword }} <input type="password" autocomplete="new-password" [formControl]="form.controls.repeatTemporaryPassword" minlength="8" maxlength="256" required /></label>
+            <p class="muted">{{ w.temporaryPasswordHint }}</p>
+          }
+          @if (loadingContext()) { <sur-data-state kind="loading" /> }
+          @if (relationships(); as links) {
+            @if (links.person) { <p>{{ w.employee }} · {{ links.person.positionName || links.person.fullName }}</p> }
+            @if (blocked()) {
+              <h3>{{ w.blockers }}</h3>
+              <ul>
+                @for (process of links.processes; track process.id) { <li>{{ process.name }}</li> }
+                @for (assignment of links.responsibilities; track assignment.id) { <li>{{ labels[assignment.responsibilityType] }} · {{ assignment.id }}</li> }
+                @for (treatment of links.treatments; track treatment.id) { <li>{{ treatment.title }}</li> }
+              </ul>
+              <a routerLink="/admin/organization">{{ w.organization }}</a>
+            }
+          }
+          <label class="inline-check"><input type="checkbox" [formControl]="confirmed" /> {{ action === 'activate' ? w.activate : action === 'deactivate' ? w.deactivate : w.reissue }}</label>
+          <button type="button" [disabled]="write.busy() || loadingContext() || (action === 'deactivate' && (!relationships() || blocked()))" (click)="command(user, action)">{{ action === 'activate' ? w.activate : action === 'deactivate' ? w.deactivate : w.reissue }}</button>
+          <button type="button" [disabled]="write.busy()" (click)="cancelAction()">{{ t.cancel }}</button>
+        </div>
+      }
+    }
+  </section>
+}

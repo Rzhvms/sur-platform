@@ -1,0 +1,129 @@
+<h1>{{ w.organization }}</h1>
+<nav class="action-row" [attr.aria-label]="w.organization">
+  @for (section of directories; track section) {
+    <button type="button" [disabled]="write.busy()" [attr.aria-pressed]="section === kind()" (click)="select(section)">{{ w[section] }}</button>
+  }
+</nav>
+@if (write.notice()) { <p class="notice" role="status">{{ write.notice() }}</p> }
+@if (write.dependencyIds().length) { <p>{{ w.blockers }}: {{ write.dependencyIds().join(', ') }}</p> }
+<section class="panel">
+  <div class="panel__heading">
+    <h2>{{ w[kind()] }}</h2>
+    <button type="button" class="button--primary" [disabled]="write.busy()" (click)="open('create')">{{ w.create }}</button>
+  </div>
+  <form class="inline-actions" (ngSubmit)="applyFilter()">
+    <input type="search" [formControl]="search" [attr.aria-label]="t.filterSearch" maxlength="250" />
+    <select #state [value]="stateFilter()" [attr.aria-label]="t.filterStatus" (change)="stateFilter.set(state.value); applyFilter()">
+      <option value="">{{ labels.available }}</option><option value="true">{{ w.active }}</option><option value="false">{{ w.inactive }}</option>
+    </select>
+    <button type="submit">{{ t.apply }}</button>
+  </form>
+  @if (editor(); as edit) {
+    @let row = edit.row;
+    @let mode = edit.mode;
+    @let section = kind();
+    @let opts = options();
+    <form class="form-stack" [formGroup]="form" (ngSubmit)="save()">
+      <fieldset class="form-fields" [disabled]="write.busy()">
+        <legend>{{ mode === 'owner' ? w.changeOwner : mode === 'replace' ? w.replaceAssignment : mode === 'transfer' ? w.transfer : mode === 'state' ? (row?.isActive ? w.deactivate : w.activate) : mode === 'edit' ? t.edit : w.create }}</legend>
+        @if (row) { <p class="form-fields__full">{{ name(row) }}</p> }
+        @if (mode === 'state') {
+          @if (section === 'persons' && !row?.isActive && !row?.directorateId) {
+            <label class="inline-check"><input type="checkbox" formControlName="assignCeo" /> {{ roleLabels.CEO }}</label>
+          }
+        } @else if (mode === 'owner') {
+          <p class="form-fields__full">{{ w.confirmOwner }}</p>
+        } @else if (section === 'responsibilities') {
+          @if (mode === 'create') {
+            <label>{{ w.responsibilities }} <select formControlName="responsibilityType">
+              <option value="">{{ t.selectValue }}</option>
+              @for (type of types; track type) { <option [value]="type">{{ roleLabels[type] }}</option> }
+            </select></label>
+          }
+          @if (form.controls.responsibilityType.value === 'CEO') {
+            <label>{{ t.account }} <select formControlName="userId"><option value="">{{ t.selectValue }}</option>
+              @for (user of opts.users; track user.userId) { <option [value]="user.userId">{{ user.fullName || user.email }}</option> }
+            </select></label>
+            <label>{{ w.position }} <input formControlName="positionName" /></label>
+          }
+          <label>{{ w.employee }} <select formControlName="personId"><option value="">{{ t.selectValue }}</option>
+            @for (person of opts.people; track person.id) { <option [value]="person.id">{{ person.fullName || person.email }}</option> }
+          </select></label>
+        } @else if (section === 'persons') {
+          @if (mode === 'transfer') { <p class="form-fields__full">{{ w.transferDetails }}</p> }
+          @if (mode === 'create') {
+            <label>{{ t.account }} <select formControlName="userId"><option value="">{{ t.selectValue }}</option>
+              @for (user of opts.users; track user.userId) { <option [value]="user.userId">{{ user.fullName || user.email }}</option> }
+            </select></label>
+          }
+          <label>{{ w.position }} <input formControlName="positionName" /></label>
+        } @else {
+          <label>{{ t.title }} <input formControlName="name" required /></label>
+          @if (section !== 'directorates') { <label>{{ t.description }} <textarea formControlName="description"></textarea></label> }
+          @if (section === 'assets') {
+            <label>{{ labels.inventory }} <input formControlName="inventoryNumber" /></label>
+            <label>{{ labels.downtime }} <input type="number" min="0" step="0.01" formControlName="hourlyDowntimeCost" /></label>
+            @if (row && row.hourlyDowntimeCost !== form.controls.hourlyDowntimeCost.value) {
+              <label class="inline-check form-fields__full"><input type="checkbox" formControlName="confirmed" /> {{ t.confirmRecalculation }}</label>
+            }
+          }
+        }
+        @if ((mode === 'transfer' || mode === 'create') && (section === 'persons' || section === 'processes' || (section === 'responsibilities' && form.controls.responsibilityType.value !== 'CEO'))) {
+          <label>{{ t.directorate }} <select formControlName="directorateId">
+            <option value="">{{ t.selectValue }}</option>
+            @for (item of opts.directorates; track item.id) { <option [value]="item.id">{{ item.name }}</option> }
+          </select></label>
+        }
+        @if (section === 'processes' && (mode === 'owner' || mode === 'create')) {
+          <label>{{ t.owner }} <select formControlName="ownerId"><option value="">{{ t.selectValue }}</option>
+            @for (person of opts.people; track person.id) {
+              @if (person.directorateId === form.controls.directorateId.value) { <option [value]="person.id">{{ person.fullName || person.email }}</option> }
+            }
+          </select></label>
+        }
+        @if (section === 'responsibilities' && mode !== 'state') {
+          <button type="button" [disabled]="checking()" (click)="inspectSlot()">{{ w.slot }}</button>
+          @if (checkedSlot(); as slot) { <p role="status">{{ slot.assignmentId ? w.occupied : w.free }}</p> }
+        }
+        @if (mode === 'state' || mode === 'transfer' || mode === 'owner' || mode === 'replace') {
+          <label class="inline-check form-fields__full"><input type="checkbox" formControlName="confirmed" /> {{ t.confirmChange }}</label>
+        }
+      </fieldset>
+      <div class="action-row">
+        <button type="submit" class="button--primary" [disabled]="write.busy() || checking()">{{ t.save }}</button>
+        <button type="button" [disabled]="write.busy()" (click)="editor.set(null)">{{ t.cancel }}</button>
+      </div>
+    </form>
+  }
+  @let result = data();
+  @if (result.kind === 'loading') { <sur-data-state kind="loading" /> }
+  @else if (result.kind === 'error') { <sur-data-state kind="error" [message]="result.message" (retry)="reload()" /> }
+  @else {
+    <ul class="related-list">
+      @for (item of result.value; track item.id) {
+        <li class="admin-row">
+          <div><strong>{{ name(item) }}</strong><p class="muted">{{ item.isActive ? w.active : w.inactive }} @if (item.positionName) { · {{ item.positionName }} }</p>
+            @if (kind() === 'persons' || kind() === 'processes' || kind() === 'responsibilities') {
+              <p class="muted">{{ directorateName(item.directorateId) }}</p>
+            }
+            @if (kind() === 'processes') { <p class="muted">{{ t.owner }} · {{ ownerName(item.ownerId) }}</p> }
+          </div>
+          <div class="action-row">
+            @if (kind() !== 'responsibilities' && (kind() !== 'persons' || item.isActive)) { <button type="button" [disabled]="write.busy()" (click)="open('edit', item)">{{ t.edit }}</button> }
+            @if (item.isActive && kind() === 'persons') { <button type="button" [disabled]="write.busy()" (click)="open('transfer', item)">{{ w.transfer }}</button> }
+            @if (item.isActive && kind() === 'processes') { <button type="button" [disabled]="write.busy()" (click)="open('owner', item)">{{ w.changeOwner }}</button> }
+            @if (item.isActive && kind() === 'responsibilities') { <button type="button" [disabled]="write.busy()" (click)="open('replace', item)">{{ w.replaceAssignment }}</button> }
+            @if (kind() !== 'responsibilities' || item.isActive) {
+              <button type="button" [disabled]="write.busy()" (click)="open('state', item)">{{ kind() === 'responsibilities' ? w.closeAssignment : item.isActive ? w.deactivate : w.activate }}</button>
+            }
+          </div>
+        </li>
+      } @empty { <li class="muted">{{ t.empty }}</li> }
+    </ul>
+    <div class="pagination">
+      <button type="button" [disabled]="cursors().length === 1" (click)="page()">{{ t.previous }}</button>
+      <button type="button" [disabled]="result.value.length < size" (click)="page(result.value)">{{ t.next }}</button>
+    </div>
+  }
+  @if (kind() === 'persons') { <a routerLink="/admin/users">{{ w.users }}</a> }
+</section>

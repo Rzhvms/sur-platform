@@ -1,0 +1,32 @@
+.passport-form {
+  max-width: 900px;
+}
+
+.conflict-panel {
+  padding: 0.75rem;
+  border: 1px solid var(--edge);
+  background: var(--wash);
+  margin-top: 0.75rem;
+  border-radius: 7px;
+}
+
+.comparison {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.75rem;
+  margin: 0.6rem 0;
+
+  > div {
+    min-width: 0;
+    border: 1px solid var(--edge);
+    border-radius: 7px;
+    background: var(--canvas);
+    padding: 0.6rem;
+  }
+}
+
+@media (max-width: 650px) {
+  .comparison {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}

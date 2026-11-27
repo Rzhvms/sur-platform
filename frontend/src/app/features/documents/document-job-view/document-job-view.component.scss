@@ -1,0 +1,106 @@
+.document-job {
+  --card-accent: #334bb5;
+  --card-accent-wash: #f1f4ff;
+  border-radius: 16px;
+
+  h2 {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    font-size: 1.2rem;
+    margin-bottom: 1rem;
+  }
+
+  h2::before {
+    content: "";
+    width: 4px;
+    height: 1.1em;
+    flex-shrink: 0;
+    border-radius: 4px;
+    background: var(--card-accent);
+  }
+
+  > h3 {
+    font-size: 1.05rem;
+    margin: 1.25rem 0 0.75rem;
+  }
+
+  .action-row button {
+    border-radius: 10px;
+  }
+
+  &__state {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1rem;
+    padding: 0.3rem 0.75rem;
+    border-radius: 999px;
+    background: var(--card-accent-wash);
+    color: var(--card-accent);
+    font-weight: 600;
+  }
+
+  &__list {
+    display: grid;
+    gap: 0.85rem;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+
+  &__card {
+    padding: 1rem;
+    border: 1px solid var(--edge);
+    border-radius: 14px;
+    background: var(--canvas);
+
+    details {
+      margin-top: 0.85rem;
+    }
+
+    summary {
+      cursor: pointer;
+      font-size: 0.9rem;
+    }
+  }
+
+  &__card-heading {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    justify-content: space-between;
+    gap: 0.6rem;
+
+    strong {
+      font-size: 1.05rem;
+    }
+  }
+
+  &__facts {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 0.9rem 1.5rem;
+    border-top: 1px solid var(--edge);
+    padding-top: 0.85rem;
+    margin: 0.85rem 0 0;
+
+    dt {
+      font-size: 0.9rem;
+      color: var(--muted);
+      margin-bottom: 0.3rem;
+    }
+
+    dd {
+      margin: 0;
+      font-weight: 550;
+      overflow-wrap: anywhere;
+    }
+  }
+
+  @media (max-width: 650px) {
+    &__facts {
+      grid-template-columns: minmax(0, 1fr);
+    }
+  }
+}

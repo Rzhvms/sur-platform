@@ -1,0 +1,93 @@
+<a class="back-link" [routerLink]="back()" [queryParams]="backQuery()"><span aria-hidden="true">←</span> {{ t.back }}</a>
+@let result = state();
+@if (result.kind === 'loading') {
+  <sur-data-state kind="loading" />
+} @else if (result.kind === 'error') {
+  @if (notFound()) { <section class="panel" role="status"><h1>{{ t.missing }}</h1></section> }
+  @else { <sur-data-state kind="error" [message]="result.message" (retry)="retry()" /> }
+} @else {
+  @let risk = result.value;
+  <header class="detail-heading">
+    <div class="detail-heading__meta">@if (showId) { <span class="risk-id">{{ risk.id }}</span> } <sur-status [value]="risk.status" /></div>
+    <h1>{{ risk.name }}</h1>
+    <p class="muted">{{ t.updated }} {{ timestamp(risk.updatedAt) }}</p>
+    @if (!showId) {
+      <nav class="detail-jump" [attr.aria-label]="t.risks">
+        <a class="detail-jump__link" [routerLink]="[]" queryParamsHandling="preserve" fragment="passport" [class.detail-jump__link--active]="(section() ?? 'passport') === 'passport'" [attr.aria-current]="(section() ?? 'passport') === 'passport' ? 'location' : null">{{ t.passport }}</a>
+        <a class="detail-jump__link" [routerLink]="[]" queryParamsHandling="preserve" fragment="assessment" [class.detail-jump__link--active]="(section() ?? 'passport') === 'assessment'" [attr.aria-current]="(section() ?? 'passport') === 'assessment' ? 'location' : null">{{ t.rating }}</a>
+        <a class="detail-jump__link" [routerLink]="[]" queryParamsHandling="preserve" fragment="discussion" [class.detail-jump__link--active]="(section() ?? 'passport') === 'discussion'" [attr.aria-current]="(section() ?? 'passport') === 'discussion' ? 'location' : null">{{ t.comments }}</a>
+        <a class="detail-jump__link" [routerLink]="[]" queryParamsHandling="preserve" fragment="treatments" [class.detail-jump__link--active]="(section() ?? 'passport') === 'treatments'" [attr.aria-current]="(section() ?? 'passport') === 'treatments' ? 'location' : null">{{ t.treatments }}</a>
+        <a class="detail-jump__link" [routerLink]="[]" queryParamsHandling="preserve" fragment="reviews" [class.detail-jump__link--active]="(section() ?? 'passport') === 'reviews'" [attr.aria-current]="(section() ?? 'passport') === 'reviews' ? 'location' : null">{{ t.reviews }}</a>
+      </nav>
+    }
+  </header>
+  <section class="score-summary" [attr.aria-label]="t.rating">
+    @for (entry of [{ label: t.currentRating, value: risk.currentAssessment }, { label: t.previousRating, value: risk.previousAssessment }]; track entry.label; let historical = $last) {
+      @if (!historical || entry.value) {
+        <section class="score-summary__item">
+          <h2>{{ entry.label }}</h2>
+          <sur-rating [score]="entry.value?.riskScore ?? null" />
+          @if (entry.value; as assessment) {
+            <dl class="score-summary__facts">
+              <div><dt>{{ t.lost }}</dt><dd>{{ assessment.lossAmount === null ? t.unknown : money(assessment.lossAmount) }}</dd></div>
+              <div><dt>{{ t.updated }}</dt><dd>{{ timestamp(assessment.createdAt) }}</dd></div>
+            </dl>
+          }
+        </section>
+      }
+    }
+  </section>
+  <div class="detail-body">
+    <div class="detail-content">
+      <section class="panel risk-passport" id="passport">
+        <div class="panel__heading">
+          <h2>{{ t.passport }}</h2>
+          @if (canEdit() && risk.passportEditable) {
+            <a class="action-link" [routerLink]="['/risks', risk.id, 'edit']" [queryParams]="editQuery()">{{ t.editRisk }}</a>
+          }
+        </div>
+        @if (!showId && (!canEdit() || !risk.passportEditable)) {
+          <p class="muted risk-passport__lock">{{ lockReason(risk) }}</p>
+        }
+        <div class="risk-passport__layout">
+          <div class="risk-passport__description"><h3>{{ t.description }}</h3><p class="user-content">{{ risk.description }}</p></div>
+          <dl class="fields">
+            <div><dt>{{ t.category }}</dt><dd>{{ risk.category }}</dd></div>
+            <div><dt>{{ t.hazard }}</dt><dd>{{ risk.hazard }}</dd></div>
+            <div><dt>{{ t.asset }}</dt><dd>{{ risk.asset ?? t.unknown }}</dd></div>
+            <div><dt>{{ t.author }}</dt><dd>{{ risk.author ?? t.unknown }}</dd></div>
+            <div><dt>{{ t.created }}</dt><dd>{{ date(risk.createdAt.slice(0, 10)) }}</dd></div>
+          </dl>
+        </div>
+        <div class="risk-passport__processes">
+          <h3 class="risk-passport__processes-heading">{{ t.process }}</h3>
+          <ul class="related-list">
+            @for (process of risk.processes; track process.processId) {
+              <li><div class="process-title"><strong>{{ process.processName }}</strong>
+                @if (process.isPrimary) { <span class="primary-process">{{ t.primaryProcess }}</span> }
+                </div><p class="muted">{{ t.owner }} · {{ process.ownerName ?? t.unknown }}</p>
+              </li>
+            } @empty { <li class="muted">{{ t.unknown }}</li> }
+          </ul>
+        </div>
+      </section>
+      @if (showId) {
+        <section class="panel">
+          <label class="draft"><strong>{{ t.note }}</strong>
+            <textarea [formControl]="note" (input)="saveDraft()" rows="3" [placeholder]="t.notePlaceholder" aria-describedby="draft-hint"></textarea>
+          </label>
+          <p class="muted" id="draft-hint">{{ t.noteHint }}</p>
+        </section>
+      }
+      @if (!showId) {
+        @for (id of [risk.id]; track id) {
+          <sur-risk-assessment [risk]="risk" (changed)="retry()" />
+          <sur-risk-decisions [risk]="risk" (changed)="retry()" />
+          <sur-risk-comments [riskId]="id" />
+          <sur-risk-treatments [risk]="risk" (changed)="retry()" />
+          <sur-risk-related [riskId]="id" />
+        }
+      }
+    </div>
+  </div>
+}

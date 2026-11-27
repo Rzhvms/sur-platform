@@ -1,0 +1,7 @@
+
+    <nav class="admin-nav" [attr.aria-label]="t.administration">
+      @for (section of sections; track section.path) {
+        <a class="admin-nav__link" [routerLink]="section.path" routerLinkActive="admin-nav__link--selected" ariaCurrentWhenActive="page">{{ section.label }}</a>
+      }
+    </nav>
+    <router-outlet />
