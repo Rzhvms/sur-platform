@@ -1,0 +1,13 @@
+
+    @switch (kind()) {
+      @case ('loading') {
+        <div class="state" role="status"><span class="spinner" aria-hidden="true"></span><strong>{{ t.loading }}</strong></div>
+      }
+      @case ('empty') {
+        <div class="state" role="status"><strong>{{ t.empty }}</strong><span class="state__text">{{ t.emptyHint }}</span></div>
+      }
+      @case ('error') {
+        <div class="state" role="alert"><strong>{{ t.error }}</strong><span class="state__text">{{ message() }}</span>
+          <button type="button" (click)="retry.emit()">{{ t.retry }}</button></div>
+      }
+    }

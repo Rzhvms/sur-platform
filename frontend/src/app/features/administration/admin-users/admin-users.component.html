@@ -1,0 +1,21 @@
+
+    <div class="panel__heading"><h1>{{ w.users }}</h1><a class="action-link" routerLink="new">{{ w.create }}</a></div>
+    @let data = result();
+    @if (data.kind === 'loading') { <sur-data-state kind="loading" /> }
+    @else if (data.kind === 'error') { <sur-data-state kind="error" [message]="data.message" (retry)="refresh()" /> }
+    @else {
+      <section class="panel">
+        <ul class="related-list">
+          @for (row of data.value; track row.userId) {
+            <li><a [routerLink]="[row.userId]">{{ name(row) }}</a><p class="muted">
+              @if (row.email && row.email !== name(row)) { {{ row.email }} }
+              @if (row.isActive !== undefined) { · {{ row.isActive ? w.active : w.inactive }} }
+            </p></li>
+          } @empty { <li>{{ w.usersEmpty }}</li> }
+        </ul>
+        <div class="pagination">
+          <button type="button" [disabled]="cursors().length === 1" (click)="previous()">{{ t.previous }}</button>
+          <button type="button" [disabled]="data.value.length < size" (click)="next(data.value)">{{ t.next }}</button>
+        </div>
+      </section>
+    }

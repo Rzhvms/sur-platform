@@ -1,0 +1,34 @@
+
+    <h1>{{ w.roles }}</h1>
+    @if (write.notice()) { <p class="notice" role="status">{{ write.notice() }}</p> }
+    @if (write.dependencyIds().length) { <p>{{ w.blockers }}: {{ write.dependencyIds().join(', ') }}</p> }
+    @let state = data();
+    @if (state.kind === 'loading') { <sur-data-state kind="loading" /> }
+    @else if (state.kind === 'error') { <sur-data-state kind="error" [message]="state.message" (retry)="refresh()" /> }
+    @else {
+      <nav class="action-row" [attr.aria-label]="w.roles">
+        @for (entry of state.value.roles; track entry.id) {
+          <button type="button" [disabled]="write.busy()" [attr.aria-pressed]="selected()?.id === entry.id"
+            (click)="select(entry)">{{ entry.name || entry.code }} @if (!entry.isActive) { ({{ w.inactive }}) }</button>
+        }
+      </nav>
+      @if (selected(); as role) {
+        <section class="panel">
+          <h2>{{ role.name || role.code }}</h2>
+          @if (role.description) { <p>{{ role.description }}</p> }
+          <p class="muted">{{ w.version }} · <code>{{ role.version }}</code></p>
+          <fieldset class="form-stack" [disabled]="write.busy()">
+            <legend>{{ w.rights }}</legend>
+            <label class="inline-check"><input type="checkbox" [checked]="active()" [disabled]="role.code === 'ADMIN'"
+              (change)="active.set(!active())" /> {{ w.active }}</label>
+            @for (right of state.value.rights; track right.id) {
+              <label class="inline-check">
+                <input type="checkbox" [checked]="rights().includes(right.id)" [disabled]="right.code === 'admin' || role.code === 'ADMIN'" (change)="toggle(right.id)" />
+                <span>{{ right.name || right.code }} @if (right.name && right.code) { <code class="muted">{{ right.code }}</code> }</span>
+              </label>
+            }
+            @if (role.code !== 'ADMIN') { <button class="button--primary" type="button" (click)="save(role)">{{ t.save }}</button> }
+          </fieldset>
+        </section>
+      }
+    }

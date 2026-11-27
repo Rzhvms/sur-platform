@@ -1,0 +1,39 @@
+
+<div class="approvals">
+    <div class="page-heading approvals__heading"><h1>{{ w.approvals }}</h1><button type="button" (click)="refresh()">{{ t.refresh }}</button></div>
+    @if (notice()) { <p class="notice approvals__notice" role="status">{{ notice() }}</p> }
+    @let state = result();
+    @if (state.kind === 'loading') { <sur-data-state kind="loading" /> }
+    @else if (state.kind === 'error') { <sur-data-state kind="error" [message]="state.message" (retry)="refresh()" /> }
+    @else {
+      <p class="approvals__count" role="status">{{ w.queue }} <strong>{{ state.value.count }}</strong></p>
+      <div class="approvals__list">
+      @for (item of state.value.items; track item.id) {
+        <section class="panel approvals__card">
+          <header class="approvals__card-heading"><h2><a [routerLink]="['/treatments', item.treatmentId]" [queryParams]="{ source: 'approvals' }">{{ state.value.treatmentTitles?.[item.treatmentId] ?? w.openTreatment }}</a></h2><span class="approvals__level">{{ level(item.requiredLevel) }}</span></header>
+          <dl class="approvals__facts">
+            <div><dt>{{ w.level }}</dt><dd>{{ level(item.requiredLevel) }}</dd></div>
+            <div><dt>{{ w.plan }}</dt><dd>{{ money(item.costPlanned) }}</dd></div>
+            <div><dt>{{ w.trigger }}</dt><dd>{{ money(item.triggerThreshold) }}</dd></div>
+
+            <div><dt>{{ t.created }}</dt><dd>{{ time(item.requestedAt) }}</dd></div>
+          </dl>
+          <details class="approvals__thresholds"><summary>{{ w.savedThresholds }}</summary>
+            <dl class="approvals__facts">
+              <div><dt>{{ w.ownerThreshold }}</dt><dd>{{ money(item.ownerThreshold) }}</dd></div>
+              <div><dt>{{ w.directorThreshold }}</dt><dd>{{ money(item.directorThreshold) }}</dd></div>
+              <div><dt>{{ w.ceoThreshold }}</dt><dd>{{ money(item.ceoThreshold) }}</dd></div>
+            </dl>
+          </details>
+          <sur-approval-actions [approval]="item" [inQueue]="true" (changed)="refresh($event)" />
+        </section>
+      } @empty { <p class="panel muted">{{ w.noApprovals }}</p> }
+      </div>
+      @if (offset() || offset() + pageSize < state.value.count) {
+        <div class="pagination">
+          <button type="button" [disabled]="offset() === 0" (click)="page(-1)">{{ t.previous }}</button>
+          <button type="button" [disabled]="offset() + pageSize >= state.value.count" (click)="page(1)">{{ t.next }}</button>
+        </div>
+      }
+    }
+</div>

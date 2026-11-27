@@ -1,0 +1,11 @@
+
+    <dialog class="confirm" #dialog aria-labelledby="confirmation-title" aria-describedby="confirmation-detail" (close)="restore()">
+      <form method="dialog" class="confirm__content">
+        <h2 id="confirmation-title">{{ heading() }}</h2>
+        <p id="confirmation-detail">{{ question() }}</p>
+        <div class="confirm__actions">
+          <button value="cancel" autofocus>{{ t.cancel }}</button>
+          <button class="button--primary" value="confirm">{{ action() }}</button>
+        </div>
+      </form>
+    </dialog>

@@ -1,0 +1,38 @@
+
+<div class="treatments-page">
+    <header class="page-heading treatments-page__heading">
+      <h1>{{ t.treatments }}</h1>
+      <div class="treatment-actions"><button type="button" (click)="refresh()">{{ t.refresh }}</button><a class="action-link" routerLink="/risks">{{ w.toRisks }}</a></div>
+    </header>
+    <p class="treatments-page__hint">{{ w.registryHint }}</p>
+    @let state = result();
+    @if (state.kind === 'loading') { <sur-data-state kind="loading" /> }
+    @else if (state.kind === 'error') { <sur-data-state kind="error" [message]="state.message" (retry)="refresh()" /> }
+    @else {
+      <ul class="risk-treatment-list treatments-page__list">
+        @for (item of state.value.items; track item.id) {
+          <li class="risk-treatment-card">
+            <div class="risk-treatment-card__heading">
+              <a class="treatment-title-link" [routerLink]="['/treatments', item.id]" [queryParams]="{ source: 'registry', offset: offset() }"><span>{{ item.title }}</span><span aria-hidden="true">↗</span></a>
+              <span class="treatment-state" [attr.data-state]="item.status">{{ statuses[item.status] ?? t.unknown }}</span>
+            </div>
+            <div class="treatments-page__risk"><span>{{ w.registryRisk }}</span><a [routerLink]="['/risks', item.riskId]" fragment="treatments">{{ state.value.riskNames[item.riskId] ?? t.unknown }}</a></div>
+            <p class="treatment-process">{{ state.value.processNames[item.processId] ?? t.unknown }}</p>
+            <dl class="treatment-facts">
+              <div><dt>{{ t.due }}</dt><dd>{{ date(item.dueDate.slice(0, 10)) }}</dd></div>
+              <div><dt>{{ w.plan }}</dt><dd>{{ money(item.costPlanned) }}</dd></div>
+              <div><dt>{{ w.actual }}</dt><dd>{{ item.costActual === null ? t.unknown : money(item.costActual) }}</dd></div>
+            </dl>
+          </li>
+        } @empty {
+          <li class="treatments-entry"><h2>{{ t.noTreatments }}</h2><p>{{ w.registryEmpty }}</p><a class="action-link action-link--primary" routerLink="/risks">{{ w.toRisks }}</a></li>
+        }
+      </ul>
+      @if (offset() || state.value.hasMore) {
+        <nav class="pagination" [attr.aria-label]="t.treatments">
+          @if (offset()) { <a class="action-link" routerLink="/treatments" [queryParams]="{ offset: offset() - pageSize }">{{ t.previous }}</a> }
+          @if (state.value.hasMore && canAdvance()) { <a class="action-link" routerLink="/treatments" [queryParams]="{ offset: offset() + pageSize }">{{ t.next }}</a> }
+        </nav>
+      }
+    }
+</div>

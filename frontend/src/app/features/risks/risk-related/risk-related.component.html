@@ -1,0 +1,35 @@
+
+    <section class="panel" id="reviews">
+      <h2>{{ t.reviews }}</h2>
+      @let state = result();
+      @if (!opened()) {
+        <button type="button" (click)="opened.set(true)">{{ t.openSection }}</button>
+      } @else if (state.kind === 'loading') {
+        <sur-data-state kind="loading" />
+      } @else if (state.kind === 'error') {
+        <sur-data-state kind="error" [message]="state.message" (retry)="retry()" />
+      } @else {
+        <ul class="related-list">
+          @for (item of state.value; track item.id) {
+            <li><strong>{{ item.title }}</strong><span class="muted">{{ item.date }}</span>
+              @if (item.source) {
+                <dl class="fields">
+                  <div><dt>{{ w.source }}</dt><dd>{{ item.source }}</dd></div>
+                  <div><dt>{{ w.reasonLabel }}</dt><dd>{{ item.reason }}</dd></div>
+                  <div><dt>{{ w.runStatus }}</dt><dd>{{ item.runStatus }}</dd></div>
+                  <div><dt>{{ w.run }}</dt><dd><code>{{ item.runId }}</code></dd></div>
+                  @if (item.scheduled) { <div><dt>{{ w.scheduled }}</dt><dd>{{ item.scheduled }}</dd></div> }
+                </dl>
+              }
+              @if (item.detail) { <p class="user-content">{{ item.detail }}</p> }
+            </li>
+          } @empty { <li class="muted">{{ t.noReviews }}</li> }
+        </ul>
+        @if (offset() || state.value.length === pageSize) {
+          <div class="pagination">
+            <button type="button" [disabled]="offset() === 0" (click)="page(-1)">{{ t.previous }}</button>
+            <button type="button" [disabled]="state.value.length < pageSize" (click)="page(1)">{{ t.next }}</button>
+          </div>
+        }
+      }
+    </section>

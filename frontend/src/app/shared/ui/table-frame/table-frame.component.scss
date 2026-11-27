@@ -1,0 +1,8 @@
+.table-frame {
+  overflow: auto;
+  border-block: 1px solid var(--edge);
+
+  &:focus-visible {
+    outline-offset: -2px;
+  }
+}

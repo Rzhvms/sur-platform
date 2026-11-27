@@ -1,0 +1,66 @@
+
+    <a class="skip-link" href="#main" (click)="skipToMain($event, main)">{{ t.skip }}</a>
+    @if (!login()) {
+      <header class="topbar">
+        <a class="brand" [routerLink]="demo() ? '/demo/risks' : '/risks'" [attr.aria-label]="t.product">
+          <span class="brand__mark" aria-hidden="true">{{ t.brand }}</span>
+        </a>
+        <button class="topbar__menu-toggle" type="button" [attr.aria-label]="t.openMenu"
+          aria-haspopup="dialog" aria-controls="navigation-menu" [attr.aria-expanded]="menuOpen()" (click)="openMenu()">
+          <svg aria-hidden="true" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
+            <path d="M4 6h16M4 12h16M4 18h16" />
+          </svg>
+        </button>
+      </header>
+      <dialog #navigationMenu id="navigation-menu" class="nav-drawer" aria-labelledby="navigation-title"
+        (close)="menuOpen.set(false)" (click)="dismissBackdrop($event)" (keydown)="keepMenuFocus($event)">
+        <div class="nav-drawer__heading">
+          <h2 id="navigation-title">{{ t.menu }}</h2>
+          <button class="nav-drawer__close" type="button" [attr.aria-label]="t.closeMenu" (click)="closeMenu()" autofocus>
+            <svg aria-hidden="true" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round">
+              <path d="m6 6 12 12M18 6 6 18" />
+            </svg>
+          </button>
+        </div>
+        <nav class="nav-drawer__navigation" [attr.aria-label]="t.navigation">
+          @if (demo()) {
+            <a class="nav-drawer__link" routerLink="/demo/risks" routerLinkActive="nav-drawer__link--selected" ariaCurrentWhenActive="page" (click)="closeMenu()">{{ t.risks }}</a>
+          } @else {
+            @for (section of visibleSections(); track section.path) {
+              <a class="nav-drawer__link" [routerLink]="['/', section.path]" routerLinkActive="nav-drawer__link--selected" ariaCurrentWhenActive="page" (click)="closeMenu()">{{ section.label }}</a>
+            }
+            @if (session.token() && !session.restricted()) {
+              <a class="nav-drawer__link" routerLink="/help" routerLinkActive="nav-drawer__link--selected" ariaCurrentWhenActive="page" (click)="closeMenu()">{{ t.help }}</a>
+            }
+          }
+        </nav>
+        <div class="nav-drawer__footer">
+          @if (demo()) {
+            <span class="nav-drawer__demo-label">{{ t.demo }}</span>
+            <a class="nav-drawer__session-action" routerLink="/login" (click)="closeMenu()">{{ t.login }}</a>
+          } @else if (session.token()) {
+            <button class="nav-drawer__session-action" [disabled]="leaving()" (click)="logout()">{{ t.logout }}</button>
+          }
+        </div>
+      </dialog>
+    }
+    <main #main id="main" tabindex="-1" [class.auth-layout]="login() || (!demo() && !release.ready())">
+      @if (demo() || release.ready()) {
+        <router-outlet />
+      } @else {
+        <section class="release-card" role="status" aria-live="polite">
+          <div class="brand__mark release-card__mark" aria-hidden="true">{{ t.brand }}</div>
+          @if (release.busy() && !release.message()) {
+            <span class="spinner" aria-hidden="true"></span>
+            <p class="muted">{{ t.loading }}</p>
+          } @else {
+            <h1>{{ r.heading }}</h1>
+            <p>{{ release.message() }}</p>
+            <div class="release-card__actions">
+              <button class="button--primary" type="button" [disabled]="release.busy()" (click)="release.check()">{{ r.retry }}</button>
+              <button class="release-card__secondary" type="button" (click)="reloadApplication()">{{ r.refresh }}</button>
+            </div>
+          }
+        </section>
+      }
+    </main>

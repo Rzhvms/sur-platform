@@ -1,0 +1,22 @@
+.split-option {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.workflow-actions,
+.workflow-details,
+.workflow-subtitle {
+  margin-top: 0.85rem;
+}
+
+.workflow-details summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.workflow-actions button[aria-pressed="true"] {
+  background: var(--wash);
+  border-color: var(--muted);
+}

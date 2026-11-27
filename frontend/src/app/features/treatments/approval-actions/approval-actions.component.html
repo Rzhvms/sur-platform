@@ -1,0 +1,30 @@
+
+    @if (!selection()) {
+    <div class="approval-actions">
+      @if (inQueue() && approval().status === 'PENDING') {
+        <button type="button" class="button--primary" [disabled]="busy()" (click)="choose('approve')">{{ w.approve }}</button>
+        <button type="button" class="approval-actions__negative" [disabled]="busy()" (click)="choose('reject')">{{ w.reject }}</button>
+      }
+      @if (session.hasRight('admin')) {
+        <button type="button" [disabled]="busy()" (click)="choose('revoke')">{{ w.revoke }}</button>
+      }
+    </div>
+    }
+    @if (selection(); as choice) {
+      <form class="form-stack approval-actions__confirmation" [formGroup]="form" (ngSubmit)="submit()" aria-labelledby="approval-confirm-heading-{{ approval().id }}">
+        <h3 id="approval-confirm-heading-{{ approval().id }}">{{ w[choice.action] }}</h3>
+        <p>{{ choice.action === 'approve' ? w.approveConfirm : choice.action === 'reject' ? w.rejectConfirm : w.revokeConfirm }}</p>
+        @if (choice.action !== 'approve') {
+          <label>{{ w.reason }} <textarea [formControl]="reason" required></textarea></label>
+        }
+        @if (confirmation()) {
+          <p role="status">{{ w.discardDrafts }}</p>
+          <label><input type="checkbox" [formControl]="confirmed" /> {{ w.confirmTransition }}</label>
+        }
+        <div class="approval-actions">
+          <button class="button--primary" type="submit" [disabled]="busy() || (confirmation() && !confirmed.value)">{{ busy() ? t.loading : w.confirmDecision }}</button>
+          <button type="button" [disabled]="busy()" (click)="cancel()">{{ t.cancel }}</button>
+        </div>
+      </form>
+    }
+    @if (notice()) { <p class="form-error" role="alert">{{ notice() }}</p> }
