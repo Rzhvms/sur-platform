@@ -14,37 +14,13 @@ namespace Api.Controllers.Public.Documents;
 /// <summary>Отчёты, импорт реестра и защищённая выдача файлов текущего клиента</summary>
 /// <param name="useCases">Прикладные операции документов</param>
 [Authorize]
-[Route(DocumentsRoute)]
+[Route("documents")]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
 public sealed class DocumentsController(DocumentUseCaseManager useCases) : BasePublicController
 {
-    /// <summary>Общий сегмент маршрутов документов</summary>
-    private const string DocumentsRoute = "documents";
-
-    /// <summary>Создание снимка реестра</summary>
-    private const string ReportsRoute = "reports";
-
-    /// <summary>Регистрация загрузки CSV</summary>
-    private const string ImportsRoute = "imports";
-
-    /// <summary>Идентификатор сохранённого задания</summary>
-    private const string JobRoute = "{id:guid}";
-
-    /// <summary>Порция строк задания</summary>
-    private const string RowsRoute = JobRoute + "/rows";
-
-    /// <summary>Запуск импорта с сопоставлением</summary>
-    private const string MappingRoute = JobRoute + "/mapping";
-
-    /// <summary>Содержимое подтверждённого файла</summary>
-    private const string FileRoute = JobRoute + "/file";
-
-    /// <summary>Повтор задания после временной ошибки</summary>
-    private const string RetryRoute = JobRoute + "/retry";
-
     /// <summary>Политика браузерных и промежуточных кешей личных файлов</summary>
     private const string NoStore = "private, no-store";
 
@@ -57,7 +33,7 @@ public sealed class DocumentsController(DocumentUseCaseManager useCases) : BaseP
     /// <summary>Регистрирует неизменяемый запрос отчёта</summary>
     /// <param name="request">Ключ операции, фильтры и формат</param>
     /// <returns>Состояние задания</returns>
-    [HttpPost(ReportsRoute)]
+    [HttpPost("reports")]
     [ProducesResponseType<DocumentStatus>(StatusCodes.Status200OK)]
     public Task<DocumentStatus> ReportAsync(ReportRequest request)
     {
@@ -67,7 +43,7 @@ public sealed class DocumentsController(DocumentUseCaseManager useCases) : BaseP
     /// <summary>Регистрирует ожидаемое содержимое CSV</summary>
     /// <param name="request">Ключ операции, размер и SHA-256</param>
     /// <returns>Состояние загрузки</returns>
-    [HttpPost(ImportsRoute)]
+    [HttpPost("imports")]
     [ProducesResponseType<DocumentStatus>(StatusCodes.Status200OK)]
     public Task<DocumentStatus> ImportAsync(ImportRequest request)
     {
@@ -77,7 +53,7 @@ public sealed class DocumentsController(DocumentUseCaseManager useCases) : BaseP
     /// <summary>Читает текущее состояние задания</summary>
     /// <param name="id">Задание владельца</param>
     /// <returns>Состояние, ошибка и подтверждённый файл</returns>
-    [HttpGet(JobRoute)]
+    [HttpGet("{id:guid}")]
     [ProducesResponseType<DocumentStatus>(StatusCodes.Status200OK)]
     public Task<DocumentStatus> StatusAsync(Guid id)
     {
@@ -90,7 +66,7 @@ public sealed class DocumentsController(DocumentUseCaseManager useCases) : BaseP
     /// <param name="after">Последний номер предыдущей порции</param>
     /// <param name="limit">Количество строк</param>
     /// <returns>Строки в порядке номеров</returns>
-    [HttpGet(RowsRoute)]
+    [HttpGet("{id:guid}/rows")]
     [ProducesResponseType<DocumentRow[]>(StatusCodes.Status200OK)]
     public Task<DocumentRow[]> RowsAsync(Guid id, [Range(0, DocumentRules.RowLimit)] long after = 0,
         [Range(1, DocumentRules.BatchSize)] int limit = DocumentRules.BatchSize)
@@ -103,7 +79,7 @@ public sealed class DocumentsController(DocumentUseCaseManager useCases) : BaseP
     /// <param name="id">Задание владельца</param>
     /// <param name="mapping">Индексы полей CSV</param>
     /// <returns>Состояние задания</returns>
-    [HttpPut(MappingRoute)]
+    [HttpPut("{id:guid}/mapping")]
     [ProducesResponseType<DocumentStatus>(StatusCodes.Status200OK)]
     public Task<DocumentStatus> StartAsync(Guid id, ImportMapping mapping)
     {
@@ -113,7 +89,7 @@ public sealed class DocumentsController(DocumentUseCaseManager useCases) : BaseP
     /// <summary>Возобновляет работу из сохранённых данных</summary>
     /// <param name="id">Задание владельца</param>
     /// <returns>Состояние после команды</returns>
-    [HttpPost(RetryRoute)]
+    [HttpPost("{id:guid}/retry")]
     [ProducesResponseType<DocumentStatus>(StatusCodes.Status200OK)]
     public Task<DocumentStatus> RetryAsync(Guid id)
     {
@@ -125,7 +101,7 @@ public sealed class DocumentsController(DocumentUseCaseManager useCases) : BaseP
     /// <param name="cancellation">Отмена передачи</param>
     /// <returns>Подтверждённый источник</returns>
     /// <exception cref="IdentityCommandException">Заголовок длины отсутствует или размер недопустим</exception>
-    [HttpPut(FileRoute)]
+    [HttpPut("{id:guid}/file")]
     [Consumes(DocumentRules.BinaryMediaType)]
     [RequestSizeLimit(DocumentRules.MaxImportBytes)]
     [ProducesResponseType<DocumentStatus>(StatusCodes.Status200OK)]
@@ -142,7 +118,7 @@ public sealed class DocumentsController(DocumentUseCaseManager useCases) : BaseP
     /// <summary>Проверяет текущий доступ и выдаёт подтверждённый файл вложением</summary>
     /// <param name="id">Серверный fileId</param>
     /// <param name="cancellation">Отмена передачи</param>
-    [HttpGet(FileRoute)]
+    [HttpGet("{id:guid}/file")]
     [ProducesResponseType(typeof(FileResult), StatusCodes.Status200OK, DocumentRules.BinaryMediaType)]
     public async Task DownloadAsync(Guid id, CancellationToken cancellation)
     {

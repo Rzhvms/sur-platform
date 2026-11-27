@@ -16,16 +16,13 @@ namespace Api.Controllers.Public.Treatments;
 /// <summary>HTTP-контракт операций с мерами</summary>
 /// <param name="useCases">Операции текущего клиента</param>
 [Authorize]
-[Route(TreatmentRoute)]
+[Route("treatment-approvals")]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
 public sealed class TreatmentApprovalController(TreatmentUseCaseManager useCases) : BasePublicController
 {
-    /// <summary>Базовый маршрут контроллера</summary>
-    private const string TreatmentRoute = "treatment-approvals";
-
     /// <summary>Читает очередь и её счётчик</summary>
     /// <param name="offset">Смещение страницы</param>
     /// <param name="limit">Размер страницы</param>
@@ -37,42 +34,33 @@ public sealed class TreatmentApprovalController(TreatmentUseCaseManager useCases
         return useCases.ListTreatmentApprovalsAsync(User.GetRiskActor(), offset, limit);
     }
 
-    /// <summary>Маршрут операции Approve</summary>
-    private const string ApproveRoute = "{id:guid}/approve";
-
     /// <summary>Принимает решение по запросу</summary>
     /// <param name="id">Идентификатор меры или запроса</param>
     /// <param name="request">Данные команды</param>
     /// <returns>Результат операции</returns>
-    [HttpPost(ApproveRoute)]
+    [HttpPost("{id:guid}/approve")]
     [ProducesResponseType<TreatmentApprovalDal>(StatusCodes.Status200OK)]
     public Task<TreatmentApprovalDal> ApproveAsync(Guid id, TreatmentActionRequest request)
     {
         return useCases.DecideTreatmentApprovalAsync(User.GetRiskActor(), id, TreatmentRules.Approved, request);
     }
 
-    /// <summary>Маршрут операции Reject</summary>
-    private const string RejectRoute = "{id:guid}/reject";
-
     /// <summary>Принимает решение по запросу</summary>
     /// <param name="id">Идентификатор меры или запроса</param>
     /// <param name="request">Данные команды</param>
     /// <returns>Результат операции</returns>
-    [HttpPost(RejectRoute)]
+    [HttpPost("{id:guid}/reject")]
     [ProducesResponseType<TreatmentApprovalDal>(StatusCodes.Status200OK)]
     public Task<TreatmentApprovalDal> RejectAsync(Guid id, TreatmentActionRequest request)
     {
         return useCases.DecideTreatmentApprovalAsync(User.GetRiskActor(), id, TreatmentRules.Rejected, request);
     }
 
-    /// <summary>Маршрут операции Revoke</summary>
-    private const string RevokeRoute = "{id:guid}/revoke";
-
     /// <summary>Принимает решение по запросу</summary>
     /// <param name="id">Идентификатор меры или запроса</param>
     /// <param name="request">Данные команды</param>
     /// <returns>Результат операции</returns>
-    [HttpPost(RevokeRoute)]
+    [HttpPost("{id:guid}/revoke")]
     [ProducesResponseType<TreatmentApprovalDal>(StatusCodes.Status200OK)]
     public Task<TreatmentApprovalDal> RevokeAsync(Guid id, TreatmentActionRequest request)
     {

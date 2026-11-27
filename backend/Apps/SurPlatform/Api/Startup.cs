@@ -399,7 +399,7 @@ public sealed class Startup(IWebHostEnvironment env, IConfiguration configuratio
             if (context.User.HasClaim(AccessTokenClaimTypes.PasswordChangeRequired, IdentityClaimValues.True) &&
                 endpoint is not null &&
                 endpoint.Metadata.GetMetadata<IAllowAnonymous>() is null &&
-                endpoint.Metadata.GetMetadata<AllowPasswordChangeSessionAttribute>() is null)
+                endpoint.Metadata.GetMetadata<AllowAccessBeforePasswordChangeAttribute>() is null)
             {
                 await Results.Problem(statusCode: StatusCodes.Status403Forbidden,
                     title: PasswordChangeRequired, extensions: new Dictionary<string, object?>

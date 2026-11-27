@@ -27,14 +27,14 @@ internal sealed class ClientDatabaseMiddleware(RequestDelegate next)
             return;
         }
 
-        if (http.Request.Path == IdentityRoutes.LivenessPath)
+        if (http.Request.Path == "/health/live")
         {
             await next(http);
             return;
         }
 
         database.Select(client);
-        if (http.Request.Path != IdentityRoutes.ReadinessPath && !initializer.IsPrepared(client))
+        if (http.Request.Path != "/health/ready" && !initializer.IsPrepared(client))
         {
             await Results.Problem(statusCode: StatusCodes.Status503ServiceUnavailable, title: IdentityHttp.DatabaseNotReady).ExecuteAsync(http);
             return;

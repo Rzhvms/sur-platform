@@ -18,20 +18,10 @@ namespace Api.Controllers.Public.Auth;
 /// <param name="auth">Сценарии входа и обновления</param>
 /// <param name="antiforgery">Выпуск и проверка CSRF-токенов</param>
 [AllowAnonymous]
-[Route(BrowserConnectRoute)]
+[Route("connect/browser")]
 public sealed class BrowserAuthController(IAuthUseCaseManager auth, IAntiforgery antiforgery)
     : BasePublicController
 {
-    /// <summary>
-    /// Browser connect route
-    /// </summary>
-    private const string BrowserConnectRoute = "connect/browser";
-
-    /// <summary>
-    /// Csrf route
-    /// </summary>
-    private const string CsrfRoute = "csrf";
-
     /// <summary>
     /// Host-only имя cookie refresh-токена
     /// </summary>
@@ -41,7 +31,7 @@ public sealed class BrowserAuthController(IAuthUseCaseManager auth, IAntiforgery
     /// Возвращает токен для заголовка X-CSRF-TOKEN и устанавливает CSRF-cookie
     /// </summary>
     /// <returns>Токен, действующий для этой браузерной cookie</returns>
-    [HttpGet(CsrfRoute)]
+    [HttpGet("csrf")]
     [ProducesResponseType<BrowserCsrfResponse>(StatusCodes.Status200OK)]
     public IActionResult Csrf()
     {
@@ -53,7 +43,7 @@ public sealed class BrowserAuthController(IAuthUseCaseManager auth, IAntiforgery
     /// </summary>
     /// <param name="request">Логин и пароль</param>
     /// <returns>Access-токен или отказ во входе</returns>
-    [HttpPost(IdentityRoutes.Token)]
+    [HttpPost("token")]
     [ValidateAntiForgeryToken]
     [ProducesResponseType<BrowserAccessResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -73,7 +63,7 @@ public sealed class BrowserAuthController(IAuthUseCaseManager auth, IAntiforgery
     /// Ротирует refresh-cookie в рамках текущей сессии
     /// </summary>
     /// <returns>Новый access-токен или отказ</returns>
-    [HttpPost(IdentityRoutes.RefreshToken)]
+    [HttpPost("token/refresh")]
     [ValidateAntiForgeryToken]
     [ProducesResponseType<BrowserAccessResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -96,7 +86,7 @@ public sealed class BrowserAuthController(IAuthUseCaseManager auth, IAntiforgery
     /// Завершает сессию по refresh-cookie и удаляет её из браузера
     /// </summary>
     /// <returns>204 после локального завершения</returns>
-    [HttpPost(IdentityRoutes.RevokeToken)]
+    [HttpPost("token/revoke")]
     [ValidateAntiForgeryToken]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> LogoutAsync()

@@ -15,7 +15,7 @@ namespace Api.Controllers.Provider.Risks;
 /// <summary>Административные команды внешних источников пересмотра</summary>
 /// <param name="useCases">Прикладные операции выбранной базы</param>
 [Authorize]
-[Route(SettingsRoute)]
+[Route("review-webhooks")]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
@@ -23,12 +23,6 @@ namespace Api.Controllers.Provider.Risks;
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
 public sealed class ReviewWebhookSettingsController(ReviewUseCaseManager useCases) : BaseProviderController
 {
-    /// <summary>Маршрут источников пересмотра</summary>
-    private const string SettingsRoute = "review-webhooks";
-
-    /// <summary>Команда подтверждённой замены секрета</summary>
-    private const string RotateRoute = RiskRoutes.ById + "/rotate-token";
-
     /// <summary>Читает настройки внешних источников</summary>
     /// <param name="offset">Смещение страницы</param>
     /// <param name="limit">Размер страницы</param>
@@ -43,7 +37,7 @@ public sealed class ReviewWebhookSettingsController(ReviewUseCaseManager useCase
     /// <summary>Читает внешний источник и связанные риски</summary>
     /// <param name="id">Идентификатор настройки</param>
     /// <returns>Результат операции выбранного клиента</returns>
-    [HttpGet(RiskRoutes.ById)]
+    [HttpGet("{id:guid}")]
     [ProducesResponseType<ReviewWebhookView>(StatusCodes.Status200OK)]
     public Task<ReviewWebhookView> GetAsync(Guid id)
     {
@@ -65,7 +59,7 @@ public sealed class ReviewWebhookSettingsController(ReviewUseCaseManager useCase
     /// <param name="id">Идентификатор настройки</param>
     /// <param name="request">Поля формы</param>
     /// <returns>Результат операции выбранного клиента</returns>
-    [HttpPut(RiskRoutes.ById)]
+    [HttpPut("{id:guid}")]
     [ProducesResponseType<ReviewWebhookView>(StatusCodes.Status200OK)]
     public Task<ReviewWebhookView> UpdateAsync(Guid id, ReviewWebhookRequest request)
     {
@@ -76,7 +70,7 @@ public sealed class ReviewWebhookSettingsController(ReviewUseCaseManager useCase
     /// <param name="id">Идентификатор настройки</param>
     /// <param name="request">Поля формы</param>
     /// <returns>Результат операции выбранного клиента</returns>
-    [HttpPost(RotateRoute)]
+    [HttpPost("{id:guid}/rotate-token")]
     [ProducesResponseType<ReviewWebhookReceipt>(StatusCodes.Status200OK)]
     public Task<ReviewWebhookReceipt> RotateAsync(Guid id, RotateReviewTokenRequest request)
     {
@@ -88,7 +82,7 @@ public sealed class ReviewWebhookSettingsController(ReviewUseCaseManager useCase
     /// <param name="id">Идентификатор настройки</param>
     /// <param name="version">Ожидаемая версия</param>
     /// <returns>Результат операции выбранного клиента</returns>
-    [HttpDelete(RiskRoutes.ById)]
+    [HttpDelete("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> DeleteAsync(Guid id, [FromQuery] Guid version)
     {

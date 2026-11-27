@@ -14,22 +14,19 @@ namespace Api.Controllers.Provider.Risks;
 
 /// <summary>HTTP-контракт ProviderRiskReferenceController</summary>
 /// <param name="useCases">Прикладные операции выбранного клиента</param>
-[Route(RiskRoutes.References)]
+[Route("risk-references")]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
 public sealed class ProviderRiskReferenceController(RiskUseCaseManager useCases) : BaseProviderController
 {
-    /// <summary>Относительный маршрут операции EntryRoute</summary>
-    private const string EntryRoute = RiskRoutes.ByKind + "/" + RiskRoutes.ById;
-
     /// <summary>Возвращает страницу справочника</summary>
     /// <param name="kind">Тип справочника</param>
     /// <param name="offset">Смещение</param>
     /// <param name="limit">Размер страницы</param>
     /// <param name="search">Фрагмент названия</param>
     /// <returns>Данные операции текущего клиента</returns>
-    [HttpGet(RiskRoutes.ByKind)]
+    [HttpGet("{kind}")]
     public Task<RiskReference[]> ListAsync(RiskReferenceKind kind, [Range(0, int.MaxValue)] int offset = 0, [Range(1, RiskRoutes.MaxPage)] int limit = RiskRoutes.DefaultPage, [StringLength(250)] string? search = null)
     {
         return useCases.ListReferencesAsync(User.GetRiskActor(), kind, available: false, offset, limit, search);
@@ -39,7 +36,7 @@ public sealed class ProviderRiskReferenceController(RiskUseCaseManager useCases)
     /// <param name="kind">Тип справочника</param>
     /// <param name="request">Поля команды</param>
     /// <returns>Данные операции текущего клиента</returns>
-    [HttpPost(RiskRoutes.ByKind)]
+    [HttpPost("{kind}")]
     [ProducesResponseType<RiskReference>(StatusCodes.Status201Created)]
     public async Task<ActionResult<RiskReference>> CreateAsync(RiskReferenceKind kind, RiskReferenceRequest request)
     {
@@ -51,7 +48,7 @@ public sealed class ProviderRiskReferenceController(RiskUseCaseManager useCases)
     /// <param name="id">Идентификатор записи</param>
     /// <param name="request">Поля команды</param>
     /// <returns>Данные операции текущего клиента</returns>
-    [HttpPut(EntryRoute)]
+    [HttpPut("{kind}/{id:guid}")]
     public Task<RiskReference> SaveAsync(RiskReferenceKind kind, Guid id, RiskReferenceRequest request)
     {
         return useCases.SaveReferenceAsync(User.GetRiskActor(), kind, id, request);

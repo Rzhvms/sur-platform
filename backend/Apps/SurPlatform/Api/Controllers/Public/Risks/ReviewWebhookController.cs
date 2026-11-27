@@ -1,5 +1,4 @@
 using System.Net.Http.Headers;
-using Api.Constants;
 using Application.Constants;
 using Application.Models;
 using Application.UseCases.Risks;
@@ -11,15 +10,12 @@ namespace Api.Controllers.Public.Risks;
 
 /// <summary>Принимает авторизованные сигналы о пересмотре в клиентской базе</summary>
 /// <param name="useCases">Приём и сохранение доверенного сигнала</param>
-[Route(WebhookRoute)]
+[Route("review-webhooks")]
 [AllowAnonymous]
 public sealed class ReviewWebhookController(ReviewUseCaseManager useCases) : BasePublicController
 {
     /// <summary>Название отдельной схемы авторизации в OpenAPI</summary>
     internal const string OpenApiScheme = "reviewWebhookBearer";
-
-    /// <summary>Относительный адрес отдельного внешнего источника</summary>
-    private const string WebhookRoute = "review-webhooks";
 
     /// <summary>Схема отдельного секрета по HTTP</summary>
     private const string BearerScheme = "Bearer";
@@ -31,7 +27,7 @@ public sealed class ReviewWebhookController(ReviewUseCaseManager useCases) : Bas
     /// <param name="id">Публичный ключ адреса</param>
     /// <param name="cancellationToken">Отмена чтения входящего тела</param>
     /// <returns>Идентификатор зафиксированного запуска</returns>
-    [HttpPost(RiskRoutes.ById)]
+    [HttpPost("{id:guid}")]
     [RequestSizeLimit(MaxPayloadBytes)]
     [ProducesResponseType<ReviewWebhookAccepted>(StatusCodes.Status202Accepted)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]

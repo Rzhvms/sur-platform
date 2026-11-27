@@ -16,16 +16,13 @@ namespace Api.Controllers.Public.Treatments;
 /// <summary>HTTP-контракт операций с мерами</summary>
 /// <param name="useCases">Операции текущего клиента</param>
 [Authorize]
-[Route(TreatmentRoute)]
+[Route("treatments/{id:guid}/comments")]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
 public sealed class TreatmentCommentController(TreatmentUseCaseManager useCases) : BasePublicController
 {
-    /// <summary>Базовый маршрут контроллера</summary>
-    private const string TreatmentRoute = "treatments/{id:guid}/comments";
-
     /// <summary>Читает комментарии меры</summary>
     /// <param name="id">Идентификатор меры или запроса</param>
     /// <param name="offset">Смещение страницы</param>
@@ -49,30 +46,24 @@ public sealed class TreatmentCommentController(TreatmentUseCaseManager useCases)
         return useCases.SaveTreatmentCommentAsync(User.GetRiskActor(), id, null, request, false);
     }
 
-    /// <summary>Маршрут операции Edit</summary>
-    private const string EditRoute = "{commentId:guid}";
-
     /// <summary>Создаёт, редактирует или удаляет комментарий</summary>
     /// <param name="id">Идентификатор меры или запроса</param>
     /// <param name="commentId">Комментарий</param>
     /// <param name="request">Данные команды</param>
     /// <returns>Результат операции</returns>
-    [HttpPut(EditRoute)]
+    [HttpPut("{commentId:guid}")]
     [ProducesResponseType<TreatmentCommentDal>(StatusCodes.Status200OK)]
     public Task<TreatmentCommentDal> EditAsync(Guid id, Guid commentId, TreatmentCommentRequest request)
     {
         return useCases.SaveTreatmentCommentAsync(User.GetRiskActor(), id, commentId, request, false);
     }
 
-    /// <summary>Маршрут операции Delete</summary>
-    private const string DeleteRoute = "{commentId:guid}";
-
     /// <summary>Создаёт, редактирует или удаляет комментарий</summary>
     /// <param name="id">Идентификатор меры или запроса</param>
     /// <param name="commentId">Комментарий</param>
     /// <param name="version">Версия комментария</param>
     /// <returns>Результат операции</returns>
-    [HttpDelete(DeleteRoute)]
+    [HttpDelete("{commentId:guid}")]
     [ProducesResponseType<TreatmentCommentDal>(StatusCodes.Status200OK)]
     public Task<TreatmentCommentDal> DeleteAsync(Guid id, Guid commentId, [FromQuery] Guid version)
     {

@@ -1,4 +1,3 @@
-using Api.Constants;
 using Api.Extensions;
 using Application.UseCases.Users.Dto.Request;
 using Api.Attributes;
@@ -14,16 +13,13 @@ namespace Api.Controllers.Public.Users;
 /// <summary>
 /// Клиентские операции текущего пользователя
 /// </summary>
-[Route(IdentityRoutes.Users)]
+[Route("users")]
 [Authorize]
 public sealed class UserController(IUserUseCaseManager useCaseManager) : BasePublicController
 {
-    /// <summary>Маршрут профиля доступа текущего пользователя</summary>
-    private const string CurrentUserRoute = "me";
-
     /// <summary>Возвращает стабильные коды прав текущей сессии</summary>
     /// <returns>Идентификатор пользователя и его эффективные права</returns>
-    [HttpGet(CurrentUserRoute)]
+    [HttpGet("me")]
     [ResponseCache(NoStore = true, Location = ResponseCacheLocation.None)]
     [ProducesResponseType<CurrentUserAccessResponse>(StatusCodes.Status200OK)]
     [ProducesResponseType(StatusCodes.Status401Unauthorized)]
@@ -36,8 +32,8 @@ public sealed class UserController(IUserUseCaseManager useCaseManager) : BasePub
     /// <summary>
     /// Изменить пароль
     /// </summary>
-    [HttpPatch(IdentityRoutes.ChangePassword)]
-    [AllowPasswordChangeSession]
+    [HttpPatch("change-password")]
+    [AllowAccessBeforePasswordChange]
     [ProducesResponseType(typeof(ChangeUserPasswordResponse), StatusCodes.Status200OK)]
     public async Task<ChangeUserPasswordResponse> ChangeUserPasswordAsync(ChangeUserPasswordRequest request)
     {

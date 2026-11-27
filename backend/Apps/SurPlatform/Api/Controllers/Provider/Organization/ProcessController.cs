@@ -14,17 +14,12 @@ namespace Api.Controllers.Provider.Organization;
 /// Административные операции справочника оргструктуры
 /// </summary>
 /// <param name="useCases">Сценарии оргструктуры клиента</param>
-[Route(ProcessController.RootRoute)]
+[Route("organization/processes")]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
 public sealed class ProcessController(OrganizationUseCaseManager useCases) : BaseProviderController
 {
-    /// <summary>
-    /// Маршрут справочника после префикса provider
-    /// </summary>
-    internal const string RootRoute = OrganizationRoutes.Root + "processes";
-
     /// <summary>
     /// Читает страницу справочника
     /// </summary>
@@ -50,7 +45,7 @@ public sealed class ProcessController(OrganizationUseCaseManager useCases) : Bas
     /// </summary>
     /// <param name="id">Идентификатор записи</param>
     /// <returns>Результат операции в текущей клиентской базе</returns>
-    [HttpGet(OrganizationRoutes.ById)]
+    [HttpGet("{id:guid}")]
     public async Task<ActionResult<ProcessDal>> GetProcessAsync(Guid id)
     {
         return await useCases.GetProcessAsync(id);
@@ -74,7 +69,7 @@ public sealed class ProcessController(OrganizationUseCaseManager useCases) : Bas
     /// <param name="id">Идентификатор записи</param>
     /// <param name="request">Данные команды</param>
     /// <returns>Результат операции в текущей клиентской базе</returns>
-    [HttpPut(OrganizationRoutes.ById)]
+    [HttpPut("{id:guid}")]
     public async Task<ActionResult<ProcessDal>> UpdateProcessAsync(Guid id, ProcessEditRequest request)
     {
         return await useCases.UpdateProcessAsync(User.GetUserId(), SessionId, id, request);
@@ -86,16 +81,11 @@ public sealed class ProcessController(OrganizationUseCaseManager useCases) : Bas
     /// <param name="id">Идентификатор записи</param>
     /// <param name="request">Данные команды</param>
     /// <returns>Результат операции в текущей клиентской базе</returns>
-    [HttpPut(OrganizationRoutes.State)]
+    [HttpPut("{id:guid}/state")]
     public async Task<ActionResult<ProcessDal>> SetProcessStateAsync(Guid id, OrgStateRequest request)
     {
         return await useCases.SetProcessStateAsync(User.GetUserId(), SessionId, id, request);
     }
-
-    /// <summary>
-    /// Относительный маршрут операции
-    /// </summary>
-    private const string ChangeOwnerRoute = OrganizationRoutes.ById + "/owner";
 
     /// <summary>
     /// Подтверждает замену владельца процесса
@@ -103,7 +93,7 @@ public sealed class ProcessController(OrganizationUseCaseManager useCases) : Bas
     /// <param name="id">Идентификатор записи</param>
     /// <param name="request">Данные команды</param>
     /// <returns>Результат операции в текущей клиентской базе</returns>
-    [HttpPut(ChangeOwnerRoute)]
+    [HttpPut("{id:guid}/owner")]
     public async Task<ActionResult<ProcessDal>> ChangeOwnerAsync(Guid id, OwnerRequest request)
     {
         return await useCases.ChangeOwnerAsync(User.GetUserId(), SessionId, id, request);

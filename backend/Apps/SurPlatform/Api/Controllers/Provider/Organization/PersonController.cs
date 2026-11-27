@@ -14,17 +14,12 @@ namespace Api.Controllers.Provider.Organization;
 /// Административные операции справочника оргструктуры
 /// </summary>
 /// <param name="useCases">Сценарии оргструктуры клиента</param>
-[Route(PersonController.RootRoute)]
+[Route("organization/persons")]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
 public sealed class PersonController(OrganizationUseCaseManager useCases) : BaseProviderController
 {
-    /// <summary>
-    /// Маршрут справочника после префикса provider
-    /// </summary>
-    internal const string RootRoute = OrganizationRoutes.Root + "persons";
-
     /// <summary>
     /// Читает страницу справочника
     /// </summary>
@@ -50,7 +45,7 @@ public sealed class PersonController(OrganizationUseCaseManager useCases) : Base
     /// </summary>
     /// <param name="id">Идентификатор записи</param>
     /// <returns>Результат операции в текущей клиентской базе</returns>
-    [HttpGet(OrganizationRoutes.ById)]
+    [HttpGet("{id:guid}")]
     public async Task<ActionResult<OrgPersonDal>> GetPersonAsync(Guid id)
     {
         return await useCases.GetPersonAsync(id);
@@ -74,7 +69,7 @@ public sealed class PersonController(OrganizationUseCaseManager useCases) : Base
     /// <param name="id">Идентификатор записи</param>
     /// <param name="request">Данные команды</param>
     /// <returns>Результат операции в текущей клиентской базе</returns>
-    [HttpPut(OrganizationRoutes.ById)]
+    [HttpPut("{id:guid}")]
     public async Task<ActionResult<OrgPersonDal>> UpdatePersonAsync(Guid id, PersonEditRequest request)
     {
         return await useCases.UpdatePersonAsync(User.GetUserId(), SessionId, id, request);
@@ -86,20 +81,17 @@ public sealed class PersonController(OrganizationUseCaseManager useCases) : Base
     /// <param name="id">Идентификатор записи</param>
     /// <param name="request">Данные команды</param>
     /// <returns>Результат операции в текущей клиентской базе</returns>
-    [HttpPut(OrganizationRoutes.State)]
+    [HttpPut("{id:guid}/state")]
     public async Task<ActionResult<OrgPersonDal>> SetPersonStateAsync(Guid id, OrgStateRequest request)
     {
         return await useCases.SetPersonStateAsync(User.GetUserId(), SessionId, id, request);
     }
 
-    /// <summary>Маршрут перевода сотрудника</summary>
-    private const string TransferRoute = OrganizationRoutes.ById + "/transfer";
-
     /// <summary>Переводит сотрудника с сохранением предыдущей записи в истории</summary>
     /// <param name="id">Действующая запись сотрудника</param>
     /// <param name="request">Целевая дирекция, должность и ожидаемая версия</param>
     /// <returns>Новая запись сотрудника</returns>
-    [HttpPost(TransferRoute)]
+    [HttpPost("{id:guid}/transfer")]
     [ProducesResponseType<OrgPersonDal>(StatusCodes.Status201Created)]
     public async Task<ActionResult<OrgPersonDal>> TransferPersonAsync(Guid id, PersonTransferRequest request)
     {

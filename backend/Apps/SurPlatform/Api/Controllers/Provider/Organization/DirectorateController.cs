@@ -14,17 +14,12 @@ namespace Api.Controllers.Provider.Organization;
 /// Административные операции справочника оргструктуры
 /// </summary>
 /// <param name="useCases">Сценарии оргструктуры клиента</param>
-[Route(DirectorateController.RootRoute)]
+[Route("organization/directorates")]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
 public sealed class DirectorateController(OrganizationUseCaseManager useCases) : BaseProviderController
 {
-    /// <summary>
-    /// Маршрут справочника после префикса provider
-    /// </summary>
-    internal const string RootRoute = OrganizationRoutes.Root + "directorates";
-
     /// <summary>
     /// Читает страницу справочника
     /// </summary>
@@ -49,7 +44,7 @@ public sealed class DirectorateController(OrganizationUseCaseManager useCases) :
     /// </summary>
     /// <param name="id">Идентификатор записи</param>
     /// <returns>Результат операции в текущей клиентской базе</returns>
-    [HttpGet(OrganizationRoutes.ById)]
+    [HttpGet("{id:guid}")]
     public async Task<ActionResult<DirectorateDal>> GetDirectorateAsync(Guid id)
     {
         return await useCases.GetDirectorateAsync(id);
@@ -74,7 +69,7 @@ public sealed class DirectorateController(OrganizationUseCaseManager useCases) :
     /// <param name="request">Данные команды</param>
     /// <param name="version">Ожидаемая версия записи</param>
     /// <returns>Результат операции в текущей клиентской базе</returns>
-    [HttpPut(OrganizationRoutes.ById)]
+    [HttpPut("{id:guid}")]
     public async Task<ActionResult<DirectorateDal>> UpdateDirectorateAsync(Guid id, DirectorateRequest request, [FromQuery] Guid version)
     {
         return await useCases.UpdateDirectorateAsync(User.GetUserId(), SessionId, id, request, version);
@@ -86,7 +81,7 @@ public sealed class DirectorateController(OrganizationUseCaseManager useCases) :
     /// <param name="id">Идентификатор записи</param>
     /// <param name="request">Данные команды</param>
     /// <returns>Результат операции в текущей клиентской базе</returns>
-    [HttpPut(OrganizationRoutes.State)]
+    [HttpPut("{id:guid}/state")]
     public async Task<ActionResult<DirectorateDal>> SetDirectorateStateAsync(Guid id, OrgStateRequest request)
     {
         return await useCases.SetDirectorateStateAsync(User.GetUserId(), SessionId, id, request);

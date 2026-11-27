@@ -15,17 +15,12 @@ namespace Api.Controllers.Provider.Organization;
 /// Административные операции справочника оргструктуры
 /// </summary>
 /// <param name="useCases">Сценарии оргструктуры клиента</param>
-[Route(ResponsibilityController.RootRoute)]
+[Route("organization/responsibilities")]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
 public sealed class ResponsibilityController(OrganizationUseCaseManager useCases) : BaseProviderController
 {
-    /// <summary>
-    /// Маршрут справочника после префикса provider
-    /// </summary>
-    internal const string RootRoute = OrganizationRoutes.Root + "responsibilities";
-
     /// <summary>
     /// Читает страницу справочника
     /// </summary>
@@ -52,7 +47,7 @@ public sealed class ResponsibilityController(OrganizationUseCaseManager useCases
     /// </summary>
     /// <param name="id">Идентификатор записи</param>
     /// <returns>Результат операции в текущей клиентской базе</returns>
-    [HttpGet(OrganizationRoutes.ById)]
+    [HttpGet("{id:guid}")]
     public async Task<ActionResult<ResponsibilityDal>> GetResponsibilityAsync(Guid id)
     {
         return await useCases.GetResponsibilityAsync(id);
@@ -76,16 +71,11 @@ public sealed class ResponsibilityController(OrganizationUseCaseManager useCases
     /// <param name="id">Идентификатор записи</param>
     /// <param name="request">Данные команды</param>
     /// <returns>Результат операции в текущей клиентской базе</returns>
-    [HttpPut(OrganizationRoutes.State)]
+    [HttpPut("{id:guid}/state")]
     public async Task<ActionResult<ResponsibilityDal>> SetResponsibilityStateAsync(Guid id, OrgStateRequest request)
     {
         return await useCases.SetResponsibilityStateAsync(User.GetUserId(), SessionId, id, request);
     }
-
-    /// <summary>
-    /// Относительный маршрут операции
-    /// </summary>
-    private const string GetSlotRoute = "slot";
 
     /// <summary>
     /// Проверяет занятость позиции перед выбором
@@ -93,7 +83,7 @@ public sealed class ResponsibilityController(OrganizationUseCaseManager useCases
     /// <param name="responsibilityType">Код ответственности</param>
     /// <param name="directorateId">Область дирекции</param>
     /// <returns>Результат операции в текущей клиентской базе</returns>
-    [HttpGet(GetSlotRoute)]
+    [HttpGet("slot")]
     public async Task<ActionResult<OrganizationSlot>> GetSlotAsync(string responsibilityType, Guid? directorateId = null)
     {
         return await useCases.GetSlotAsync(responsibilityType, directorateId);

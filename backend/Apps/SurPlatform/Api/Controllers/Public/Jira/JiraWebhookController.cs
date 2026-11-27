@@ -12,12 +12,9 @@ namespace Api.Controllers.Public.Jira;
 /// <summary>Входящие сигналы Jira для клиента, выбранного по HTTPS-хосту</summary>
 /// <param name="useCases">Авторизация и очередь событий</param>
 [AllowAnonymous]
-[Route(WebhookRoute)]
+[Route("jira/webhook")]
 public sealed class JiraWebhookController(JiraUseCaseManager useCases) : BasePublicController
 {
-    /// <summary>Путь входящего сигнала Jira</summary>
-    private const string WebhookRoute = "jira/webhook";
-
     /// <summary>Идентификатор независимой схемы OpenAPI</summary>
     internal const string OpenApiScheme = "jiraWebhookBasic";
 

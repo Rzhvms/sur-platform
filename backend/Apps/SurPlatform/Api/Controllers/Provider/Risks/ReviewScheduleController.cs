@@ -14,7 +14,7 @@ namespace Api.Controllers.Provider.Risks;
 /// <param name="useCases">Прикладные операции выбранной базы</param>
 /// <param name="configuration">Календарная зона для новых расписаний</param>
 [Authorize]
-[Route(SettingsRoute)]
+[Route("review-schedules")]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
@@ -22,9 +22,6 @@ namespace Api.Controllers.Provider.Risks;
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
 public sealed class ReviewScheduleController(ReviewUseCaseManager useCases, IConfiguration configuration) : BaseProviderController
 {
-    /// <summary>Маршрут источников пересмотра</summary>
-    private const string SettingsRoute = "review-schedules";
-
     /// <summary>Ключ зоны для новых календарных правил</summary>
     private const string TimeZoneKey = "Application:TimeZone";
 
@@ -58,7 +55,7 @@ public sealed class ReviewScheduleController(ReviewUseCaseManager useCases, ICon
     /// <param name="id">Идентификатор настройки</param>
     /// <param name="request">Поля формы</param>
     /// <returns>Результат операции выбранного клиента</returns>
-    [HttpPut(RiskRoutes.ById)]
+    [HttpPut("{id:guid}")]
     [ProducesResponseType<ReviewScheduleResponse>(StatusCodes.Status200OK)]
     public async Task<ReviewScheduleResponse> UpdateAsync(Guid id, ReviewScheduleRequest request)
     {
@@ -70,7 +67,7 @@ public sealed class ReviewScheduleController(ReviewUseCaseManager useCases, ICon
     /// <param name="id">Идентификатор настройки</param>
     /// <param name="version">Ожидаемая версия</param>
     /// <returns>Результат операции выбранного клиента</returns>
-    [HttpDelete(RiskRoutes.ById)]
+    [HttpDelete("{id:guid}")]
     [ProducesResponseType(StatusCodes.Status204NoContent)]
     public async Task<IActionResult> DeleteAsync(Guid id, [FromQuery] Guid version)
     {
