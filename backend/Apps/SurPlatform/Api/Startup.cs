@@ -159,6 +159,10 @@ public sealed class Startup(IWebHostEnvironment env, IConfiguration configuratio
                 typeof(ProblemDetails), StatusCodes.Status503ServiceUnavailable));
         });
         services.AddApplication();
+        services.AddScoped(_ => new ReviewCalendarSettings
+        {
+            TimeZone = Configuration[ReviewCalendarSettings.TimeZoneKey] ?? ReviewCalendarSettings.DefaultTimeZone
+        });
         services.AddInfrastructure();
         services.AddSingleton(new ClientDatabaseCatalog(Configuration));
         services.AddSingleton<ClientDatabaseInitializer>();

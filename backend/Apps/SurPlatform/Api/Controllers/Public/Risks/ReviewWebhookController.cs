@@ -1,7 +1,8 @@
-using System.Net.Http.Headers;
-using Application.Constants;
+using Api.Constants;
+using Api.Filters;
+using Api.Controllers.Public.Risks.Dto.Request;
 using Application.Models;
-using Application.UseCases.Risks;
+using Application.UseCases.Risks.Interfaces;
 using Core.Api.Controllers.ControllerTypes;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -12,51 +13,26 @@ namespace Api.Controllers.Public.Risks;
 /// <param name="useCases">Приём и сохранение доверенного сигнала</param>
 [Route("review-webhooks")]
 [AllowAnonymous]
-public sealed class ReviewWebhookController(ReviewUseCaseManager useCases) : BasePublicController
+public sealed class ReviewWebhookController(IReviewUseCaseManager useCases) : BasePublicController
 {
     /// <summary>Название отдельной схемы авторизации в OpenAPI</summary>
     internal const string OpenApiScheme = "reviewWebhookBearer";
 
-    /// <summary>Схема отдельного секрета по HTTP</summary>
-    private const string BearerScheme = "Bearer";
-
-    /// <summary>Максимальное тело сигнала в байтах</summary>
-    private const int MaxPayloadBytes = 1024 * 1024;
-
     /// <summary>Доверяет только HTTPS и активному секрету выбранной клиентской базы</summary>
     /// <param name="id">Публичный ключ адреса</param>
-    /// <param name="cancellationToken">Отмена чтения входящего тела</param>
     /// <returns>Идентификатор зафиксированного запуска</returns>
     [HttpPost("{id:guid}")]
-    [RequestSizeLimit(MaxPayloadBytes)]
+    [RequestSizeLimit(WebhookHttp.MaxPayloadBytes)]
+    [TypeFilter(typeof(ReviewWebhookRequestFilter))]
     [ProducesResponseType<ReviewWebhookAccepted>(StatusCodes.Status202Accepted)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status401Unauthorized)]
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status413PayloadTooLarge)]
-    public async Task<ActionResult<ReviewWebhookAccepted>> ReceiveAsync(Guid id, CancellationToken cancellationToken)
+    public async Task<ActionResult<ReviewWebhookAccepted>> ReceiveAsync(Guid id)
     {
-        if (!Request.IsHttps)
-        {
-            return BadRequest();
-        }
-        if (!AuthenticationHeaderValue.TryParse(Request.Headers.Authorization.ToString(), out var authorization)
-            || !string.Equals(authorization.Scheme, BearerScheme, StringComparison.OrdinalIgnoreCase)
-            || authorization.Parameter is not { Length: ReviewRules.TokenLength } token)
-        {
-            return Unauthorized();
-        }
-
-        await useCases.AuthorizeReviewWebhookAsync(id, token);
-        using var payload = new MemoryStream();
-        try
-        {
-            await Request.Body.CopyToAsync(payload, cancellationToken);
-        }
-        catch (BadHttpRequestException error) when (error.StatusCode == StatusCodes.Status413PayloadTooLarge)
-        {
-            return Problem(statusCode: StatusCodes.Status413PayloadTooLarge);
-        }
-        var receipt = await useCases.AcceptReviewWebhookAsync(id, token, payload.ToArray());
+        var request = HttpContext.Items[typeof(ReviewWebhookRequest)] as ReviewWebhookRequest
+            ?? throw new InvalidOperationException(WebhookHttp.RequestNotPrepared);
+        var receipt = await useCases.AcceptReviewWebhookAsync(id, request.Token, request.Payload);
         return StatusCode(StatusCodes.Status202Accepted, receipt);
     }
 }

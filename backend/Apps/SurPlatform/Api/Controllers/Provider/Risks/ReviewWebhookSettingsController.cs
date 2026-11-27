@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using Api.Constants;
 using Api.Extensions;
 using Application.Models;
-using Application.UseCases.Risks;
+using Application.UseCases.Risks.Interfaces;
 using Application.UseCases.Risks.Dto.Request;
 using Core.Api.Controllers.ControllerTypes;
 using Domain.DalModels;
@@ -21,7 +21,7 @@ namespace Api.Controllers.Provider.Risks;
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
-public sealed class ReviewWebhookSettingsController(ReviewUseCaseManager useCases) : BaseProviderController
+public sealed class ReviewWebhookSettingsController(IReviewUseCaseManager useCases) : BaseProviderController
 {
     /// <summary>Читает настройки внешних источников</summary>
     /// <param name="offset">Смещение страницы</param>

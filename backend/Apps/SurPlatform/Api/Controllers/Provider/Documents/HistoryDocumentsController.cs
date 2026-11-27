@@ -1,5 +1,5 @@
 using Api.Extensions;
-using Application.UseCases.Documents;
+using Application.UseCases.Documents.Interfaces;
 using Application.UseCases.Documents.Dto.Request;
 using Application.UseCases.Documents.Dto.Response;
 using Core.Api.Controllers.ControllerTypes;
@@ -13,7 +13,7 @@ namespace Api.Controllers.Provider.Documents;
 /// </summary>
 [Authorize]
 [Route("documents/history")]
-public sealed class HistoryDocumentsController(DocumentUseCaseManager useCases) : BaseProviderController
+public sealed class HistoryDocumentsController(IDocumentUseCaseManager useCases) : BaseProviderController
 {
     /// <summary>Регистрирует согласованный административный снимок</summary>
     /// <param name="request">Ключ операции и включительный диапазон UTC</param>

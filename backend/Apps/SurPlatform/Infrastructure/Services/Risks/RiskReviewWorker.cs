@@ -12,7 +12,7 @@ namespace Infrastructure.Services.Risks;
 /// <param name="initializer">Состояние подготовки схемы</param>
 /// <param name="scopes">Отдельные клиентские контексты</param>
 /// <param name="logger">Технический журнал фоновых запусков</param>
-public sealed class RiskReviewWorker(ClientDatabaseCatalog clients, ClientDatabaseInitializer initializer,
+internal sealed class RiskReviewWorker(ClientDatabaseCatalog clients, ClientDatabaseInitializer initializer,
     IServiceScopeFactory scopes, ILogger<RiskReviewWorker> logger) : BackgroundService
 {
     /// <summary>Пауза между попытками переноса</summary>

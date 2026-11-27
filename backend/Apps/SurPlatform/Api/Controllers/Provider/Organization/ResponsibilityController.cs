@@ -1,9 +1,8 @@
-using Api.Constants;
 using Application.Models;
 using Application.UseCases.Organization.Dto.Request;
 using Domain.DalModels;
 using Application.Constants;
-using Application.UseCases.Organization;
+using Application.UseCases.Organization.Interfaces;
 using Core.Api.Controllers.ControllerTypes;
 using Core.Api.Extensions;
 using Domain.DalModels.Organization;
@@ -19,7 +18,7 @@ namespace Api.Controllers.Provider.Organization;
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
-public sealed class ResponsibilityController(OrganizationUseCaseManager useCases) : BaseProviderController
+public sealed class ResponsibilityController(IOrganizationUseCaseManager useCases) : BaseProviderController
 {
     /// <summary>
     /// Читает страницу справочника
@@ -32,13 +31,8 @@ public sealed class ResponsibilityController(OrganizationUseCaseManager useCases
     /// <param name="responsibilityType">Фильтр по точному коду ответственности</param>
     /// <returns>Результат операции в текущей клиентской базе</returns>
     [HttpGet]
-    public async Task<ActionResult<ResponsibilityDal[]>> ListResponsibilityAsync(Guid after = default, int limit = OrganizationRoutes.DefaultPageSize, bool? active = null, string? search = null, Guid? directorateId = null, string? responsibilityType = null)
+    public async Task<ActionResult<ResponsibilityDal[]>> ListResponsibilityAsync(Guid after = default, int limit = OrganizationQueryLimits.DefaultPageSize, bool? active = null, string? search = null, Guid? directorateId = null, string? responsibilityType = null)
     {
-        if (limit is < 1 or > OrganizationRoutes.MaxPageSize || search?.Length > OrganizationRoutes.MaxSearchLength)
-        {
-            return BadRequest();
-        }
-
         return await useCases.ListResponsibilityAsync(after, limit, active, search, directorateId, responsibilityType);
     }
 

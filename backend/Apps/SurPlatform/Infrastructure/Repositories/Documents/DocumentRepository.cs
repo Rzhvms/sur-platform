@@ -16,7 +16,7 @@ using Infrastructure.Repositories.History;
 using Infrastructure.Repositories.Risks.Interfaces;
 using Infrastructure.Repositories.Sessions.Interfaces;
 using Infrastructure.Repositories.Shared;
-using Infrastructure.Services.Documents;
+using Infrastructure.Services.Documents.Interfaces;
 using Microsoft.VisualBasic.FileIO;
 using Minio.Exceptions;
 using System.ComponentModel.DataAnnotations;
@@ -42,7 +42,7 @@ internal sealed class DocumentRepository : ClientRepository, IDocumentRepository
     private readonly ClientDatabaseContext _databaseContext;
 
     /// <summary>Изолированное файловое хранилище</summary>
-    private readonly DocumentStorage _documentStorage;
+    private readonly IDocumentStorage _documentStorage;
 
     /// <summary>Паспорт, связи процессов и технический пересчет риска</summary>
     private readonly IRiskStateRepository _riskStateRepository;
@@ -59,7 +59,7 @@ internal sealed class DocumentRepository : ClientRepository, IDocumentRepository
         ITransactionalSessionRepository sessions,
         OperationsMetrics operations,
         ClientDatabaseContext databaseContext,
-        DocumentStorage documentStorage,
+        IDocumentStorage documentStorage,
         IRiskStateRepository riskStateRepository)
         : base(connection, sessions, operations)
     {

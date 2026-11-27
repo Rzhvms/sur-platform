@@ -1,7 +1,7 @@
 using Core.Database.DapperExtensions.EntityMapper;
 using FluentMigrator.Runner;
-using Infrastructure.Services.Identity;
-using Infrastructure.Services.Demo;
+using Infrastructure.Services.Identity.Interfaces;
+using Infrastructure.Services.Demo.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -16,7 +16,7 @@ namespace Infrastructure.Clients;
 /// <param name="bootstrap">Первоначальная выдача доступа</param>
 /// <param name="demoSeeder">Управляемое первоначальное заполнение демоданных</param>
 /// <param name="logger">Журнал состояния баз без реквизитов</param>
-public sealed class ClientDatabaseInitializer(ClientDatabaseCatalog catalog, IdentityBootstrap bootstrap, BankingDemoSeeder demoSeeder, ILogger<ClientDatabaseInitializer> logger)
+public sealed class ClientDatabaseInitializer(ClientDatabaseCatalog catalog, IIdentityBootstrap bootstrap, IBankingDemoSeeder demoSeeder, ILogger<ClientDatabaseInitializer> logger)
     : BackgroundService
 {
     /// <summary>

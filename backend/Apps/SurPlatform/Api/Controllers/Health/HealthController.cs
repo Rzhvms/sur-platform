@@ -20,7 +20,7 @@ public sealed class HealthController(ISystemUseCaseManager useCaseManager) : Con
     /// </summary>
     [HttpGet("live")]
     [ProducesResponseType(StatusCodes.Status200OK)]
-    public IActionResult CheckServiceHeatlh()
+    public IActionResult CheckServiceHealth()
     {
         return Ok();
     }

@@ -92,4 +92,7 @@ public static class IdentityErrorCodes
     /// Машиночитаемый код Identity для user not found
     /// </summary>
     public const string UserNotFound = "USER_NOT_FOUND";
+
+    /// <summary>Недопустимый размер страницы административного запроса</summary>
+    public const string InvalidQuery = "IDENTITY_QUERY_INVALID";
 }

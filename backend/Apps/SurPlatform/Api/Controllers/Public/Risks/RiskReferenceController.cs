@@ -3,7 +3,7 @@ using Api.Constants;
 using Api.Extensions;
 using Application.Constants;
 using Application.Models;
-using Application.UseCases.Risks;
+using Application.UseCases.Risks.Interfaces;
 using Application.UseCases.Risks.Dto;
 using Core.Api.Controllers.ControllerTypes;
 using Domain.DalModels;
@@ -20,7 +20,7 @@ namespace Api.Controllers.Public.Risks;
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
-public sealed class RiskReferenceController(RiskUseCaseManager useCases) : BasePublicController
+public sealed class RiskReferenceController(IRiskUseCaseManager useCases) : BasePublicController
 {
     /// <summary>Возвращает страницу справочника</summary>
     /// <param name="kind">Тип справочника</param>

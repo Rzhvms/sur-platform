@@ -4,7 +4,7 @@ using Api.Constants;
 using Api.Controllers.Provider.Jira.Dto.Response;
 using Api.Extensions;
 using Application.Models;
-using Application.UseCases.Jira;
+using Application.UseCases.Jira.Interfaces;
 using Application.UseCases.Jira.Dto.Request;
 using Core.Api.Controllers.ControllerTypes;
 using Domain.DalModels;
@@ -21,7 +21,7 @@ namespace Api.Controllers.Provider.Jira;
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status400BadRequest)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
-public sealed class JiraSettingsController(JiraUseCaseManager useCases) : BaseProviderController
+public sealed class JiraSettingsController(IJiraUseCaseManager useCases) : BaseProviderController
 {
     /// <summary>Читает настройку без секретов</summary>
     /// <returns>Текущее подключение клиента</returns>

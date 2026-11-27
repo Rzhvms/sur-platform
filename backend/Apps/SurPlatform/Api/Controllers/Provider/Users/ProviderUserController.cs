@@ -1,8 +1,7 @@
-using Application.UseCases.Organization;
 using Application.Constants;
 using Application.Models;
 using Application.UseCases.Users.Dto.Response;
-using Application.UseCases.Users;
+using Application.UseCases.Users.Interfaces;
 using Application.UseCases.Users.Dto.Request;
 using Core.Api.Controllers.ControllerTypes;
 using Core.Api.Extensions;
@@ -13,24 +12,13 @@ namespace Api.Controllers.Provider.Users;
 /// <summary>
 /// Административные операции с интерактивными пользователями
 /// </summary>
-/// <param name="organization">Чтение организационных зависимостей пользователя</param>
 /// <param name="useCases">Запросы и команды учётных записей</param>
 [Route("users")]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
-public sealed class ProviderUserController(IdentityAdministrationUseCaseManager useCases, OrganizationUseCaseManager organization)
+public sealed class ProviderUserController(IIdentityAdministrationUseCaseManager useCases)
     : BaseProviderController
 {
-    /// <summary>
-    /// Размер страницы по умолчанию
-    /// </summary>
-    private const int DefaultPageSize = 50;
-
-    /// <summary>
-    /// Верхняя граница страницы административного списка
-    /// </summary>
-    private const int MaxPageSize = 100;
-
     /// <summary>
     /// Возвращает страницу пользователей в порядке ID
     /// </summary>
@@ -38,13 +26,8 @@ public sealed class ProviderUserController(IdentityAdministrationUseCaseManager 
     /// <param name="limit">Размер запрашиваемой страницы</param>
     /// <returns>Страница пользователей</returns>
     [HttpGet]
-    public async Task<ActionResult<IdentityUser[]>> ListAsync(Guid after, int limit = DefaultPageSize)
+    public async Task<ActionResult<IdentityUser[]>> ListAsync(Guid after, int limit = IdentityQueryLimits.DefaultPageSize)
     {
-        if (limit is < 1 or > MaxPageSize)
-        {
-            return BadRequest();
-        }
-
         return await useCases.ListAsync(after, limit);
     }
 
@@ -55,22 +38,9 @@ public sealed class ProviderUserController(IdentityAdministrationUseCaseManager 
     /// <param name="limit">Размер страницы</param>
     /// <returns>Список пользователей с прежней формой ответа</returns>
     [HttpGet("list")]
-    public async Task<ActionResult<GetUserListResponse>> LegacyListAsync(Guid after, int limit = DefaultPageSize)
+    public async Task<ActionResult<GetUserListResponse>> LegacyListAsync(Guid after, int limit = IdentityQueryLimits.DefaultPageSize)
     {
-        if (limit is < 1 or > MaxPageSize)
-        {
-            return BadRequest();
-        }
-
-        var users = await useCases.ListAsync(after, limit);
-        return new GetUserListResponse
-        {
-            UserList = users.Select(user => new GetUserResponse
-            {
-                Id = user.Id, Email = user.Email ?? string.Empty, RoleId = user.RoleId, FullName = user.FullName, IsActive = user.IsActive,
-                FirstName = user.FirstName, LastName = user.LastName, Patronymic = user.Patronymic
-            }).ToList()
-        };
+        return await useCases.GetUserListAsync(after, limit);
     }
 
     /// <summary>
@@ -140,12 +110,7 @@ public sealed class ProviderUserController(IdentityAdministrationUseCaseManager 
     [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
     public async Task<ActionResult<OrganizationUserContext>> GetOrganizationAsync(Guid userId)
     {
-        if (await useCases.FindAsync(userId) is null)
-        {
-            return NotFound();
-        }
-
-        return await organization.GetUserContextAsync(userId);
+        return await useCases.GetOrganizationAsync(userId);
     }
 
     /// <summary>Отключает вход и активную запись сотрудника после проверки зависимостей</summary>
@@ -172,5 +137,11 @@ public sealed class ProviderUserController(IdentityAdministrationUseCaseManager 
     /// <summary>
     /// Идентификатор сессии из проверенного access-токена
     /// </summary>
-    private Guid SessionId => Guid.Parse(User.FindFirst(AccessTokenClaimTypes.SessionId)?.Value ?? string.Empty);
+    private Guid SessionId
+    {
+        get
+        {
+            return Guid.Parse(User.FindFirst(AccessTokenClaimTypes.SessionId)?.Value ?? string.Empty);
+        }
+    }
 }

@@ -16,7 +16,7 @@ namespace Infrastructure.Services.Identity;
 /// <param name="initializer">Состояние подготовки схемы</param>
 /// <param name="scopes">Отдельные клиентские контексты</param>
 /// <param name="logger">Технический журнал фонового переноса</param>
-public sealed class BusinessHistoryWorker(ClientDatabaseCatalog clients, ClientDatabaseInitializer initializer,
+internal sealed class BusinessHistoryWorker(ClientDatabaseCatalog clients, ClientDatabaseInitializer initializer,
     IServiceScopeFactory scopes, ILogger<BusinessHistoryWorker> logger) : BackgroundService
 {
     /// <summary>Измеряемая очередь переноса истории</summary>

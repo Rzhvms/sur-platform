@@ -1,6 +1,6 @@
 using Application.Constants;
 using Application.Models;
-using Application.UseCases.Users;
+using Application.UseCases.Users.Interfaces;
 using Application.UseCases.Users.Dto.Request;
 using Core.Api.Controllers.ControllerTypes;
 using Core.Api.Extensions;
@@ -15,7 +15,7 @@ namespace Api.Controllers.Provider.Users;
 [Route("roles")]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
-public sealed class ProviderRoleController(IdentityAdministrationUseCaseManager useCases) : BaseProviderController
+public sealed class ProviderRoleController(IIdentityAdministrationUseCaseManager useCases) : BaseProviderController
 {
     /// <summary>
     /// Возвращает шесть системных ролей с их правами

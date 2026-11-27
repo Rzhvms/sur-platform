@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using Api.Extensions;
 using Application.Constants;
 using Application.Exceptions;
-using Application.UseCases.Documents;
+using Application.UseCases.Documents.Interfaces;
 using Application.UseCases.Documents.Dto.Request;
 using Application.UseCases.Documents.Dto.Response;
 using Core.Api.Controllers.ControllerTypes;
@@ -19,7 +19,7 @@ namespace Api.Controllers.Public.Documents;
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
-public sealed class DocumentsController(DocumentUseCaseManager useCases) : BasePublicController
+public sealed class DocumentsController(IDocumentUseCaseManager useCases) : BasePublicController
 {
     /// <summary>Политика браузерных и промежуточных кешей личных файлов</summary>
     private const string NoStore = "private, no-store";
@@ -107,12 +107,7 @@ public sealed class DocumentsController(DocumentUseCaseManager useCases) : BaseP
     [ProducesResponseType<DocumentStatus>(StatusCodes.Status200OK)]
     public Task<DocumentStatus> UploadAsync(Guid id, CancellationToken cancellation)
     {
-        if (Request.ContentLength is not long length || length is <= 0 or > DocumentRules.MaxImportBytes)
-        {
-            throw new IdentityCommandException(400, DocumentRules.Invalid);
-        }
-
-        return useCases.UploadAsync(User.GetRiskActor(), id, Request.Body, length, cancellation);
+        return useCases.UploadAsync(User.GetRiskActor(), id, Request.Body, Request.ContentLength ?? 0, cancellation);
     }
 
     /// <summary>Проверяет текущий доступ и выдаёт подтверждённый файл вложением</summary>

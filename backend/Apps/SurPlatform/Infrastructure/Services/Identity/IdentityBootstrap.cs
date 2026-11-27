@@ -1,7 +1,8 @@
+using Infrastructure.Services.Identity.Interfaces;
 using Infrastructure.Constants;
 using Infrastructure.Observability;
 using System.ComponentModel.DataAnnotations;
-using Application.Services.Authentication;
+using Application.Services.Authentication.Interfaces;
 using Infrastructure.Clients;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -15,7 +16,7 @@ namespace Infrastructure.Services.Identity;
 /// <param name="scopes">Фабрика изолированных клиентских scope</param>
 /// <param name="configuration">Доверенная конфигурация развёртывания</param>
 /// <param name="environment">Окружение, в котором разрешены тестовые реквизиты</param>
-public sealed class IdentityBootstrap(IServiceScopeFactory scopes, IConfiguration configuration, IHostEnvironment environment)
+internal sealed class IdentityBootstrap(IServiceScopeFactory scopes, IConfiguration configuration, IHostEnvironment environment) : IIdentityBootstrap
 {
     /// <summary>
     /// First admin email key
@@ -44,13 +45,7 @@ public sealed class IdentityBootstrap(IServiceScopeFactory scopes, IConfiguratio
     /// </summary>
     private const string MissingFirstAdmin = "Настройте ФИО и адрес первого администратора клиента";
 
-    /// <summary>
-    /// Ищет параметры первого администратора по каноническому хосту и применяет команду
-    /// </summary>
-    /// <param name="client">Клиент, база которого подготовлена</param>
-    /// <param name="reissue">Явная повторная выдача от оператора развёртывания</param>
-    /// <returns>Состояние локальной выдачи либо null, если она пропущена</returns>
-    /// <exception cref="InvalidOperationException">Некорректные параметры первого администратора</exception>
+    /// <inheritdoc/>
     public async Task<string?> RunAsync(ClientDatabase client, bool reissue = false)
     {
         if (!reissue && configuration.GetValue(RecoverySettings.PauseOutbound, false))
@@ -91,7 +86,7 @@ public sealed class IdentityBootstrap(IServiceScopeFactory scopes, IConfiguratio
 
         using var scope = scopes.CreateScope();
         scope.ServiceProvider.GetRequiredService<ClientDatabaseContext>().Select(client);
-        return await scope.ServiceProvider.GetRequiredService<IdentityAccessService>()
+        return await scope.ServiceProvider.GetRequiredService<IIdentityAccessService>()
             .BootstrapAsync(email, fullName, password, reissue);
     }
 }

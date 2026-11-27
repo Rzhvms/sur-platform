@@ -1,3 +1,4 @@
+using Infrastructure.Services.Demo.Interfaces;
 using System.Text.Json;
 using Application.Constants;
 using Infrastructure.Clients;
@@ -12,7 +13,7 @@ namespace Infrastructure.Services.Demo;
 /// <summary>Выбирает доверенный клиентский контекст для явного заполнения демоданных</summary>
 /// <param name="scopes">Фабрика клиентских областей зависимостей</param>
 /// <param name="configuration">Настройки запуска приложения</param>
-public sealed class BankingDemoSeeder(IServiceScopeFactory scopes, IConfiguration configuration)
+internal sealed class BankingDemoSeeder(IServiceScopeFactory scopes, IConfiguration configuration) : IBankingDemoSeeder
 {
     /// <summary>Выключенный по умолчанию переключатель первоначального заполнения</summary>
     private const string ActivationKey = "ActivateDemoDataSeed";
@@ -29,10 +30,7 @@ public sealed class BankingDemoSeeder(IServiceScopeFactory scopes, IConfiguratio
     /// <summary>Некорректная конфигурация демонстрационного пароля</summary>
     private const string InvalidPassword = "DemoDataSeedPassword должен содержать от 8 до 256 символов и не должен состоять только из пробелов";
 
-    /// <summary>Заполняет одну подготовленную клиентскую базу, если оператор включил настройку</summary>
-    /// <param name="client">Запись доверенного каталога клиентов</param>
-    /// <param name="cancellationToken">Остановка приложения</param>
-    /// <exception cref="InvalidOperationException">Набор или настройки недопустимы</exception>
+    /// <inheritdoc/>
     public async Task RunAsync(ClientDatabase client, CancellationToken cancellationToken)
     {
         if (!configuration.GetValue(ActivationKey, false) || configuration.GetValue(RecoverySettings.PauseOutbound, false))

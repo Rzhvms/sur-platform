@@ -1,3 +1,4 @@
+using Api.Filters;
 using Api.Constants;
 using Api.Controllers.Public.Auth.Dto.Response;
 using Application.Constants;
@@ -6,7 +7,6 @@ using Application.UseCases.Auth.Dto.Response.ConnectToken;
 using Application.UseCases.Auth.Dto.Response.RefreshToken;
 using Application.UseCases.Auth.interfaces;
 using Core.Api.Controllers.ControllerTypes;
-using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -16,10 +16,9 @@ namespace Api.Controllers.Public.Auth;
 /// Браузерная сессия с защищённой cookie и явным CSRF-токеном
 /// </summary>
 /// <param name="auth">Сценарии входа и обновления</param>
-/// <param name="antiforgery">Выпуск и проверка CSRF-токенов</param>
 [AllowAnonymous]
 [Route("connect/browser")]
-public sealed class BrowserAuthController(IAuthUseCaseManager auth, IAntiforgery antiforgery)
+public sealed class BrowserAuthController(IAuthUseCaseManager auth)
     : BasePublicController
 {
     /// <summary>
@@ -32,10 +31,12 @@ public sealed class BrowserAuthController(IAuthUseCaseManager auth, IAntiforgery
     /// </summary>
     /// <returns>Токен, действующий для этой браузерной cookie</returns>
     [HttpGet("csrf")]
+    [TypeFilter(typeof(BrowserCsrfTokenFilter))]
     [ProducesResponseType<BrowserCsrfResponse>(StatusCodes.Status200OK)]
     public IActionResult Csrf()
     {
-        return Ok(new BrowserCsrfResponse(antiforgery.GetAndStoreTokens(HttpContext).RequestToken));
+        // Ресурсный фильтр формирует ответ до выполнения действия
+        return NoContent();
     }
 
     /// <summary>

@@ -2,7 +2,7 @@ using System.ComponentModel.DataAnnotations;
 using Api.Extensions;
 using Application.Constants;
 using Application.Models;
-using Application.UseCases.Treatments;
+using Application.UseCases.Treatments.Interfaces;
 using Application.UseCases.Treatments.Dto.Request;
 using Core.Api.Controllers.ControllerTypes;
 using Domain.DalModels;
@@ -20,7 +20,7 @@ namespace Api.Controllers.Provider.Treatments;
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
-public sealed class TreatmentApprovalSettingsController(TreatmentUseCaseManager useCases) : BaseProviderController
+public sealed class TreatmentApprovalSettingsController(ITreatmentUseCaseManager useCases) : BaseProviderController
 {
     /// <summary>Читает пороги согласования</summary>
     /// <returns>Результат операции</returns>

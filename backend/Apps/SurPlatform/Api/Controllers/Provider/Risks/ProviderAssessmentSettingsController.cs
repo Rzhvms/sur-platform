@@ -1,6 +1,6 @@
 using Api.Extensions;
 using Application.Models;
-using Application.UseCases.Risks;
+using Application.UseCases.Risks.Interfaces;
 using Application.UseCases.Risks.Dto.Request;
 using Core.Api.Controllers.ControllerTypes;
 using Domain.DalModels;
@@ -18,7 +18,7 @@ namespace Api.Controllers.Provider.Risks;
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status403Forbidden)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status404NotFound)]
 [ProducesResponseType<ProblemDetails>(StatusCodes.Status409Conflict)]
-public sealed class ProviderAssessmentSettingsController(RiskUseCaseManager useCases) : BaseProviderController
+public sealed class ProviderAssessmentSettingsController(IRiskUseCaseManager useCases) : BaseProviderController
 {
     /// <summary>Возвращает текущую денежную шкалу</summary>
     /// <returns>Результат операции</returns>
