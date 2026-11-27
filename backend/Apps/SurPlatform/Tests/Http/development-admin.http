@@ -1,0 +1,40 @@
+@public = https://localhost:7224/api/v1/public
+@developmentAdminEmail = admin@sur.test
+@developmentAdminPassword = SurDev-Admin-2026!
+
+### First Development start with a fresh tenant database without a mail transport
+POST {{public}}/connect/token
+Content-Type: application/json
+
+{"email":"{{developmentAdminEmail}}","password":"{{developmentAdminPassword}}"}
+
+> {%
+    client.test("The configured password opens a session", function () {
+        client.assert(response.status === 200);
+        client.assert(typeof response.body.accessToken === "string");
+    });
+    client.global.set("developmentAdminToken", response.body.accessToken);
+%}
+
+### The session grants normal administrative access without a password change
+GET {{public}}/users/me
+Authorization: Bearer {{developmentAdminToken}}
+
+> {%
+    client.test("The Development administrator has the admin right", function () {
+        client.assert(response.status === 200);
+        client.assert(response.body.rightCodes.includes("admin"));
+    });
+%}
+
+### The configured credentials apply only to the administrator account
+POST {{public}}/connect/token
+Content-Type: application/json
+
+{"email":"system@sur.invalid","password":"{{developmentAdminPassword}}"}
+
+> {%
+    client.test("The system account cannot use the Development password", function () {
+        client.assert(response.status === 400);
+    });
+%}

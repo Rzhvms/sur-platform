@@ -1,0 +1,110 @@
+@browser = https://localhost:7224/api/v1/public/connect/browser
+
+### Missing CSRF header on login
+POST {{browser}}/token
+Content-Type: application/json
+
+{"email":"{{testEmail}}","password":"{{testPassword}}"}
+
+> {%
+    client.test("Login rejects a missing CSRF header", function () {
+        client.assert(response.status === 400);
+    });
+%}
+
+### Login CSRF, stored together with the server cookie by the HTTP client
+GET {{browser}}/csrf
+
+> {%
+    client.global.set("browserCsrf", response.body.requestToken);
+%}
+
+### Login via the browser contract
+POST {{browser}}/token
+Content-Type: application/json
+X-CSRF-TOKEN: {{browserCsrf}}
+
+{"email":"{{testEmail}}","password":"{{testPassword}}"}
+
+> {%
+    client.test("Login returns an access token and a host-only refresh cookie", function () {
+        client.assert(response.status === 200);
+        client.assert(typeof response.body.accessToken === "string");
+        const cookie = response.headers.valueOf("Set-Cookie");
+        client.assert(cookie.includes("__Host-sur-refresh="));
+        client.assert(/;\s*secure/i.test(cookie) && /;\s*httponly/i.test(cookie));
+        client.assert(/samesite=strict/i.test(cookie) && /path=\//i.test(cookie));
+        client.assert(!/;\s*domain=/i.test(cookie));
+    });
+%}
+
+### Missing CSRF header on refresh with a live session
+POST {{browser}}/token/refresh
+
+> {%
+    client.test("Refresh rejects a missing CSRF header", function () {
+        client.assert(response.status === 400);
+    });
+%}
+
+### Refresh CSRF
+GET {{browser}}/csrf
+
+> {%
+    client.global.set("browserCsrf", response.body.requestToken);
+%}
+
+### Rotate the refresh cookie
+POST {{browser}}/token/refresh
+X-CSRF-TOKEN: {{browserCsrf}}
+
+> {%
+    client.test("Refresh returns a new access token", function () {
+        client.assert(response.status === 200);
+        client.assert(typeof response.body.accessToken === "string");
+    });
+%}
+
+### Missing CSRF header on logout with a live session
+POST {{browser}}/token/revoke
+
+> {%
+    client.test("Logout rejects a missing CSRF header", function () {
+        client.assert(response.status === 400);
+    });
+%}
+
+### Logout CSRF
+GET {{browser}}/csrf
+
+> {%
+    client.global.set("browserCsrf", response.body.requestToken);
+%}
+
+### Logout via the browser contract
+POST {{browser}}/token/revoke
+X-CSRF-TOKEN: {{browserCsrf}}
+
+> {%
+    client.test("Logout expires the refresh cookie", function () {
+        client.assert(response.status === 204);
+        client.assert(response.headers.valueOf("Set-Cookie").includes("__Host-sur-refresh=;"));
+    });
+%}
+
+### Fresh CSRF after logout
+GET {{browser}}/csrf
+
+> {%
+    client.global.set("browserCsrf", response.body.requestToken);
+%}
+
+### Logout prevents subsequent refresh
+POST {{browser}}/token/refresh
+X-CSRF-TOKEN: {{browserCsrf}}
+
+> {%
+    client.test("A revoked browser session cannot be refreshed", function () {
+        client.assert(response.status === 401);
+    });
+%}

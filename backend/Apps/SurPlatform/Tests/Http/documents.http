@@ -1,0 +1,254 @@
+# Use a disposable API tenant with MinIO and credentials allowing report export and CSV import.
+@host = https://localhost:7224
+@admin = REPLACE_WITH_ADMIN_JWT
+@other = REPLACE_WITH_OTHER_USER_JWT
+@otherTenant = https://beta.sur.test
+@otherTenantToken = REPLACE_WITH_BETA_ADMIN_JWT
+@emptyHistoryOperation = 9c13bd68-2738-4008-b161-ae39a7cab761
+@importOperation = e625b06b-6945-4ea5-9460-7da3ec8f3e09
+@reportOperation = f5731f68-4bf9-41d7-8eb6-f95c5acc0dc2
+@size = REPLACE_WITH_EXACT_BYTES
+@checksum = REPLACE_WITH_SHA256_HEX
+
+### Register an empty historical journal export
+POST {{host}}/api/v1/provider/documents/history
+Authorization: Bearer {{admin}}
+Content-Type: application/json
+
+{"operationId":"{{emptyHistoryOperation}}","period":{"from":"2001-01-01","to":"2001-01-01"}}
+
+> {%
+    client.test("The admin can register an empty export", function () {
+        client.assert(response.status === 200);
+        client.global.set("historyJob", response.body.id);
+    });
+%}
+
+### After the history job completes, download its empty array
+GET {{host}}/api/v1/public/documents/{{historyJob}}/file
+Authorization: Bearer {{admin}}
+
+> {%
+    client.test("An empty history is a valid confirmed JSON file", function () {
+        client.assert(response.status === 200);
+        client.assert(Array.isArray(response.body) && response.body.length === 0);
+        client.assert(response.headers.valueOf("X-Content-SHA256"));
+    });
+%}
+
+### Downloading another owner's file is forbidden even with the ID
+GET {{host}}/api/v1/public/documents/{{historyJob}}/file
+Authorization: Bearer {{other}}
+
+> {%
+    client.test("A different user gets no download", function () {
+        client.assert(response.status === 404);
+    });
+%}
+
+### Client B cannot retrieve the file ID created in A
+GET {{otherTenant}}/api/v1/public/documents/{{historyJob}}/file
+Authorization: Bearer {{otherTenantToken}}
+
+> {%
+    client.test("The document lookup is confined to the selected tenant", function () {
+        client.assert(response.status === 404);
+    });
+%}
+
+### Register CSV with one admissible record and one invalid GUID
+# Set size and checksum from documents-import.csv after filling in test reference IDs.
+POST {{host}}/api/v1/public/documents/imports
+Authorization: Bearer {{admin}}
+Content-Type: application/json
+
+{"operationId":"{{importOperation}}","size":{{size}},"checksum":"{{checksum}}"}
+
+> {%
+    client.test("Repeated registration returns the same job ID", function () {
+        client.assert(response.status === 200);
+        const prior = client.global.get("importJob");
+        client.assert(!prior || response.body.id === prior);
+        client.global.set("importJob", response.body.id);
+    });
+%}
+
+### Upload raw CSV and repeat after success or loss of the response
+PUT {{host}}/api/v1/public/documents/{{importJob}}/file
+Authorization: Bearer {{admin}}
+Content-Type: application/octet-stream
+Content-Length: {{size}}
+
+< documents-import.csv
+
+> {%
+    client.test("The confirmed source is tied to the original idempotent job", function () {
+        client.assert(response.status === 200);
+        client.assert(response.body.fileId === client.global.get("importJob"));
+    });
+%}
+
+### Start CSV import, then repeat the same mapping
+PUT {{host}}/api/v1/public/documents/{{importJob}}/mapping
+Authorization: Bearer {{admin}}
+Content-Type: application/json
+
+{"delimiter":",","hasHeader":true,"columns":{"Name":0,"Description":1,"HazardId":2,"CategoryId":3,"ProcessId":4}}
+
+> {%
+    client.test("The mapping starts or reuses the same job", function () {
+        client.assert(response.status === 200);
+        client.assert(response.body.id === client.global.get("importJob"));
+    });
+%}
+
+### Run this after the import job finishes and after repeating the start request
+GET {{host}}/api/v1/public/documents/{{importJob}}/rows
+Authorization: Bearer {{admin}}
+
+> {%
+    client.test("A multiline valid record is imported once and the invalid record has an error", function () {
+        client.assert(response.status === 200 && response.body.length === 2);
+        client.assert(response.body[0].number === 1 && response.body[0].data.riskId);
+        client.assert(response.body[1].number === 2 && response.body[1].data.code === "IMPORT_INVALID_ROW");
+    });
+%}
+
+### Publish a CSV report containing the imported formula-like risk title
+POST {{host}}/api/v1/public/documents/reports
+Authorization: Bearer {{admin}}
+Content-Type: application/json
+
+{"operationId":"{{reportOperation}}","format":"CSV"}
+
+> {%
+    client.test("The report is registered", function () {
+        client.assert(response.status === 200);
+        client.global.set("reportJob", response.body.id);
+    });
+%}
+
+### Download after the report is confirmed
+GET {{host}}/api/v1/public/documents/{{reportJob}}/file
+Authorization: Bearer {{admin}}
+
+> {%
+    client.test("The formula-like title is escaped as CSV text", function () {
+        client.assert(response.status === 200 && typeof response.body === "string");
+        client.assert(response.body.includes("'=1+1"));
+    });
+%}
+
+### Reuse an existing operation key with different parameters
+POST {{host}}/api/v1/public/documents/reports
+Authorization: Bearer {{admin}}
+Content-Type: application/json
+
+{"operationId":"{{reportOperation}}","format":"XLSX"}
+
+> {%
+    client.test("An idempotency key cannot change the original parameters", function () {
+        client.assert(response.status === 409);
+    });
+%}
+
+### Once export_report has been revoked, use a fresh token of the original report owner
+GET {{host}}/api/v1/public/documents/{{reportJob}}/file
+Authorization: Bearer {{ownerWithoutExportRight}}
+
+> {%
+    client.test("The original owner must still have the export right", function () {
+        client.assert(response.status === 403);
+    });
+%}
+
+### Check the published binary request and response contracts
+GET {{host}}/swagger/v1/swagger.json
+
+> {%
+    client.test("Swagger describes the CSV upload body and download media types", function () {
+        client.assert(response.status === 200);
+        const paths = response.body.paths;
+        const root = "/api/v1/public/documents";
+        const commands = [
+            ["/reports", "post"], ["/imports", "post"], ["/{id}", "get"],
+            ["/{id}/rows", "get"], ["/{id}/mapping", "put"], ["/{id}/retry", "post"]
+        ];
+        for (const [suffix, method] of commands) {
+            client.assert(paths[root + suffix][method].responses["200"].content["application/json"].schema);
+        }
+        const path = paths[root + "/{id}/file"];
+        client.assert(path.put.requestBody.content["application/octet-stream"].schema.format === "binary");
+        client.assert(path.get.responses["200"].content["application/json"].schema.format === "binary");
+    });
+%}
+
+### Historical fixture: known original category, rename committed after historicalTime
+# Set historicalTime to when the previous category was visible, and after seeding the risk and links.
+POST {{host}}/api/v1/public/documents/reports
+Authorization: Bearer {{admin}}
+Content-Type: application/json
+
+{"operationId":"{{historicalOperation}}","asOf":"{{historicalTime}}","categoryId":"{{renamedCategory}}"}
+
+> {%
+    client.test("Requested and captured dates are distinct parts of the contract", function () {
+        client.assert(response.status === 200 && response.body.asOf);
+        client.global.set("historicalJob", response.body.id);
+    });
+%}
+
+### Read the historical snapshot when ready
+GET {{host}}/api/v1/public/documents/{{historicalJob}}/rows
+Authorization: Bearer {{admin}}
+
+> {%
+    client.test("The historical report uses the old category name", function () {
+        client.assert(response.status === 200 && response.body.length > 0);
+        client.assert(response.body.every(row =>
+            row.data.RiskCategoryDal === "{{historicalCategoryName}}"));
+    });
+%}
+
+### Register an Excel report containing the formula-like risk name
+POST {{host}}/api/v1/public/documents/reports
+Authorization: Bearer {{admin}}
+Content-Type: application/json
+
+{"operationId":"{{excelOperation}}","format":"XLSX"}
+
+> {%
+    client.test("The same risk data can be exported as an Excel workbook", function () {
+        client.assert(response.status === 200);
+        client.global.set("excelJob", response.body.id);
+    });
+%}
+
+### Download after completion and inspect xl/worksheets/sheet1.xml for inline text and no formula
+GET {{host}}/api/v1/public/documents/{{excelJob}}/file
+Authorization: Bearer {{admin}}
+
+> {%
+    client.test("Excel is served as a confirmed attachment", function () {
+        client.assert(response.status === 200);
+        client.assert(response.headers.valueOf("Content-Type") ===
+            "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet");
+        client.assert(response.headers.valueOf("X-Content-SHA256"));
+    });
+%}
+
+### Upload a newly registered source while the disposable S3 endpoint refuses connections
+# Register this separate source with the same size/checksum before stopping the test storage.
+PUT {{host}}/api/v1/public/documents/{{storageOutageJob}}/file
+Authorization: Bearer {{admin}}
+Content-Type: application/octet-stream
+Content-Length: {{size}}
+
+< documents-import.csv
+
+> {%
+    client.test("A storage connection failure is retryable and yields 503", function () {
+        client.assert(response.status === 503);
+        client.assert(response.body.code === "DOCUMENT_UNAVAILABLE");
+    });
+%}

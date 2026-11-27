@@ -1,0 +1,157 @@
+# Run against a disposable tenant and a controlled Jira HTTPS fixture listed in Jira__AllowedBaseUrls__0.
+@host = https://localhost:7224
+@admin = REPLACE_TEST_ADMIN_TOKEN
+@wrongBasic = Basic amlyYTp3cm9uZw==
+@correctBasic = REPLACE_WITH_BASIC_TEST_HEADER
+@issueId = 10001
+@measure = REPLACE_WITH_TEST_MEASURE_ID
+
+### Swagger describes the independent Basic scheme and its body
+GET {{host}}/swagger/v1/swagger.json
+
+> {%
+    client.test("Jira webhook declares a dedicated Basic scheme", function () {
+        const operation = response.body.paths["/api/v1/public/jira/webhook"].post;
+        client.assert(response.status === 200);
+        client.assert(operation.security.some(entry => "jiraWebhookBasic" in entry));
+        client.assert(response.body.components.securitySchemes.jiraWebhookBasic.scheme === "basic");
+        client.assert(operation.requestBody.content["application/json"]);
+    });
+%}
+
+### Reject incorrect Basic before parsing malformed body
+POST {{host}}/api/v1/public/jira/webhook
+Authorization: {{wrongBasic}}
+Content-Type: application/json
+
+{
+
+> {%
+    client.test("Wrong Basic returns 401 even when submitted JSON is invalid", function () {
+        client.assert(response.status === 401);
+    });
+%}
+
+### Reject an invalid issue ID for a valid credential
+POST {{host}}/api/v1/public/jira/webhook
+Authorization: {{correctBasic}}
+Content-Type: application/json
+
+{"issue":{"id":"../../myself","fields":{"status":{"id":"forged"}}}}
+
+> {%
+    client.test("Invalid identifiers are rejected before enqueueing", function () {
+        client.assert(response.status === 400);
+    });
+%}
+
+### Accept valid ID and ignore untrusted business fields
+POST {{host}}/api/v1/public/jira/webhook
+Authorization: {{correctBasic}}
+Content-Type: application/json
+
+{"issue":{"id":"{{issueId}}","fields":{"status":{"id":"forged"}}}}
+
+> {%
+    client.test("A durable queue receipt is returned", function () {
+        client.assert(response.status === 202);
+    });
+%}
+
+### After simulated post-commit timeout in Jira, verify the local delivery is not retried
+GET {{host}}/api/v1/public/treatments/{{measure}}
+Authorization: Bearer {{admin}}
+
+> {%
+    client.test("Uncertain creation stays blocked for reconciliation", function () {
+        client.assert(response.status === 200);
+        client.assert(response.body.jira.state === "UNKNOWN");
+        client.assert(response.body.jira.issueKey === null);
+        client.assert(response.body.jira.manualControl === false);
+        client.assert(response.body.jira.attemptStartedAt);
+        client.global.set("jiraAttemptStartedAt", response.body.jira.attemptStartedAt);
+    });
+%}
+
+### Resolve a found task from the Jira fixture, leaving creation count unchanged
+POST {{host}}/api/v1/provider/jira/treatments/{{measure}}/resolve
+Authorization: Bearer {{admin}}
+Content-Type: application/json
+
+{"issue":"{{issueId}}","attemptStartedAt":"{{jiraAttemptStartedAt}}"}
+
+> {%
+    client.test("Reconciliation confirms an existing link", function () {
+        client.assert(response.status === 200);
+        client.assert(response.body.state === "LINKED" && response.body.issueKey);
+    });
+%}
+
+### Stored settings can be reused as a request without exposing credentials
+GET {{host}}/api/v1/provider/jira
+Authorization: Bearer {{admin}}
+
+> {%
+    client.test("Executor mappings are an object and credentials are absent", function () {
+        client.assert(response.status === 200);
+        const settings = response.body;
+        client.assert(settings.executors !== null && typeof settings.executors === "object" &&
+            !Array.isArray(settings.executors));
+        client.assert(!("restSecret" in settings) && !("webhookHash" in settings));
+        client.global.set("jiraSettings", JSON.stringify(settings));
+    });
+%}
+
+### Save a settings payload read from GET
+PUT {{host}}/api/v1/provider/jira
+Authorization: Bearer {{admin}}
+Content-Type: application/json
+
+{{jiraSettings}}
+
+> {%
+    client.test("The same executor mappings survive a GET and PUT round trip", function () {
+        client.assert(response.status === 200);
+        const previous = JSON.parse(client.global.get("jiraSettings"));
+        client.assert(response.body.version !== previous.version);
+        client.assert(JSON.stringify(response.body.executors) === JSON.stringify(previous.executors));
+    });
+%}
+
+### In a separate fixture configure a 256-character CJK webhook secret and provide its Basic header
+POST {{host}}/api/v1/public/jira/webhook
+Authorization: {{longUnicodeBasic}}
+Content-Type: application/json
+
+{"issue":{"id":"{{issueId}}"}}
+
+> {%
+    client.test("A configured Unicode webhook secret at the maximum length is accepted", function () {
+        client.assert(response.status === 202);
+    });
+%}
+
+### Run against a separate UNKNOWN attempt, using its timestamp from the measure card
+POST {{host}}/api/v1/provider/jira/treatments/{{absentMeasure}}/resolve
+Authorization: Bearer {{admin}}
+Content-Type: application/json
+
+{"issue":"   ","confirmAbsent":true,"attemptStartedAt":"{{absentAttemptStartedAt}}"}
+
+> {%
+    client.test("Confirming absence with a blank issue works without querying Jira", function () {
+        client.assert(response.status === 200 && response.body.state !== "UNKNOWN");
+    });
+%}
+
+### Fixture: commit the remote task, replace the POST response with 429, then wait two worker cycles past the old one-minute retry
+GET {{host}}/api/v1/public/treatments/{{post429Measure}}
+Authorization: Bearer {{admin}}
+
+> {%
+    client.test("A 429 after POST leaves the measure awaiting reconciliation", function () {
+        client.assert(response.status === 200);
+        client.assert(response.body.jira.state === "UNKNOWN" && response.body.jira.attemptStartedAt);
+        client.assert(response.body.jira.issueKey === null);
+    });
+%}

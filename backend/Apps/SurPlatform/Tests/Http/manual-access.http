@@ -1,0 +1,195 @@
+@provider = https://localhost:7224/api/v1/provider
+@public = https://localhost:7224/api/v1/public
+@initialPassword = SurFixture-Initial-2026!
+@personalPassword = SurFixture-Personal-2026!
+@replacementPassword = SurFixture-Replacement-2026!
+
+### Prepare an isolated account name and a business role; provide adminToken from administrator login
+GET {{provider}}/roles
+Authorization: Bearer {{adminToken}}
+
+> {%
+client.test("Administrative role catalogue is available", function () {
+    client.assert(response.status === 200);
+    const employee = response.body.find(row => row.code === "EMPLOYEE" && row.isActive);
+    client.assert(!!employee);
+    client.global.set("manualRole", employee.id);
+    client.global.set("manualEmail", "manual-access-" + Date.now() + "@sur.test");
+});
+%}
+
+### Missing password must not create an inaccessible user
+POST {{provider}}/users
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{"email":"{{manualEmail}}","fullName":"Проверка ручной выдачи","roleIds":["{{manualRole}}"]}
+
+> {% client.test("A password is mandatory", function () { client.assert(response.status === 400); }); %}
+
+### Create the same account; success also proves the preceding request left no account
+POST {{provider}}/users
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{"email":"{{manualEmail}}","fullName":"Проверка ручной выдачи","roleIds":["{{manualRole}}"],"temporaryPassword":"{{initialPassword}}"}
+
+> {%
+client.test("User has no delivery dependency and no password in response", function () {
+    client.assert(response.status === 201);
+    client.assert(response.body.invitationStatus === null);
+    client.assert(!JSON.stringify(response.body).includes("SurFixture-Initial-2026!"));
+    client.assert(!("temporaryPassword" in response.body) && !("passwordHash" in response.body));
+    client.global.set("manualUserId", response.body.userId);
+});
+%}
+
+### Limited login with the administrator-supplied temporary password
+POST {{public}}/connect/token
+Content-Type: application/json
+
+{"email":"{{manualEmail}}","password":"{{initialPassword}}"}
+
+> {%
+client.test("Temporary password opens a session", function () {
+    client.assert(response.status === 200);
+    client.global.set("manualTemporaryToken", response.body.accessToken);
+});
+%}
+
+### Business data remains closed until password change
+GET {{public}}/risks
+Authorization: Bearer {{manualTemporaryToken}}
+
+> {% client.test("Temporary session is restricted", function () { client.assert(response.status === 403); }); %}
+
+### Replace temporary access with a personal password
+PATCH {{public}}/users/change-password
+Authorization: Bearer {{manualTemporaryToken}}
+Content-Type: application/json
+
+{"oldPassword":"{{initialPassword}}","newPassword":"{{personalPassword}}"}
+
+> {% client.test("Password changes without mail", function () { client.assert(response.status === 200 && response.body.isSuccess); }); %}
+
+### Normal login after changing the password
+POST {{public}}/connect/token
+Content-Type: application/json
+
+{"email":"{{manualEmail}}","password":"{{personalPassword}}"}
+
+> {%
+client.test("Personal password opens normal access", function () {
+    client.assert(response.status === 200);
+    client.global.set("manualNormalToken", response.body.accessToken);
+});
+%}
+
+### Verify real business permissions, rather than an ADMIN session
+GET {{public}}/users/me
+Authorization: Bearer {{manualNormalToken}}
+
+> {%
+client.test("The account has business rights without admin", function () {
+    client.assert(response.status === 200);
+    client.assert(response.body.rightCodes.includes("view_risk"));
+    client.assert(!response.body.rightCodes.includes("admin"));
+});
+%}
+
+### A normal user cannot issue access through provider API
+POST {{provider}}/users/{{manualUserId}}/reissue-access
+Authorization: Bearer {{manualNormalToken}}
+Content-Type: application/json
+
+{"version":"00000000-0000-0000-0000-000000000000","temporaryPassword":"{{replacementPassword}}"}
+
+> {% client.test("Business session cannot issue credentials", function () { client.assert(response.status === 403); }); %}
+
+### Read current version before administrator reset
+GET {{provider}}/users/{{manualUserId}}
+Authorization: Bearer {{adminToken}}
+
+> {%
+client.test("Account version is available", function () {
+    client.assert(response.status === 200);
+    client.global.set("manualBeforeResetVersion", response.body.version);
+});
+%}
+
+### Reissue uses a JSON body, revokes all old sessions and needs no transport
+POST {{provider}}/users/{{manualUserId}}/reissue-access
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{"version":"{{manualBeforeResetVersion}}","temporaryPassword":"{{replacementPassword}}"}
+
+> {%
+client.test("Reset is committed without delivery state", function () {
+    client.assert(response.status === 200 && response.body.invitationStatus === null);
+    client.global.set("manualAfterResetVersion", response.body.version);
+});
+%}
+
+### A duplicate reset with a stale card must not replace the newly issued password
+POST {{provider}}/users/{{manualUserId}}/reissue-access
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{"version":"{{manualBeforeResetVersion}}","temporaryPassword":"{{initialPassword}}"}
+
+> {% client.test("Stale reset is rejected", function () { client.assert(response.status === 409); }); %}
+
+### Earlier session must no longer work
+GET {{public}}/users/me
+Authorization: Bearer {{manualNormalToken}}
+
+> {% client.test("Reset revokes old access", function () { client.assert(response.status === 401); }); %}
+
+### Earlier personal password must no longer open a session
+POST {{public}}/connect/token
+Content-Type: application/json
+
+{"email":"{{manualEmail}}","password":"{{personalPassword}}"}
+
+> {% client.test("Old password is rejected", function () { client.assert(response.status === 400); }); %}
+
+### Newly issued password still works after the rejected stale reset
+POST {{public}}/connect/token
+Content-Type: application/json
+
+{"email":"{{manualEmail}}","password":"{{replacementPassword}}"}
+
+> {% client.test("Current temporary password works", function () { client.assert(response.status === 200); }); %}
+
+### Close the fixture account without physical deletion
+POST {{provider}}/users/{{manualUserId}}/deactivate
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{"version":"{{manualAfterResetVersion}}"}
+
+> {% client.test("Fixture is deactivated", function () { client.assert(response.status === 200 && !response.body.isActive); client.global.set("manualInactiveVersion", response.body.version); }); %}
+
+### Activation also accepts an explicitly supplied temporary password
+POST {{provider}}/users/{{manualUserId}}/activate
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{"version":"{{manualInactiveVersion}}","temporaryPassword":"{{replacementPassword}}"}
+
+> {%
+client.test("Activation needs no delivery", function () {
+    client.assert(response.status === 200 && response.body.isActive && response.body.invitationStatus === null);
+    client.global.set("manualActivatedVersion", response.body.version);
+});
+%}
+
+### Leave the activated fixture disabled after acceptance
+POST {{provider}}/users/{{manualUserId}}/deactivate
+Authorization: Bearer {{adminToken}}
+Content-Type: application/json
+
+{"version":"{{manualActivatedVersion}}"}
+
+> {% client.test("Activated fixture is cleaned up", function () { client.assert(response.status === 200 && !response.body.isActive); }); %}

@@ -1,0 +1,40 @@
+@host = https://localhost:7224
+
+### Run before client migrations are ready
+GET {{host}}/health/live
+
+> {%
+    client.test("Process is live independently of client database", function () {
+        client.assert(response.status === 200);
+    });
+%}
+
+### Run with a registered tenant whose database is unavailable
+GET {{unavailableTenant}}/health/ready
+
+> {%
+    client.test("The failing tenant remains unready", function () {
+        client.assert(response.status === 503);
+    });
+%}
+
+### Run at the same time against a healthy tenant
+GET {{host}}/health/ready
+
+> {%
+    client.test("The healthy tenant continues to serve", function () {
+        client.assert(response.status === 200);
+    });
+%}
+
+### While Operations:PauseOutbound is true, poll a known pending Jira measure for at least two worker cycles
+GET {{host}}/api/v1/public/treatments/{{pendingTreatmentId}}
+Authorization: Bearer {{adminToken}}
+
+> {%
+    client.test("Pausing outbound exchange preserves the pending attempt", function () {
+        client.assert(response.status === 200);
+        client.assert(response.body.jira.state === "PENDING");
+        client.assert(response.body.jira.issueKey === null);
+    });
+%}
