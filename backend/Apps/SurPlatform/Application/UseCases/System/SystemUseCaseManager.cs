@@ -1,34 +1,27 @@
+using Application.Ports.Services;
 using Application.UseCases.System.Interfaces;
-using Microsoft.IdentityModel.Tokens;
 
 namespace Application.UseCases.System;
 
-/// <inheritdoc/>
-internal sealed class SystemUseCaseManager(ClientDatabaseContext database, ClientDatabaseInitializer initializer, IRsaKeyProvider keyProvider) : ISystemUseCaseManager
+/// <summary>Координирует получение технических метаданных текущего клиента</summary>
+/// <param name="metadata">Доступ к готовности базы, issuer и открытому ключу без инфраструктурных зависимостей</param>
+internal sealed class SystemUseCaseManager(ISystemMetadataService metadata) : ISystemUseCaseManager
 {
     /// <inheritdoc/>
-
     public Task<bool> IsDatabaseReadyAsync(CancellationToken cancellationToken)
     {
-        return initializer.IsReadyAsync(database.Client, cancellationToken);
+        return metadata.IsDatabaseReadyAsync(cancellationToken);
     }
 
     /// <inheritdoc/>
     public string GetIssuer()
     {
-        return database.Client.Issuer;
+        return metadata.GetIssuer();
     }
 
     /// <inheritdoc/>
     public (string Module, string Exponent) GetSigningKey()
     {
-        var parameters = keyProvider.ValidationKey.Rsa?.ExportParameters(false);
-        
-        if (parameters?.Modulus is not { } modulus || parameters?.Exponent is not { } exponent)
-        {
-            throw new InvalidOperationException("Отсутствует открытый RSA-ключ JWT");
-        }
-
-        return (Base64UrlEncoder.Encode(modulus), Base64UrlEncoder.Encode(exponent));
+        return metadata.GetSigningKey();
     }
 }

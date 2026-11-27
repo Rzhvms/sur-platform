@@ -2,16 +2,14 @@ using Api.Constants;
 using Api.Controllers.Public.Jira;
 using System.Net.Mime;
 using Microsoft.AspNetCore.Mvc.Controllers;
-using Api.Controllers.Internal.Users;
 using Api.Controllers.Public.Risks;
-using Core.Api.Handlers;
 using Microsoft.OpenApi;
 using Swashbuckle.AspNetCore.SwaggerGen;
 
 namespace Api.Swagger;
 
 /// <summary>
-/// Описывает авторизацию проверки сессии и контракт вебхука пересмотра
+/// Описывает авторизацию и тела входящих webhook Jira и пересмотра
 /// </summary>
 internal sealed class SpecialAuthorizationDocumentFilter : IDocumentFilter
 {
@@ -36,14 +34,14 @@ internal sealed class SpecialAuthorizationDocumentFilter : IDocumentFilter
                 description.RelativePath is not { } relativePath ||
                 document.Paths is null ||
                 !document.Paths.TryGetValue(IdentityHttp.RootPath + relativePath, out var path) ||
-                path.Operations?.TryGetValue(System.Net.Http.HttpMethod.Post, out var operation) != true)
+                path.Operations?.TryGetValue(System.Net.Http.HttpMethod.Post, out var operation) != true ||
+                operation is null)
             {
                 continue;
             }
 
             var type = action.ControllerTypeInfo.AsType();
-            var scheme = type == typeof(SessionController) ? SystemRequestHttpHandler.AuthenticationScheme
-                : type == typeof(ReviewWebhookController) ? ReviewWebhookController.OpenApiScheme
+            var scheme = type == typeof(ReviewWebhookController) ? ReviewWebhookController.OpenApiScheme
                 : type == typeof(JiraWebhookController) ? JiraWebhookController.OpenApiScheme : null;
             if (scheme is null)
             {

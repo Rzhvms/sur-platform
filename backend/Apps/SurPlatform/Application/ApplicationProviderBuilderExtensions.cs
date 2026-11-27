@@ -14,8 +14,6 @@ using Application.UseCases.Auth.interfaces;
 using Application.UseCases.Users;
 using Application.UseCases.Users.Interfaces;
 using Application.Services.Authentication;
-using Application.UseCases.Sessions;
-using Application.UseCases.Sessions.Interfaces;
 using Application.UseCases.System;
 using Application.UseCases.System.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
@@ -37,7 +35,6 @@ public static class ApplicationProviderBuilderExtensions
         services.AddScoped<ISessionService, SessionService>();
 
         services.AddScoped<IAuthUseCaseManager, AuthUseCaseManager>();
-        services.AddScoped<ISessionUseCaseManager, SessionUseCaseManager>();
         services.AddScoped<IIdentityAdministrationUseCaseManager, IdentityAdministrationUseCaseManager>();
         services.AddScoped<IOrganizationUseCaseManager, OrganizationUseCaseManager>();
         services.AddScoped<IRiskUseCaseManager, RiskUseCaseManager>();

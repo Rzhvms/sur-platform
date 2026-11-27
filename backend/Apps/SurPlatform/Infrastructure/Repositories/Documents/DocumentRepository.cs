@@ -17,6 +17,7 @@ using Infrastructure.Repositories.Risks.Interfaces;
 using Infrastructure.Repositories.Sessions.Interfaces;
 using Infrastructure.Repositories.Shared;
 using Infrastructure.Services.Documents.Interfaces;
+using Infrastructure.Services.Documents;
 using Microsoft.VisualBasic.FileIO;
 using Minio.Exceptions;
 using System.ComponentModel.DataAnnotations;

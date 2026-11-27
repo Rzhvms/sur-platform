@@ -1,3 +1,5 @@
+using Application.Ports.Services;
+using Infrastructure.Services.System;
 using Infrastructure.Services.Jira.Interfaces;
 using Infrastructure.Services.Documents.Interfaces;
 using Infrastructure.Services.Demo.Interfaces;
@@ -55,6 +57,7 @@ public static class InfrastructureProviderBuilderExtensions
         services.AddMetrics();
         services.AddSingleton<OperationsMetrics>();
         services.AddScoped<ClientDatabaseContext>();
+        services.AddScoped<ISystemMetadataService, SystemMetadataService>();
         services.AddScoped<IDbConnection>(provider =>
         {
             var connection = new NpgsqlConnection(provider.GetRequiredService<ClientDatabaseContext>().Client.ConnectionString);
