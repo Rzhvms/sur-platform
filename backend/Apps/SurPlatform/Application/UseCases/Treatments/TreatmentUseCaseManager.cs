@@ -7,7 +7,7 @@ namespace Application.UseCases.Treatments;
 
 /// <summary>Прикладные операции мер, исполнителей и согласований</summary>
 /// <param name="repository">Хранилище рисков текущего клиента</param>
-public sealed class TreatmentUseCaseManager(IRiskRepository repository)
+public sealed class TreatmentUseCaseManager(ITreatmentRepository repository)
 {
     /// <summary>Читает страницу общего списка мер текущего клиента</summary>
     /// <param name="actor">Участник клиентского запроса</param>

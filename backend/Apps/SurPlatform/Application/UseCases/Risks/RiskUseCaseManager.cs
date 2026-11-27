@@ -10,8 +10,17 @@ using Application.Ports.Repositories;
 namespace Application.UseCases.Risks;
 
 /// <summary>Прикладные операции модуля рисков</summary>
-/// <param name="repository">Хранилище выбранной клиентской базы</param>
-public sealed class RiskUseCaseManager(IRiskRepository repository)
+/// <param name="history">История изменений и запросы выгрузки</param>
+/// <param name="reviews">История и запуск пересмотра</param>
+/// <param name="assessments">Оценки риска и настройки расчета</param>
+/// <param name="references">Справочники и допустимые варианты выбора</param>
+/// <param name="repository">Реестр, паспорт и решения по риску</param>
+public sealed class RiskUseCaseManager(
+    IBusinessHistoryRepository history,
+    IReviewRepository reviews,
+    IRiskAssessmentRepository assessments,
+    IRiskReferenceRepository references,
+    IRiskRepository repository)
 {
     /// <summary>Список рисков по фильтрам</summary>
     /// <param name="actor">Пользователь из проверенной сессии</param>
@@ -130,7 +139,7 @@ public sealed class RiskUseCaseManager(IRiskRepository repository)
     /// <returns>Результат в клиентском контексте</returns>
     public Task<RiskReference[]> ListReferencesAsync(RiskActor actor, RiskReferenceKind kind, bool available, int offset, int limit, string? search)
     {
-        return repository.ListReferencesAsync(actor, kind, available, offset, limit, search);
+        return references.ListReferencesAsync(actor, kind, available, offset, limit, search);
     }
 
     /// <summary>Изменение записи справочника</summary>
@@ -141,7 +150,7 @@ public sealed class RiskUseCaseManager(IRiskRepository repository)
     /// <returns>Результат в клиентском контексте</returns>
     public Task<RiskReference> SaveReferenceAsync(RiskActor actor, RiskReferenceKind kind, Guid? id, RiskReferenceRequest request)
     {
-        return repository.SaveReferenceAsync(actor, kind, id, request);
+        return references.SaveReferenceAsync(actor, kind, id, request);
     }
 
     /// <summary>Страница административной истории по датам UTC</summary>
@@ -152,7 +161,7 @@ public sealed class RiskUseCaseManager(IRiskRepository repository)
     /// <returns>Результат в клиентском контексте</returns>
     public Task<JsonElement[]> HistoryAsync(RiskActor actor, BusinessPeriod period, int offset, int limit)
     {
-        return repository.HistoryAsync(actor, period, offset, limit);
+        return history.HistoryAsync(actor, period, offset, limit);
     }
 
     /// <summary>Создание согласованного снимка для выгрузки</summary>
@@ -161,7 +170,7 @@ public sealed class RiskUseCaseManager(IRiskRepository repository)
     /// <returns>Результат в клиентском контексте</returns>
     public Task<BusinessExportDal> RequestExportAsync(RiskActor actor, BusinessPeriod period)
     {
-        return repository.RequestExportAsync(actor, period);
+        return history.RequestExportAsync(actor, period);
     }
 
     /// <summary>Читает варианты выбора для паспорта риска</summary>
@@ -191,7 +200,7 @@ public sealed class RiskUseCaseManager(IRiskRepository repository)
     /// <returns>Результат операции</returns>
     public Task<AssessmentPreview> PreviewAssessmentAsync(RiskActor actor, Guid id, AssessmentRequest request)
     {
-        return repository.PreviewAssessmentAsync(actor, id, request);
+        return assessments.PreviewAssessmentAsync(actor, id, request);
     }
 
     /// <summary>Сохраняет бизнес-оценку и активирует риск</summary>
@@ -201,7 +210,7 @@ public sealed class RiskUseCaseManager(IRiskRepository repository)
     /// <returns>Результат операции</returns>
     public Task<AssessmentPreview> SaveAssessmentAsync(RiskActor actor, Guid id, SaveAssessmentRequest request)
     {
-        return repository.SaveAssessmentAsync(actor, id, request);
+        return assessments.SaveAssessmentAsync(actor, id, request);
     }
 
     /// <summary>Читает историю оценок риска</summary>
@@ -212,7 +221,7 @@ public sealed class RiskUseCaseManager(IRiskRepository repository)
     /// <returns>Результат операции</returns>
     public Task<RiskAssessmentDal[]> ListAssessmentsAsync(RiskActor actor, Guid id, int offset, int limit)
     {
-        return repository.ListAssessmentsAsync(actor, id, offset, limit);
+        return assessments.ListAssessmentsAsync(actor, id, offset, limit);
     }
 
     /// <summary>Читает опубликованную денежную шкалу</summary>
@@ -222,7 +231,7 @@ public sealed class RiskUseCaseManager(IRiskRepository repository)
     /// <returns>Результат операции</returns>
     public Task<ImpactScale?> GetImpactScaleAsync(RiskActor actor, Guid? id, bool admin)
     {
-        return repository.GetImpactScaleAsync(actor, id, admin);
+        return assessments.GetImpactScaleAsync(actor, id, admin);
     }
 
     /// <summary>Публикует денежную шкалу и выполняет пересчёт</summary>
@@ -231,7 +240,7 @@ public sealed class RiskUseCaseManager(IRiskRepository repository)
     /// <returns>Результат операции</returns>
     public Task<ImpactScale> SaveImpactScaleAsync(RiskActor actor, ImpactScaleRequest request)
     {
-        return repository.SaveImpactScaleAsync(actor, request);
+        return assessments.SaveImpactScaleAsync(actor, request);
     }
 
     /// <summary>Читает пороги принятия</summary>
@@ -239,7 +248,7 @@ public sealed class RiskUseCaseManager(IRiskRepository repository)
     /// <returns>Результат операции</returns>
     public Task<RiskAcceptanceSettingsDal> GetAcceptanceSettingsAsync(RiskActor actor)
     {
-        return repository.GetAcceptanceSettingsAsync(actor);
+        return assessments.GetAcceptanceSettingsAsync(actor);
     }
 
     /// <summary>Сохраняет пороги принятия</summary>
@@ -248,7 +257,7 @@ public sealed class RiskUseCaseManager(IRiskRepository repository)
     /// <returns>Результат операции</returns>
     public Task<RiskAcceptanceSettingsDal> SaveAcceptanceSettingsAsync(RiskActor actor, AcceptanceSettingsRequest request)
     {
-        return repository.SaveAcceptanceSettingsAsync(actor, request);
+        return assessments.SaveAcceptanceSettingsAsync(actor, request);
     }
 
     /// <summary>Фиксирует единственный способ работы в цикле</summary>
@@ -287,7 +296,7 @@ public sealed class RiskUseCaseManager(IRiskRepository repository)
     /// <returns>Обновлённый риск</returns>
     public Task<RiskDal> TransferRiskAsync(RiskActor actor, Guid id, TransferRiskRequest request)
     {
-        return repository.TransferRiskAsync(actor, id, request);
+        return reviews.TransferRiskAsync(actor, id, request);
     }
 
     /// <summary>Читает страницу истории пересмотра</summary>
@@ -298,7 +307,7 @@ public sealed class RiskUseCaseManager(IRiskRepository repository)
     /// <returns>История с контекстом запуска</returns>
     public Task<RiskReviewView[]> ListRiskReviewsAsync(RiskActor actor, Guid id, int offset, int limit)
     {
-        return repository.ListRiskReviewsAsync(actor, id, offset, limit);
+        return reviews.ListRiskReviewsAsync(actor, id, offset, limit);
     }
 
     /// <summary>Читает доступные новые процессы для передачи</summary>

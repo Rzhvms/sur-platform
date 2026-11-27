@@ -1,3 +1,4 @@
+using Infrastructure.Repositories.Jira.Interfaces;
 using Infrastructure.Repositories.Risks.Interfaces;
 using Infrastructure.Clients;
 using Microsoft.Extensions.DependencyInjection;
