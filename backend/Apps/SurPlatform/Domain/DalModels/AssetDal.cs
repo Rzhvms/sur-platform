@@ -9,6 +9,7 @@ public sealed record AssetDal : IOrganizationRow
     /// Идентификатор записи
     /// </summary>
     public Guid Id { get; init; }
+    
     /// <summary>
     /// Версия для проверки конкурентного изменения
     /// </summary>

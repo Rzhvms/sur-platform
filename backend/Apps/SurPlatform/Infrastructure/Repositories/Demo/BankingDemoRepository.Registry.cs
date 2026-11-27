@@ -1,3 +1,5 @@
+using Infrastructure.Repositories.Assessments.Helpers;
+using Infrastructure.Repositories.History.Helpers;
 using System.Data;
 using Application.Constants;
 using Application.Models;
@@ -7,7 +9,6 @@ using Dapper;
 using Domain.DalModels;
 using Infrastructure.Repositories.Demo.Interfaces;
 using Infrastructure.Repositories.Demo.Models;
-using Infrastructure.Repositories.Risks.Helpers;
 
 namespace Infrastructure.Repositories.Demo;
 

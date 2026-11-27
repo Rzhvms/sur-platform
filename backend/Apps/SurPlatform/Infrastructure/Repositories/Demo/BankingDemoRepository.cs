@@ -1,3 +1,4 @@
+using Infrastructure.Repositories.History.Helpers;
 using System.Data;
 using System.Text.Json;
 using Application.Constants;
@@ -8,7 +9,6 @@ using Domain.DalModels;
 using Infrastructure.Repositories.Demo.Interfaces;
 using Infrastructure.Repositories.Demo.Models;
 using Infrastructure.Repositories.Identity;
-using Infrastructure.Repositories.Risks.Helpers;
 
 namespace Infrastructure.Repositories.Demo;
 

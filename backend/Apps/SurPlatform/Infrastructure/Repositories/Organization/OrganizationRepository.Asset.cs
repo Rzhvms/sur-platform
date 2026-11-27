@@ -1,4 +1,4 @@
-using Infrastructure.Repositories.Risks.Helpers;
+using Infrastructure.Repositories.History.Helpers;
 using Application.Constants;
 using Application.Exceptions;
 using Application.UseCases.Organization.Dto.Request;
