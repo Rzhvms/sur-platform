@@ -1,4 +1,0 @@
-services:
-  nginx:
-    volumes:
-      - ../frontend/dist/sur/browser:/usr/share/nginx/html/sur:ro
