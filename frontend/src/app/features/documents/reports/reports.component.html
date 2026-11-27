@@ -25,7 +25,10 @@
           <option value="">{{ t.all }}</option>
           @for (item of categories(); track item.id) { <option [value]="item.id">{{ item.name }}</option> }
         </select></label>
-        <label class="inline-check form-fields__full"><input formControlName="historical" type="checkbox" /> {{ w.historical }}</label>
+        <label class="report-switch-field form-fields__full">
+          <span>{{ w.historical }}</span>
+          <input class="report-switch" formControlName="historical" type="checkbox" role="switch" />
+        </label>
         @if (form.controls.historical.value) {
           <label>{{ w.localTime }} <input type="datetime-local" formControlName="local" /></label>
           <label>{{ w.offset }} <input formControlName="offset" placeholder="+05:00" maxlength="6" /></label>

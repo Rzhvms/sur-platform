@@ -103,12 +103,14 @@ public sealed class AuthUseCaseManager(AccountService accountService, SessionSer
     }
 
     /// <inheritdoc/>
-    public Task<bool> CheckSessionRightAsync(Guid userId, Guid sessionId, long accessVersion, string rightCode,
-        CancellationToken cancellationToken)
+    public Task<bool> CheckSessionRightAsync(CheckSessionRequest request)
     {
-        if (userId == Guid.Empty || sessionId == Guid.Empty || accessVersion < 1 || string.IsNullOrWhiteSpace(rightCode))
+        if (request.UserId == Guid.Empty || 
+            request.SessionId == Guid.Empty || 
+            request.AccessVersion < 1 || 
+            string.IsNullOrWhiteSpace(request.RightCode))
         {
-            return Task.FromResult(false);
+            throw new ArgumentException(InvalidCredentials);
         }
 
         return sessionService.IsActiveAsync(userId, sessionId, cancellationToken, accessVersion, rightCode);

@@ -1,6 +1,4 @@
-using System.ComponentModel.DataAnnotations;
-
-namespace Api.Controllers.Internal.Users.Dto.Request;
+namespace Application.UseCases.Auth.Dto.Request;
 
 /// <summary>
 /// Сессия и право для проверки внутренней операции
@@ -8,12 +6,12 @@ namespace Api.Controllers.Internal.Users.Dto.Request;
 public sealed record CheckSessionRequest
 {
     /// <summary>
-    /// Пользователь из проверенного токена
+    /// Идентификатор пользователя
     /// </summary>
     public required Guid UserId { get; init; }
 
     /// <summary>
-    /// Сессия из проверенного токена
+    /// Идентификатор сессии
     /// </summary>
     public required Guid SessionId { get; init; }
 
@@ -25,6 +23,5 @@ public sealed record CheckSessionRequest
     /// <summary>
     /// Системный код права, требуемого операцией
     /// </summary>
-    [Required]
     public required string RightCode { get; init; }
 }

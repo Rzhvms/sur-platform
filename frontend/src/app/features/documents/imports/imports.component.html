@@ -1,6 +1,11 @@
 <div class="imports">
-<h1>{{ w.imports }}</h1>
-<p class="report-hint">{{ w.importHint }}</p>
+<header class="page-heading"><h1>{{ w.imports }}</h1><span class="imports__format">{{ w.importFormat }}</span></header>
+<p class="imports__intro">{{ w.importIntro }}</p>
+<ol class="imports__steps" [attr.aria-label]="w.importSteps">
+  <li><span class="imports__step-number">1</span><div><strong>{{ w.importFileStep }}</strong><p>{{ w.importFileStepHint }}</p></div></li>
+  <li><span class="imports__step-number">2</span><div><strong>{{ w.importMappingStep }}</strong><p>{{ w.importMappingStepHint }}</p></div></li>
+  <li><span class="imports__step-number">3</span><div><strong>{{ w.results }}</strong><p>{{ w.importResultStepHint }}</p></div></li>
+</ol>
 @if (request.id(); as id) {
   <div class="action-row"><button type="button" [disabled]="busy()" (click)="reset()">{{ w.createNew }}</button></div>
   @for (jobId of [id]; track jobId) {
@@ -9,21 +14,24 @@
 }
 @let status = currentJob()?.state;
 @if (!request.id() || status === 'UPLOADING' || status === 'AWAITING_MAPPING') {
-  <section class="panel">
+  <div class="imports__workspace" [class.imports__workspace--mapping]="status === 'AWAITING_MAPPING'">
+  <section class="panel imports__main">
     @if (!request.id() || status === 'UPLOADING') {
       <div class="form-stack">
-        <label>{{ status === 'UPLOADING' ? w.chooseSame : w.chooseFile }}
+        <div class="imports__section-heading"><h2>{{ w.importFileStep }}</h2><p>{{ status === 'UPLOADING' ? w.chooseSame : w.importFileHint }}</p></div>
+        <label class="imports__file-picker">
+          <span class="imports__file-label">{{ w.chooseFile }}</span>
           <input #picker type="file" accept=".csv,text/csv" [disabled]="busy() || request.busy() || !!request.attempt()" (change)="choose(picker)" />
+          <span class="imports__file-help">{{ w.importEncodingHint }}</span>
         </label>
         @if (selectedFile(); as file) {
-          <dl class="fields">
+          <dl class="fields imports__file-facts">
             <div><dt>{{ t.title }}</dt><dd>{{ file.file.name }}</dd></div>
             <div><dt>{{ w.size }}</dt><dd>{{ file.size }}</dd></div>
             <div><dt>{{ w.checksum }}</dt><dd><code>{{ file.checksum }}</code></dd></div>
           </dl>
         }
         <div class="action-row">
-          <button type="button" [disabled]="busy() || request.busy() || templateBusy()" (click)="downloadTemplate()">{{ templateBusy() ? t.loading : w.template }}</button>
           @if (status === 'UPLOADING') {
             <button class="button--primary" type="button" [disabled]="busy() || !selectedFile()" (click)="upload()">{{ w.upload }}</button>
           } @else {
@@ -36,6 +44,7 @@
       </div>
     }
     @if (status === 'AWAITING_MAPPING') {
+      <div class="imports__section-heading"><h2>{{ w.importMappingStep }}</h2><p>{{ w.importMappingHint }}</p></div>
       @if (!preview()) { <button type="button" [disabled]="busy()" (click)="readSource()">{{ w.readPreview }}</button> }
       <form class="form-stack" [formGroup]="matching" (ngSubmit)="start()">
         <fieldset class="form-fields" [disabled]="busy() || !!frozenMapping() || !mayStart() || !preview()">
@@ -44,7 +53,7 @@
               <option value=",">{{ w.comma }}</option><option value=";">{{ w.semicolon }}</option>
             </select>
           </label>
-          <label class="inline-check"><input #headerFlag type="checkbox" [checked]="header()" (change)="header.set(headerFlag.checked)" /> {{ w.header }}</label>
+          <label class="imports__header-control"><input #headerFlag type="checkbox" [checked]="header()" (change)="header.set(headerFlag.checked)" /> {{ w.header }}</label>
           @for (field of fields; track field) {
             <label>{{ labels[field] }}
               <select [formControlName]="field">
@@ -67,9 +76,10 @@
     }
     @if (preview(); as frame) {
       @if (frame.rows.length) {
-        <h2>{{ w.preview }}</h2>
+        <div class="imports__preview-heading"><h2>{{ w.preview }}</h2><p>{{ w.importPreviewHint }}</p></div>
         <div class="imports__scroll" tabindex="0" role="region" [attr.aria-label]="w.preview">
           <table class="imports__preview">
+            <caption class="sr-only">{{ w.preview }}</caption>
             @if (header()) {
               <thead><tr>
                 @for (cell of frame.rows[0].slice(0, 128); track $index) { <th scope="col">{{ $index }} · {{ cell.slice(0, 180) }}</th> }
@@ -86,7 +96,17 @@
       @if (frame.invalid) { <p class="notice">{{ w.invalidCsv }}</p> }
     }
   </section>
+  <aside class="imports__sidebar" [attr.aria-label]="w.importGuide">
+    <section class="panel imports__guide">
+      <h2>{{ w.importGuide }}</h2>
+      <p>{{ w.importTemplateHint }}</p>
+      <button type="button" [disabled]="busy() || request.busy() || templateBusy()" (click)="downloadTemplate()">{{ templateBusy() ? t.loading : w.template }}</button>
+      <ul><li>{{ w.importEncodingHint }}</li><li>{{ w.importSizeHint }}</li><li>{{ w.importReferenceHint }}</li></ul>
+      <details class="imports__requirements"><summary>{{ w.importRequirements }}</summary><p>{{ w.importHint }}</p></details>
+    </section>
+  </aside>
+  </div>
 }
-@if (busy() || request.busy()) { <p role="status">{{ t.loading }}</p> }
+@if (busy() || request.busy()) { <p class="imports__progress" role="status">{{ t.loading }}</p> }
 @if (error() || request.error()) { <p class="notice" role="alert">{{ error() || request.error() }}</p> }
 </div>

@@ -1,7 +1,5 @@
 using Application.UseCases.Auth.Dto.Request;
-using Application.UseCases.Auth.Dto.Response;
 using Application.UseCases.Auth.Dto.Response.ConnectToken;
-using Application.UseCases.Auth.Dto.Response.CreateUser;
 using Application.UseCases.Auth.Dto.Response.RefreshToken;
 using Application.UseCases.Auth.Dto.Response.RevocateToken;
 
@@ -41,12 +39,5 @@ public interface IAuthUseCaseManager
     /// <summary>
     /// Проверяет сессию и право служебной операции одним чтением клиентской базы
     /// </summary>
-    /// <param name="userId">Пользователь из проверенного токена</param>
-    /// <param name="sessionId">Сессия пользователя</param>
-    /// <param name="accessVersion">Версия доступа из токена</param>
-    /// <param name="rightCode">Право операции</param>
-    /// <param name="cancellationToken">Отмена проверки</param>
-    /// <returns>Разрешение выполнить операцию</returns>
-    Task<bool> CheckSessionRightAsync(Guid userId, Guid sessionId, long accessVersion, string rightCode,
-        CancellationToken cancellationToken);
+    Task<bool> CheckSessionRightAsync(CheckSessionRequest request);
 }

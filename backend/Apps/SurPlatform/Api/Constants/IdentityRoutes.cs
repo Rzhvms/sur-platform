@@ -35,19 +35,6 @@ internal static class IdentityRoutes
     /// </summary>
     internal const string ChangePassword = "change-password";
 
-    /// <summary>
-    /// Health
-    /// </summary>
-    internal const string Health = "health";
-
-    /// <summary>
-    /// Ready
-    /// </summary>
-    internal const string Ready = "ready";
-
-    /// <summary>Проверка процесса без обращения к базе</summary>
-    internal const string Live = "live";
-
     /// <summary>Абсолютный путь проверки процесса</summary>
     internal const string LivenessPath = IdentityHttp.RootPath + Health + IdentityHttp.RootPath + Live;
 

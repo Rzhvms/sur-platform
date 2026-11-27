@@ -8,6 +8,8 @@ using Application.UseCases.Auth.interfaces;
 using Application.UseCases.Users;
 using Application.UseCases.Users.Interfaces;
 using Application.Services.Authentication;
+using Application.UseCases.System;
+using Application.UseCases.System.Interfaces;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Application;
@@ -35,5 +37,6 @@ public static class ApplicationProviderBuilderExtensions
         services.AddScoped<ReviewUseCaseManager>();
         services.AddScoped<TreatmentUseCaseManager>();
         services.AddScoped<IUserUseCaseManager, UserUseCaseManager>();
+        services.AddScoped<ISystemUseCaseManager, SystemUseCaseManager>();
     }
 }

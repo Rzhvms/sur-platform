@@ -13,43 +13,81 @@ namespace Api.Authentication;
 /// <summary>
 /// Проверяет служебное удостоверение для выбранной клиентской базы
 /// </summary>
-/// <param name="options">Настройки схемы аутентификации</param>
-/// <param name="logger">Фабрика журналов веб-хоста</param>
-/// <param name="encoder">Кодировщик HTTP-ответов</param>
-/// <param name="database">Клиентский контекст запроса</param>
-/// <param name="configuration">Ключи служебных вызывающих</param>
-internal sealed class InternalAuthenticationHandler(
-    IOptionsMonitor<AuthenticationSchemeOptions> options,
-    ILoggerFactory logger,
-    UrlEncoder encoder,
-    ClientDatabaseContext database,
-    IConfiguration configuration) : AuthenticationHandler<AuthenticationSchemeOptions>(options, logger, encoder)
+internal sealed class InternalAuthenticationHandler : AuthenticationHandler<AuthenticationSchemeOptions>
 {
-    /// <summary>
-    /// Секция с ключами по каноническим хостам клиентов
-    /// </summary>
-    private const string InternalKeysSection = "Identity:InternalKeys";
-
-    /// <summary>
-    /// Причина отказа без реквизитов и сведений о настройках клиента
-    /// </summary>
-    private const string InvalidCredentials = "Служебное удостоверение отклонено";
+    private readonly ClientDatabaseContext _database;
+    private readonly IConfiguration _configuration;
+    
+    ///
+    public InternalAuthenticationHandler(
+        IOptionsMonitor<AuthenticationSchemeOptions> options, ILoggerFactory logger,
+        UrlEncoder encoder,
+        ClientDatabaseContext database,
+        IConfiguration configuration)
+        : base(options, logger, encoder)
+    {
+        _database = database;
+        _configuration = configuration;
+    }
 
     /// <inheritdoc/>
     protected override Task<AuthenticateResult> HandleAuthenticateAsync()
     {
-        var expected = configuration.GetSection(InternalKeysSection)[database.Client.Host];
-        if (string.IsNullOrWhiteSpace(expected) ||
-            !AuthenticationHeaderValue.TryParse(Request.Headers.Authorization.ToString(), out var credential) ||
-            !string.Equals(credential.Scheme, SystemRequestHttpHandler.AuthenticationScheme, StringComparison.OrdinalIgnoreCase) ||
-            credential.Parameter is not { } key ||
-            !CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(expected), Encoding.UTF8.GetBytes(key)))
+        if (!TryReadKey(out var key))
         {
-            return Task.FromResult(AuthenticateResult.Fail(InvalidCredentials));
+            return Task.FromResult(AuthenticateResult.Fail("Служебное удостоверение отклонено"));
+        }
+
+        var expected = _configuration.GetSection("Identity:InternalKeys")[_database.Client.Host];
+
+        if (string.IsNullOrWhiteSpace(expected) || !KeysMatch(expected, key))
+        {
+            return Task.FromResult(AuthenticateResult.Fail("Служебное удостоверение отклонено"));
         }
 
         var identity = new ClaimsIdentity(authenticationType: Scheme.Name);
-        var ticket = new AuthenticationTicket(new ClaimsPrincipal(identity), Scheme.Name);
+        var principal = new ClaimsPrincipal(identity);
+        var ticket = new AuthenticationTicket(principal, Scheme.Name);
+
         return Task.FromResult(AuthenticateResult.Success(ticket));
+    }
+
+    /// <summary>
+    /// Извлекает ключ из заголовка с поддерживаемой схемой аутентификации
+    /// </summary>
+    private bool TryReadKey(out string key)
+    {
+        key = string.Empty;
+
+        if (!AuthenticationHeaderValue.TryParse(Request.Headers.Authorization.ToString(), out var credential))
+        {
+            return false;
+        }
+
+        if (!string.Equals(credential.Scheme, SystemRequestHttpHandler.AuthenticationScheme, StringComparison.OrdinalIgnoreCase))
+        {
+            return false;
+        }
+
+        if (credential.Parameter is not { } parameter)
+        {
+            return false;
+        }
+
+        key = parameter;
+        return true;
+    }
+
+    /// <summary>
+    /// Сравнивает ключи с использованием криптографического сравнения
+    /// </summary>
+    private static bool KeysMatch(string expected, string provided)
+    {
+        var expectedBytes = Encoding.UTF8.GetBytes(expected);
+        var providedBytes = Encoding.UTF8.GetBytes(provided);
+
+        return CryptographicOperations.FixedTimeEquals(
+            expectedBytes,
+            providedBytes);
     }
 }
