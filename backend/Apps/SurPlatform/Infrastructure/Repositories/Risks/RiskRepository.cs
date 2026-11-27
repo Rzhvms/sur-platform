@@ -19,6 +19,11 @@ using Infrastructure.Repositories.Shared;
 using Infrastructure.Repositories.Treatments.Interfaces;
 using System.Data;
 using System.Text.Json;
+using Domain.DalModels.Assessments;
+using Domain.DalModels.Organization;
+using Domain.DalModels.Risks;
+using Domain.DalModels.Roles;
+using Domain.DalModels.Users;
 
 namespace Infrastructure.Repositories.Risks;
 

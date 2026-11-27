@@ -15,6 +15,9 @@ using Infrastructure.Repositories.Risks.Interfaces;
 using Infrastructure.Repositories.Sessions.Interfaces;
 using Infrastructure.Repositories.Shared;
 using System.Data;
+using Domain.DalModels.Assessments;
+using Domain.DalModels.Organization;
+using Domain.DalModels.Risks;
 
 namespace Infrastructure.Repositories.Assessments;
 

@@ -10,6 +10,7 @@ using Domain.DalModels;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Text.Json;
+using Domain.DalModels.History;
 
 namespace Api.Controllers.Provider.Risks;
 

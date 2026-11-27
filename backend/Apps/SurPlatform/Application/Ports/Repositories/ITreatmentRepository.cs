@@ -5,6 +5,8 @@ using Application.Constants;
 using Application.Models;
 using Application.UseCases.Risks.Dto;
 using Domain.DalModels;
+using Domain.DalModels.Risks;
+using Domain.DalModels.Treatments;
 
 namespace Application.Ports.Repositories;
 

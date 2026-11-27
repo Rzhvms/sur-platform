@@ -8,6 +8,7 @@ using Application.UseCases.Jira;
 using Application.UseCases.Jira.Dto.Request;
 using Core.Api.Controllers.ControllerTypes;
 using Domain.DalModels;
+using Domain.DalModels.Jira;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 

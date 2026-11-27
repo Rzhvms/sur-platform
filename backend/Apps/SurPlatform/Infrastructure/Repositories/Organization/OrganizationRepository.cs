@@ -5,6 +5,7 @@ using Application.Ports.Repositories;
 using Core.Database.DapperExtensions.EntityMapper;
 using Dapper;
 using Domain.DalModels;
+using Domain.DalModels.Organization;
 using Infrastructure.Repositories.Identity;
 using Npgsql;
 using Infrastructure.Repositories.Organization.Interfaces;

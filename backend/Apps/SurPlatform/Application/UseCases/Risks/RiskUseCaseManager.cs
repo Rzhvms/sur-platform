@@ -6,6 +6,10 @@ using Application.Models;
 using Application.UseCases.Risks.Dto;
 using Domain.DalModels;
 using Application.Ports.Repositories;
+using Domain.DalModels.Assessments;
+using Domain.DalModels.History;
+using Domain.DalModels.Organization;
+using Domain.DalModels.Risks;
 
 namespace Application.UseCases.Risks;
 

@@ -7,6 +7,11 @@ using DocumentFormat.OpenXml;
 using DocumentFormat.OpenXml.Packaging;
 using DocumentFormat.OpenXml.Spreadsheet;
 using Domain.DalModels;
+using Domain.DalModels.Assessments;
+using Domain.DalModels.Documents;
+using Domain.DalModels.Organization;
+using Domain.DalModels.Risks;
+using Domain.DalModels.Treatments;
 
 namespace Infrastructure.Services.Documents;
 

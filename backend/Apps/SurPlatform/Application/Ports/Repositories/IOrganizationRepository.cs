@@ -1,6 +1,7 @@
 using Application.Models;
 using Application.UseCases.Organization.Dto.Request;
 using Domain.DalModels;
+using Domain.DalModels.Organization;
 
 namespace Application.Ports.Repositories;
 

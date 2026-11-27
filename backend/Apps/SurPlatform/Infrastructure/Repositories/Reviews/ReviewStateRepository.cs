@@ -15,6 +15,10 @@ using Infrastructure.Repositories.Shared;
 using System.Data;
 using System.Security.Cryptography;
 using System.Text;
+using Domain.DalModels.Assessments;
+using Domain.DalModels.Reviews;
+using Domain.DalModels.Risks;
+using Domain.DalModels.Users;
 
 namespace Infrastructure.Repositories.Reviews;
 

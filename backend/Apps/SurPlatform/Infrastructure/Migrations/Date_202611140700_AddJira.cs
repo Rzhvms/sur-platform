@@ -1,5 +1,7 @@
 using Core.Database.DapperExtensions.EntityMapper;
 using Domain.DalModels;
+using Domain.DalModels.Jira;
+using Domain.DalModels.Treatments;
 using FluentMigrator;
 
 namespace Infrastructure.Migrations;

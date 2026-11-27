@@ -3,6 +3,7 @@ using Application.Exceptions;
 using Application.Models;
 using Application.UseCases.Risks.Dto.Request;
 using Domain.DalModels;
+using Domain.DalModels.Assessments;
 
 namespace Infrastructure.Repositories.Assessments.Helpers;
 

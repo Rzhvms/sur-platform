@@ -6,6 +6,9 @@ using Application.Models;
 using System.Data;
 using Application.Ports.Repositories;
 using Dapper;
+using Domain.DalModels.Rights;
+using Domain.DalModels.Roles;
+using Domain.DalModels.Users;
 
 namespace Infrastructure.Repositories.RoleSystem;
 

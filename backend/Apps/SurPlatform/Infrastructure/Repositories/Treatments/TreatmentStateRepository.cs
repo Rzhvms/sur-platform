@@ -15,6 +15,11 @@ using Infrastructure.Repositories.Shared;
 using Infrastructure.Repositories.Treatments.Interfaces;
 using Npgsql;
 using System.Data;
+using Domain.DalModels.Organization;
+using Domain.DalModels.Risks;
+using Domain.DalModels.Roles;
+using Domain.DalModels.Treatments;
+using Domain.DalModels.Users;
 
 namespace Infrastructure.Repositories.Treatments;
 

@@ -2,6 +2,7 @@ using Application.Constants;
 using Application.Exceptions;
 using Application.UseCases.Risks.Dto.Request;
 using Domain.DalModels;
+using Domain.DalModels.Reviews;
 
 namespace Infrastructure.Repositories.Reviews.Helpers;
 

@@ -1,6 +1,8 @@
 using System.Data;
 using Application.Models;
 using Domain.DalModels;
+using Domain.DalModels.Jira;
+using Domain.DalModels.Treatments;
 
 namespace Infrastructure.Repositories.Jira.Interfaces;
 

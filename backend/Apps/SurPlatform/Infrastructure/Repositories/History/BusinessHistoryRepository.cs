@@ -13,6 +13,7 @@ using Infrastructure.Repositories.Sessions.Interfaces;
 using Infrastructure.Repositories.Shared;
 using System.Data;
 using System.Text.Json;
+using Domain.DalModels.History;
 
 namespace Infrastructure.Repositories.History;
 

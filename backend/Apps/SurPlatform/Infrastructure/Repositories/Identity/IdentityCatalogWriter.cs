@@ -4,6 +4,8 @@ using Application.Exceptions;
 using Core.Database.DapperExtensions.EntityMapper;
 using Dapper;
 using Domain.DalModels;
+using Domain.DalModels.Rights;
+using Domain.DalModels.Roles;
 using Infrastructure.Constants;
 using Npgsql;
 

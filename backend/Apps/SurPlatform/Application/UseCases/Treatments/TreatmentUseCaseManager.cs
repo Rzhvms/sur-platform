@@ -2,6 +2,8 @@ using Application.Models;
 using Application.Ports.Repositories;
 using Application.UseCases.Treatments.Dto.Request;
 using Domain.DalModels;
+using Domain.DalModels.Risks;
+using Domain.DalModels.Treatments;
 
 namespace Application.UseCases.Treatments;
 

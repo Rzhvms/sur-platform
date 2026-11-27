@@ -1,5 +1,6 @@
 using Domain.DalModels;
 using Application.Models;
+using Domain.DalModels.Sessions;
 
 namespace Application.Ports.Repositories;
 

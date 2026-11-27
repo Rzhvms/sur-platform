@@ -5,6 +5,10 @@ using Application.Exceptions;
 using Core.Database.DapperExtensions.EntityMapper;
 using Dapper;
 using Domain.DalModels;
+using Domain.DalModels.Organization;
+using Domain.DalModels.Roles;
+using Domain.DalModels.Treatments;
+using Domain.DalModels.Users;
 
 namespace Infrastructure.Repositories.Organization;
 

@@ -17,6 +17,8 @@ using System.Data;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text;
+using Domain.DalModels.Jira;
+using Domain.DalModels.Treatments;
 
 namespace Infrastructure.Repositories.Jira;
 

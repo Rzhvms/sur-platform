@@ -1,6 +1,8 @@
 using Application.Models;
 using Application.UseCases.Risks.Dto.Request;
 using Domain.DalModels;
+using Domain.DalModels.Reviews;
+using Domain.DalModels.Risks;
 
 namespace Application.Ports.Repositories;
 

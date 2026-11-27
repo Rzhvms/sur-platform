@@ -1,6 +1,8 @@
 using System.Data;
 using Application.Models;
 using Domain.DalModels;
+using Domain.DalModels.Assessments;
+using Domain.DalModels.Risks;
 
 namespace Infrastructure.Repositories.Assessments.Interfaces;
 

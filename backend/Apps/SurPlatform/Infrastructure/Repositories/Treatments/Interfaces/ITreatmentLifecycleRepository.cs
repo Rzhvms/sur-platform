@@ -1,5 +1,6 @@
 using System.Data;
 using Domain.DalModels;
+using Domain.DalModels.Treatments;
 
 namespace Infrastructure.Repositories.Treatments.Interfaces;
 

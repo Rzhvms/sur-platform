@@ -6,6 +6,7 @@ using Application.Constants;
 using Application.UseCases.Organization;
 using Core.Api.Controllers.ControllerTypes;
 using Core.Api.Extensions;
+using Domain.DalModels.Organization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace Api.Controllers.Provider.Organization;

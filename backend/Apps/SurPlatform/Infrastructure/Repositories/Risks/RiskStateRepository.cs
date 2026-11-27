@@ -21,6 +21,10 @@ using Infrastructure.Services.Jira;
 using Microsoft.AspNetCore.DataProtection;
 using Microsoft.Extensions.Configuration;
 using System.Data;
+using Domain.DalModels.Assessments;
+using Domain.DalModels.Organization;
+using Domain.DalModels.Risks;
+using Domain.DalModels.Users;
 
 namespace Infrastructure.Repositories.Risks;
 

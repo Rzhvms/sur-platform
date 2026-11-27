@@ -4,6 +4,7 @@ using Application.Models;
 using Application.Ports.Repositories;
 using Application.Settings;
 using Domain.DalModels;
+using Domain.DalModels.Sessions;
 using Microsoft.IdentityModel.Tokens;
 
 namespace Application.Services.Authentication;

@@ -2,6 +2,9 @@ using System.Data;
 using Application.Models;
 using Application.UseCases.Risks.Dto;
 using Domain.DalModels;
+using Domain.DalModels.Assessments;
+using Domain.DalModels.Organization;
+using Domain.DalModels.Risks;
 
 namespace Infrastructure.Repositories.Risks.Interfaces;
 

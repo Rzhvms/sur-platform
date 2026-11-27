@@ -14,6 +14,8 @@ using Infrastructure.Repositories.Shared;
 using Infrastructure.Repositories.Treatments.Interfaces;
 using Npgsql;
 using System.Data;
+using Domain.DalModels.Risks;
+using Domain.DalModels.Treatments;
 
 namespace Infrastructure.Repositories.Treatments;
 

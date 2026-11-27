@@ -6,6 +6,7 @@ using System.Text.Json;
 using Application.Constants;
 using Application.Exceptions;
 using Domain.DalModels;
+using Domain.DalModels.Treatments;
 using Microsoft.Extensions.Configuration;
 
 namespace Infrastructure.Services.Jira;

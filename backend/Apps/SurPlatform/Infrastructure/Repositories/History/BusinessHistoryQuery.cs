@@ -5,6 +5,7 @@ using Application.Models;
 using Application.UseCases.Risks.Dto;
 using Core.Database.DapperExtensions.EntityMapper;
 using Domain.DalModels;
+using Domain.DalModels.History;
 
 namespace Infrastructure.Repositories.History;
 

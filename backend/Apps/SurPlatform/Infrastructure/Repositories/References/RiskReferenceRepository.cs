@@ -12,6 +12,7 @@ using Infrastructure.Repositories.Sessions.Interfaces;
 using Infrastructure.Repositories.Shared;
 using Npgsql;
 using System.Data;
+using Domain.DalModels.Risks;
 
 namespace Infrastructure.Repositories.References;
 

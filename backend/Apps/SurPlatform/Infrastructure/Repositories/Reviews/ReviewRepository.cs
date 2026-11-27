@@ -20,6 +20,8 @@ using Npgsql;
 using System.Data;
 using System.Security.Cryptography;
 using System.Text;
+using Domain.DalModels.Reviews;
+using Domain.DalModels.Risks;
 
 namespace Infrastructure.Repositories.Reviews;
 

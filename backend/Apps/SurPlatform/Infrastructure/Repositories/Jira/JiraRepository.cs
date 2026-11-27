@@ -25,6 +25,11 @@ using System.Data;
 using System.Security.Cryptography;
 using System.Text.Json;
 using System.Text;
+using Domain.DalModels.Jira;
+using Domain.DalModels.Organization;
+using Domain.DalModels.Risks;
+using Domain.DalModels.Treatments;
+using Domain.DalModels.Users;
 
 namespace Infrastructure.Repositories.Jira;
 

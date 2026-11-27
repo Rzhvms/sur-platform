@@ -7,6 +7,8 @@ using Application.UseCases.Risks.Dto.Request;
 using Core.Database.DapperExtensions.EntityMapper;
 using Dapper;
 using Domain.DalModels;
+using Domain.DalModels.Assessments;
+using Domain.DalModels.Risks;
 using Infrastructure.Repositories.Demo.Interfaces;
 using Infrastructure.Repositories.Demo.Models;
 

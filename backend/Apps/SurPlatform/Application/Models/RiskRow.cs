@@ -1,4 +1,6 @@
 using Domain.DalModels;
+using Domain.DalModels.Assessments;
+using Domain.DalModels.Risks;
 
 namespace Application.Models;
 

@@ -6,6 +6,7 @@ using Application.UseCases.Organization.Dto.Request;
 using Core.Database.DapperExtensions.EntityMapper;
 using Dapper;
 using Domain.DalModels;
+using Domain.DalModels.Organization;
 using Infrastructure.Repositories.Identity;
 using Npgsql;
 

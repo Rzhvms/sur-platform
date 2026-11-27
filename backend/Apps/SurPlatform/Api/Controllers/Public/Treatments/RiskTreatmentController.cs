@@ -7,6 +7,8 @@ using Application.UseCases.Treatments;
 using Application.UseCases.Treatments.Dto.Request;
 using Core.Api.Controllers.ControllerTypes;
 using Domain.DalModels;
+using Domain.DalModels.Risks;
+using Domain.DalModels.Treatments;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 

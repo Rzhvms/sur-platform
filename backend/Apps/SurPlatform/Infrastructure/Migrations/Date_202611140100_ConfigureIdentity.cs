@@ -5,6 +5,10 @@ using Application.Constants;
 using Application.Helpers.Encryption;
 using Core.Database.DapperExtensions.EntityMapper;
 using Domain.DalModels;
+using Domain.DalModels.Rights;
+using Domain.DalModels.Roles;
+using Domain.DalModels.Sessions;
+using Domain.DalModels.Users;
 using FluentMigrator;
 
 namespace Infrastructure.Migrations;

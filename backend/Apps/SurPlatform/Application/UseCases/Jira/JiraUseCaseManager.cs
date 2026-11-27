@@ -4,6 +4,7 @@ using Application.UseCases.Jira.Dto.Request;
 using Domain.DalModels;
 
 using Application.Ports.Repositories;
+using Domain.DalModels.Jira;
 
 namespace Application.UseCases.Jira;
 

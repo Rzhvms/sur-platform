@@ -11,6 +11,8 @@ using Infrastructure.Repositories.Assessments.Interfaces;
 using Infrastructure.Repositories.Sessions.Interfaces;
 using Infrastructure.Repositories.Shared;
 using System.Data;
+using Domain.DalModels.Assessments;
+using Domain.DalModels.Risks;
 
 namespace Infrastructure.Repositories.Assessments;
 
