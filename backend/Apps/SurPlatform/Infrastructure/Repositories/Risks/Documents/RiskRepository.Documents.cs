@@ -11,7 +11,9 @@ using Domain.DalModels;
 
 namespace Infrastructure.Repositories.Risks;
 
-/// <summary>Авторизация и жизненный цикл клиентских файловых заданий</summary>
+/// <summary>
+/// Авторизация и жизненный цикл клиентских файловых заданий
+/// </summary>
 internal sealed partial class RiskRepository
 {
     /// <inheritdoc/>

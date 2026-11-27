@@ -8,15 +8,13 @@ using Microsoft.AspNetCore.Mvc;
 
 namespace Api.Controllers.Provider.Documents;
 
-/// <summary>Документы административной истории</summary>
-/// <param name="useCases">Прикладные операции документов</param>
+/// <summary>
+/// Документы административной истории
+/// </summary>
 [Authorize]
-[Route(HistoryRoute)]
+[Route("documents/history")]
 public sealed class HistoryDocumentsController(DocumentUseCaseManager useCases) : BaseProviderController
 {
-    /// <summary>Новый контракт формирования JSON по устойчивому ключу</summary>
-    private const string HistoryRoute = "documents/history";
-
     /// <summary>Регистрирует согласованный административный снимок</summary>
     /// <param name="request">Ключ операции и включительный диапазон UTC</param>
     /// <returns>Состояние задания JSON</returns>

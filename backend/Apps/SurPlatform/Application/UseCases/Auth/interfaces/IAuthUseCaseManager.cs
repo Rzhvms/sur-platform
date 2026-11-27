@@ -21,11 +21,6 @@ public interface IAuthUseCaseManager
     Task<RevocateTokenResponse> RevocateRefreshTokenAsync(Guid userId, Guid sessionId);
 
     /// <summary>
-    /// Проверка действительности сессии из access-токена
-    /// </summary>
-    Task<bool> IsSessionActiveAsync(Guid userId, Guid sessionId, CancellationToken cancellationToken, long accessVersion);
-
-    /// <summary>
     /// Обновление токена
     /// </summary>
     Task<RefreshTokenResponse> RefreshTokenAsync(RefreshTokenRequest request);
@@ -35,9 +30,4 @@ public interface IAuthUseCaseManager
     /// </summary>
     /// <param name="refreshToken">Секрет текущего браузера</param>
     Task RevokeBrowserSessionAsync(string refreshToken);
-
-    /// <summary>
-    /// Проверяет сессию и право служебной операции одним чтением клиентской базы
-    /// </summary>
-    Task<bool> CheckSessionRightAsync(CheckSessionRequest request);
 }
