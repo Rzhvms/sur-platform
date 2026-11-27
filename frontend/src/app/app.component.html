@@ -44,23 +44,6 @@
         </div>
       </dialog>
     }
-    <main #main id="main" tabindex="-1" [class.auth-layout]="login() || (!demo() && !release.ready())">
-      @if (demo() || release.ready()) {
-        <router-outlet />
-      } @else {
-        <section class="release-card" role="status" aria-live="polite">
-          <div class="brand__mark release-card__mark" aria-hidden="true">{{ t.brand }}</div>
-          @if (release.busy() && !release.message()) {
-            <span class="spinner" aria-hidden="true"></span>
-            <p class="muted">{{ t.loading }}</p>
-          } @else {
-            <h1>{{ r.heading }}</h1>
-            <p>{{ release.message() }}</p>
-            <div class="release-card__actions">
-              <button class="button--primary" type="button" [disabled]="release.busy()" (click)="release.check()">{{ r.retry }}</button>
-              <button class="release-card__secondary" type="button" (click)="reloadApplication()">{{ r.refresh }}</button>
-            </div>
-          }
-        </section>
-      }
+    <main #main id="main" tabindex="-1" [class.auth-layout]="login()">
+      <router-outlet />
     </main>

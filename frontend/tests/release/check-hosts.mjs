@@ -60,14 +60,7 @@ for (let tenant = 0; tenant < origins.length; tenant++) {
     const response = await get(origin, '/api/v1/internal/sessions');
     return response.status === 404 && !response.body.includes('<sur-root');
   });
-  await check('tenant-' + tenant + ':matching-release', async () => {
-    const [api, spa] = await Promise.all([get(origin, '/health/release'), get(origin, '/release.json')]);
-    if (api.status !== 200 || spa.status !== 200) { return false; }
-    const deployed = JSON.parse(api.body);
-    const built = JSON.parse(spa.body);
-    return deployed.contractVersion === built.contractVersion && deployed.version === built.apiVersion &&
-      deployed.revision === built.apiRevision && /^[a-f0-9]{64}$/.test(built.openApiSha256);
-  });
+
 }
 if (tokenA && tokenB && riskId && /^[a-f0-9-]{36}$/i.test(riskId)) {
   await check('matching-ids-own-data', async () => {

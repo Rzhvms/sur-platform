@@ -9,7 +9,7 @@ function defineProxy(origin, caPath, readFile) {
   }
   const agent = caPath ? new Agent({ ca: readFile(caPath), rejectUnauthorized: true }) : undefined;
   return {
-    '^/(?:api/v1(?:/|[?]|$)|health/release(?:[?]|$))': {
+    '^/api/v1(?:/|[?]|$)': {
       target: target.origin,
       changeOrigin: true,
       secure: true,
@@ -26,7 +26,7 @@ function defineProxy(origin, caPath, readFile) {
       bypass(request) {
         // Administrative browser endpoints use /provider; internal endpoints are never proxied.
         const pathname = request.url?.split('?')[0] ?? '';
-        const allowed = pathname === '/health/release' || /^\/api\/v1\/(public|provider)(\/|$)/.test(pathname);
+        const allowed = /^\/api\/v1\/(public|provider)(\/|$)/.test(pathname);
         if (!allowed ||
             /(?:%|\\|\/\.{1,2}(?:\/|$))/.test(pathname)) {
           return false;

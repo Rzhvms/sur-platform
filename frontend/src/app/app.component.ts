@@ -5,8 +5,6 @@ import { filter, finalize } from 'rxjs';
 import { canOpen, sections } from './core/auth/access';
 import { SessionService } from './core/auth/session.service';
 import { internalDestination } from './core/auth/session-policy';
-import { ReleaseService } from './core/release/release.service';
-import { releaseText } from './core/release/release-policy';
 import { UiTimingService } from './core/release/ui-timing.service';
 import { text } from './shared/text';
 
@@ -18,8 +16,6 @@ import { text } from './shared/text';
 })
 export class AppComponent {
   protected readonly t = text;
-  protected readonly r = releaseText;
-  protected readonly release = inject(ReleaseService);
   protected readonly session = inject(SessionService);
   protected readonly demo = signal(false);
   protected readonly login = signal(false);
@@ -33,7 +29,6 @@ export class AppComponent {
   private readonly destroyRef = inject(DestroyRef);
 
   constructor() {
-    this.release.check();
     this.router.events.pipe(
       filter((event): event is NavigationEnd => event instanceof NavigationEnd),
       takeUntilDestroyed(this.destroyRef),
@@ -109,10 +104,6 @@ export class AppComponent {
         event.clientY < bounds.top || event.clientY > bounds.bottom) {
       this.closeMenu();
     }
-  }
-
-  protected reloadApplication(): void {
-    window.location.reload();
   }
 
   protected skipToMain(event: Event, main: HTMLElement): void {

@@ -51,15 +51,11 @@ test('requires a canonical DNS HTTPS origin and validates TLS with the configure
 });
 
 
-test('proxies only the exact release endpoint alongside browser API routes', () => {
+test('does not proxy service health endpoints', () => {
   const config = defineProxy('https://localhost:7224', undefined);
   const matcher = new RegExp(Object.keys(config)[0]);
   const proxy = first(config);
-  for (const url of ['/health/release', '/health/release?probe=1']) {
-    assert.equal(matcher.test(url), true);
-    assert.equal(proxy.bypass({ url }), undefined);
-  }
-  for (const url of ['/health/release/private', '/health/live', '/health/release/../internal']) {
+  for (const url of ['/health/release', '/health/release?probe=1', '/health/live', '/health/ready']) {
     assert.equal(matcher.test(url), false);
     assert.equal(proxy.bypass({ url }), false);
   }
